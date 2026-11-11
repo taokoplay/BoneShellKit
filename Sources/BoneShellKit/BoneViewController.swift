@@ -4,6 +4,18 @@ import UIKit
 open class BoneViewController: UIViewController {
     public let contentView = UIView()
     public let backgroundView = ShellBackgroundView()
+    public var resolvedBarPresentation: ShellBarPresentation {
+        screenConfiguration.barPresentation
+            ?? (navigationController as? BoneNavigationController)?.barPresentation
+            ?? (tabBarController as? BoneTabBarController)?.barPresentation
+            ?? .system
+    }
+
+    @available(iOS 27.1, *)
+    open override var preferredVerticalBarBehavior: UIVerticalBarBehavior {
+        resolvedBarPresentation == .classic ? .disabled : .automatic
+    }
+
     public var usesUnifiedBackground: Bool {
         screenConfiguration.backgroundComposition == .unified && (screenConfiguration.background.map { !$0.source.isEmpty } ?? false)
     }
@@ -381,6 +393,8 @@ open class BoneViewController: UIViewController {
         navigationItem.leftBarButtonItems = leftItems.isEmpty ? nil : leftItems
         // UIKit places the first right item at the outer edge; preserve visual input order.
         navigationItem.rightBarButtonItems = rightItems.isEmpty ? nil : Array(rightItems.reversed())
+        (navigationController as? BoneNavigationController)?.refreshBarPresentation()
+        if #available(iOS 27.1, *) { setNeedsUpdateOfVerticalBarConfiguration() }
     }
 
     private func systemBackTitle() -> String? {

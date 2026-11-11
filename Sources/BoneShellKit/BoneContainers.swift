@@ -2,6 +2,121 @@ import UIKit
 
 @MainActor
 open class BoneNavigationController: UINavigationController {
+    /// Nil inherits the containing tab controller; system is the standalone default.
+    public var barPresentation: ShellBarPresentation? {
+        didSet { refreshCurrentBackground() }
+    }
+    public var resolvedBarPresentation: ShellBarPresentation {
+        ShellBarBackgroundHost.topScreen(in: topViewController)?.screenConfiguration.barPresentation
+            ?? barPresentation ?? (tabBarController as? BoneTabBarController)?.barPresentation ?? .system
+    }
+    public var classicNavigationBarView: UIView? {
+        resolvedBarPresentation == .classic ? classicNavigationBar : nil
+    }
+    private var classicNavigationBar: ShellClassicNavigationBar?
+    private var originalNavigationBarAlpha: CGFloat?
+    private var originalNavigationBarAccessibilityHidden = false
+    private var layingOutClassicNavigationBar = false
+    @MainActor private final class ClassicNavigationInset {
+        weak var controller: UIViewController?
+        var contribution: CGFloat = 0
+        init(_ controller: UIViewController) { self.controller = controller }
+        func restore() {
+            guard let controller = controller, contribution != 0 else { return }
+            var insets = controller.additionalSafeAreaInsets
+            insets.top -= contribution
+            contribution = 0
+            controller.additionalSafeAreaInsets = insets
+        }
+    }
+    private var classicNavigationInsets: [ObjectIdentifier: ClassicNavigationInset] = [:]
+    private var updatingBarPresentation = false
+    private var backgroundNavigationSurface: UIView {
+        if resolvedBarPresentation == .classic, let bar = classicNavigationBar { return bar }
+        return navigationBar
+    }
+
+    internal func refreshBarPresentation() {
+        guard isViewLoaded, !updatingBarPresentation else { return }
+        updatingBarPresentation = true
+        defer { updatingBarPresentation = false }
+        if resolvedBarPresentation == .classic {
+            if originalNavigationBarAlpha == nil {
+                originalNavigationBarAlpha = navigationBar.alpha
+                originalNavigationBarAccessibilityHidden = navigationBar.accessibilityElementsHidden
+            }
+            if classicNavigationBar == nil {
+                let bar = ShellClassicNavigationBar()
+                bar.onBack = { [weak self] in self?.popViewController(animated: true) }
+                classicNavigationBar = bar
+            }
+            navigationBar.alpha = 0
+            navigationBar.accessibilityElementsHidden = true
+            let page = ShellBarBackgroundHost.topScreen(in: topViewController)
+            let configuration = page?.screenConfiguration.navigation
+            let background = configuration?.background ?? backgroundConfiguration
+            let media = page?.usesUnifiedBackground == true || (background.map { !$0.source.isEmpty } ?? false)
+            let item = topViewController?.navigationItem
+            classicNavigationBar?.tintColor = navigationBar.tintColor
+            classicNavigationBar?.update(title: configuration?.title ?? item?.title ?? topViewController?.title ?? "",
+                subtitle: configuration?.subtitle, largeTitle: configuration?.usesLargeTitle ?? false,
+                showsBack: viewControllers.count > 1 && item?.hidesBackButton != true,
+                leadingItems: item?.leftBarButtonItems ?? [], trailingItems: item?.rightBarButtonItems ?? [],
+                style: configuration?.style ?? navigationStyle, material: configuration?.material ?? .automatic,
+                showsMediaBackground: media)
+            layoutClassicNavigationBar()
+        } else {
+            if let alpha = originalNavigationBarAlpha {
+                navigationBar.alpha = alpha
+                navigationBar.accessibilityElementsHidden = originalNavigationBarAccessibilityHidden
+                originalNavigationBarAlpha = nil
+            }
+            classicNavigationBar?.isHidden = true
+            classicNavigationBar?.removeFromSuperview()
+            for inset in classicNavigationInsets.values { inset.restore() }
+            classicNavigationInsets.removeAll()
+        }
+        if #available(iOS 27.1, *) { setNeedsUpdateOfVerticalBarConfiguration() }
+    }
+
+    private func layoutClassicNavigationBar() {
+        guard resolvedBarPresentation == .classic, let bar = classicNavigationBar,
+              let parent = navigationBar.superview, !layingOutClassicNavigationBar else { return }
+        layingOutClassicNavigationBar = true
+        defer { layingOutClassicNavigationBar = false }
+        navigationBar.alpha = 0
+        var frame = navigationBar.convert(navigationBar.bounds, to: parent)
+        let containerFrame = navigationBar.convert(navigationBar.bounds, to: view)
+        let top = max(0, min(view.safeAreaInsets.top, containerFrame.minY - view.bounds.minY))
+        frame.origin.y -= top
+        frame.size.height += top
+        bar.topInset = top
+        if bar.superview !== parent { parent.insertSubview(bar, aboveSubview: navigationBar) }
+        if bar.frame != frame { bar.frame = frame }
+        bar.isHidden = isNavigationBarHidden || navigationBar.isHidden
+        if let page = topViewController, page.isViewLoaded {
+            classicNavigationInsets = classicNavigationInsets.filter { $0.value.controller != nil }
+            let id = ObjectIdentifier(page)
+            let inset = classicNavigationInsets[id] ?? ClassicNavigationInset(page)
+            classicNavigationInsets[id] = inset
+            let headerBottom = bar.convert(bar.bounds, to: page.view).maxY - page.view.bounds.minY
+            let parentSafeTop = view.convert(CGPoint(x: view.bounds.minX,
+                y: view.bounds.minY + view.safeAreaInsets.top), to: page.view).y - page.view.bounds.minY
+            let desired: CGFloat = bar.isHidden ? 0 : max(0, headerBottom - max(0, parentSafeTop))
+            if abs(desired - inset.contribution) > 0.1 {
+                var safe = page.additionalSafeAreaInsets
+                safe.top += desired - inset.contribution
+                inset.contribution = desired
+                page.additionalSafeAreaInsets = safe
+            }
+        }
+        parent.bringSubviewToFront(bar)
+    }
+
+    @available(iOS 27.1, *)
+    open override var childForPreferredVerticalBarBehavior: UIViewController? { topViewController }
+
+
     internal var shellUnifiedBackgroundHost: ShellUnifiedBackgroundHost?
     public var unifiedBackgroundView: ShellBackgroundView? {
         guard let host = shellUnifiedBackgroundHost, host.view.configuration != nil else { return nil }
@@ -67,7 +182,8 @@ open class BoneNavigationController: UINavigationController {
     }
     open override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        backgroundHost?.layout(in: navigationBar)
+        layoutClassicNavigationBar()
+        backgroundHost?.layout(in: backgroundNavigationSurface)
         shellUnifiedBackgroundHost?.layout()
     }
     open override func pushViewController(_ viewController: UIViewController, animated: Bool) {
@@ -115,11 +231,12 @@ open class BoneNavigationController: UINavigationController {
         guard isViewLoaded else { return }
         let configuration = override ?? backgroundConfiguration
         let enabled = !unifiedBackground && (configuration.map { !$0.source.isEmpty } ?? false)
+        refreshBarPresentation()
         if enabled, backgroundHost == nil {
             backgroundHost = ShellBarBackgroundHost(bar: navigationBar, container: view, priority: 20, extendsToStatusArea: true)
             backgroundHost?.view.accessibilityIdentifier = "shell.background.navigation"
         }
-        backgroundHost?.layout(in: navigationBar)
+        backgroundHost?.layout(in: backgroundNavigationSurface)
         backgroundHost?.view.apply(enabled ? configuration : nil)
         backgroundHost?.view.setPlaybackActive(playbackActive && enabled)
         if !(topViewController is BoneViewController), let top = topViewController {
@@ -170,6 +287,133 @@ public struct ShellTab {
 
 @MainActor
 open class BoneTabBarController: UITabBarController {
+    public var barPresentation: ShellBarPresentation = .system {
+        didSet {
+            refreshCurrentBackground()
+            for navigation in viewControllers?.compactMap({ $0 as? BoneNavigationController }) ?? [] {
+                navigation.refreshBarPresentation()
+            }
+        }
+    }
+    public var resolvedBarPresentation: ShellBarPresentation {
+        ShellBarBackgroundHost.topScreen(in: selectedViewController)?.screenConfiguration.barPresentation ?? barPresentation
+    }
+    public var classicTabBarView: UIView? { resolvedBarPresentation == .classic ? classicTabBar : nil }
+    private var classicTabBar: ShellClassicTabBar?
+    private var originalTabBarAlpha: CGFloat?
+    private var originalTabBarAccessibilityHidden = false
+    private var originalTabBarHidden = false
+    private var classicBottomContribution: CGFloat = 0
+    private var updatingBarPresentation = false
+    private var layingOutClassicBar = false
+    private var backgroundTabSurface: UIView {
+        if resolvedBarPresentation == .classic, let bar = classicTabBar { return bar }
+        return tabBar
+    }
+    private lazy var classicMoreItem: UITabBarItem = {
+        let item = UITabBarItem(title: "更多", image: UIImage(systemName: "ellipsis"), selectedImage: nil)
+        item.accessibilityIdentifier = "tab.more"
+        return item
+    }()
+
+    internal func refreshBarPresentation() {
+        guard isViewLoaded, !updatingBarPresentation else { return }
+        updatingBarPresentation = true
+        defer { updatingBarPresentation = false }
+        if resolvedBarPresentation == .classic {
+            if originalTabBarAlpha == nil {
+                originalTabBarAlpha = tabBar.alpha
+                originalTabBarAccessibilityHidden = tabBar.accessibilityElementsHidden
+                if #available(iOS 18.0, *) { originalTabBarHidden = isTabBarHidden }
+                else { originalTabBarHidden = tabBar.isHidden }
+            }
+            if classicTabBar == nil {
+                let bar = ShellClassicTabBar()
+                bar.accessibilityIdentifier = "shell.classic.tabs"
+                bar.onSelect = { [weak self] index in self?.selectClassicTab(at: index) }
+                classicTabBar = bar
+            }
+            if #available(iOS 18.0, *) {
+                if !isTabBarHidden { setTabBarHidden(true, animated: false) }
+            }
+            tabBar.alpha = 0
+            tabBar.accessibilityElementsHidden = true
+            let page = ShellBarBackgroundHost.topScreen(in: selectedViewController)
+            let background = page?.screenConfiguration.tabBarBackground ?? backgroundConfiguration
+            let media = page?.usesUnifiedBackground == true || (background.map { !$0.source.isEmpty } ?? false)
+            let allItems = viewControllers?.compactMap(\.tabBarItem) ?? []
+            let items = allItems.count > 5 ? Array(allItems.prefix(4)) + [classicMoreItem] : allItems
+            let selection = allItems.count > 5 ? min(selectedIndex, 4) : selectedIndex
+            classicTabBar?.tintColor = tabBar.tintColor
+            classicTabBar?.update(items: items, selectedIndex: selection, style: currentTabBarStyle,
+                material: .systemDefault, showsMediaBackground: media)
+            if let bar = classicTabBar, bar.superview !== view { view.addSubview(bar) }
+            layoutClassicTabBar()
+        } else {
+            if let alpha = originalTabBarAlpha {
+                if #available(iOS 18.0, *) { setTabBarHidden(originalTabBarHidden, animated: false) }
+                tabBar.alpha = alpha
+                tabBar.accessibilityElementsHidden = originalTabBarAccessibilityHidden
+                originalTabBarAlpha = nil
+            }
+            updateClassicBottomContribution(0)
+            classicTabBar?.isHidden = true
+            classicTabBar?.removeFromSuperview()
+        }
+        (selectedViewController as? BoneNavigationController)?.refreshBarPresentation()
+        if #available(iOS 27.1, *) { setNeedsUpdateOfVerticalBarConfiguration() }
+    }
+
+    private func layoutClassicTabBar() {
+        guard resolvedBarPresentation == .classic, let bar = classicTabBar, !layingOutClassicBar else { return }
+        layingOutClassicBar = true
+        defer { layingOutClassicBar = false }
+        let top = (selectedViewController as? UINavigationController)?.topViewController ?? selectedViewController
+        let hidden = top?.hidesBottomBarWhenPushed == true || originalTabBarHidden
+        let bottom = view.window?.safeAreaInsets.bottom ?? max(0, view.safeAreaInsets.bottom - additionalSafeAreaInsets.bottom)
+        bar.bottomInset = bottom
+        let frame = CGRect(x: view.bounds.minX, y: view.bounds.maxY - bar.contentHeight - bottom,
+                           width: view.bounds.width, height: bar.contentHeight + bottom)
+        if bar.frame != frame { bar.frame = frame }
+        bar.isHidden = hidden
+        view.bringSubviewToFront(bar)
+        let contribution: CGFloat
+        if #available(iOS 18.0, *) { contribution = hidden ? 0 : bar.contentHeight }
+        else { contribution = hidden ? 0 : max(0, bar.contentHeight - 49) }
+        updateClassicBottomContribution(contribution)
+    }
+
+    private func updateClassicBottomContribution(_ value: CGFloat) {
+        guard abs(value - classicBottomContribution) > 0.1 else { return }
+        var insets = additionalSafeAreaInsets
+        insets.bottom += value - classicBottomContribution
+        classicBottomContribution = value
+        additionalSafeAreaInsets = insets
+    }
+
+    private func selectClassicTab(at index: Int) {
+        guard let controllers = viewControllers else { return }
+        if controllers.count > 5 && index == 4 {
+            let menu = UIAlertController(title: "更多标签", message: nil, preferredStyle: .actionSheet)
+            for (offset, controller) in controllers.dropFirst(4).enumerated() {
+                let target = offset + 4
+                menu.addAction(UIAlertAction(title: controller.tabBarItem.title, style: .default) { [weak self] _ in
+                    self?.selectedIndex = target
+                })
+            }
+            menu.addAction(UIAlertAction(title: "取消", style: .cancel))
+            menu.popoverPresentationController?.sourceView = classicTabBar
+            if let bar = classicTabBar { menu.popoverPresentationController?.sourceRect = CGRect(x: bar.bounds.width * 0.8, y: 0, width: bar.bounds.width * 0.2, height: bar.contentHeight) }
+            present(menu, animated: true)
+        } else if controllers.indices.contains(index), controllers[index].tabBarItem.isEnabled {
+            selectedIndex = index
+        }
+    }
+
+    @available(iOS 27.1, *)
+    open override var childForPreferredVerticalBarBehavior: UIViewController? { selectedViewController }
+
+
     internal var shellUnifiedBackgroundHost: ShellUnifiedBackgroundHost?
     public var unifiedBackgroundView: ShellBackgroundView? {
         guard let host = shellUnifiedBackgroundHost, host.view.configuration != nil else { return nil }
@@ -212,6 +456,7 @@ open class BoneTabBarController: UITabBarController {
               viewControllers?.contains(where: { $0 === controller }) == true else { return false }
         record.configuration = configuration
         applyTabItem(configuration, to: controller.tabBarItem)
+        refreshBarPresentation()
         return true
     }
 
@@ -294,7 +539,8 @@ open class BoneTabBarController: UITabBarController {
     }
     open override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        backgroundHost?.layout(in: tabBar)
+        layoutClassicTabBar()
+        backgroundHost?.layout(in: backgroundTabSurface)
         shellUnifiedBackgroundHost?.layout()
     }
     private func refreshCurrentBackground() {
@@ -355,11 +601,12 @@ open class BoneTabBarController: UITabBarController {
         for record in tabRecords.values {
             if let controller = record.controller { applyTabItem(record.configuration, to: controller.tabBarItem, style: style) }
         }
+        refreshBarPresentation()
         if enabled && backgroundHost == nil {
             backgroundHost = ShellBarBackgroundHost(bar: tabBar, container: view, priority: 10)
             backgroundHost?.view.accessibilityIdentifier = "shell.background.tabs"
         }
-        backgroundHost?.layout(in: tabBar)
+        backgroundHost?.layout(in: backgroundTabSurface)
         backgroundHost?.view.apply(enabled ? configuration : nil)
         backgroundHost?.view.setPlaybackActive(playbackActive && enabled)
     }

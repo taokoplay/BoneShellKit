@@ -1,6 +1,6 @@
 # BoneShellKit
 
-原生 UIKit 自适应页面骨架。当前为 **0.4 验证版**，最低部署目标 iOS 15，使用 Xcode 27.1 构建。
+原生 UIKit 自适应页面骨架。当前为 **0.5 验证版**，最低部署目标 iOS 15，使用 Xcode 27.1 构建。
 
 ## Swift Package 接入
 
@@ -22,6 +22,7 @@ Demo 提供导航与多按钮、栏位字体 / 颜色 / 图标、图片 / 动图
 
 - `BoneViewController` 管理内容区域和页面配置；页面覆盖 `configureScreen` 与 `buildContent`。
 - `BoneNavigationController`、`BoneTabBarController`、`BoneSplitViewController` 封装系统容器。
+- `ShellBarPresentation.system / .classic` 切换系统与 iOS 26 以下风格的平直栏位。经典类型提供普通导航按钮和全宽底部标签，保留原生容器、页面与导航状态；Demo 默认经典。
 - `NavigationAction` 描述图标或文字操作；按实际字体测量，空间不足时按优先级进入更多菜单。
 - `ShellNavigationStyle` / `ShellTabBarStyle` 配置导航标题、大标题、副标题、按钮和标签普通 / 选中态的字体与颜色，支持 Dynamic Type、页面覆盖和恢复。
 - 标签图标支持 SF Symbol、bundle 图片和 UIImage，普通 / 选中态可分别提供；按稳定 ID 更新条目时保留导航栈与输入。
@@ -31,7 +32,7 @@ Demo 提供导航与多按钮、栏位字体 / 颜色 / 图标、图片 / 动图
 - 图片后台缩略解码、尺寸桶缓存、重复请求合并与切页预取；动态背景按可见性运行，每个 Scene 默认一个播放名额，可调至三个，HTML 离屏释放。
 - XCTest 覆盖解析规则、背景缓存 / 生命周期与 Demo 集成；XCUITest 覆盖媒体切换、独立栏位、播放预算、返回、标签状态、材质及 sheet。
 
-严格经典自定义栏位、完整 adapter 和全部设备 / 系统矩阵属于后续规划。切换自有材质表面不等于全局修改系统菜单或键盘外观。
+经典类型是 SDK 提供的平直栏位呈现，不是逐像素复刻特定旧系统；完整 adapter、其他栏位扩展及全部设备 / 系统矩阵仍属后续范围。栏位类型和自有材质表面分别配置，系统菜单与键盘继续由 UIKit 管理。
 
 ## 重新生成工程与测试
 
@@ -60,5 +61,6 @@ Demo 测试目标同时包含本地 SDK 的单元测试源与 Demo 集成测试�
 - [Demo 与测试规划](Documentation/Demo-Test-Plan.md)
 - [多媒体背景接入与性能策略](Documentation/Backgrounds.md)
 - [栏位字体、颜色与标签图标](Documentation/Bar-Styling.md)
+- [系统与经典栏位类型](Documentation/Bar-Presentation.md)
 
 最新的测试数量、截图核对和手机安装状态见 [实现与验证记录](Documentation/Implementation-Status.md)。最低部署目标不代表全部旧版 OS / iPad / Duo 姿态已经实测；FPS、峰值内存与耗电尚未进行 Instruments 测量。

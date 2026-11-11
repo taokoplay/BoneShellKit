@@ -23,6 +23,7 @@
 		64DC6F0C59FFB719008AE6EF /* DemoIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8C3B29C5615404626FFC707 /* DemoIntegrationTests.swift */; };
 		7A9D589ED30DEE7FB12B162D /* BackgroundEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BCDFF30D421B233025B55F2 /* BackgroundEngineTests.swift */; };
 		7C0597BB8FE54891E96B8C34 /* BackgroundIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F5E90C3E78A63D99C00DEE3 /* BackgroundIntegrationTests.swift */; };
+		7E3EE57E962E8E9C56A549CB /* BarPresentationUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 099FB81B8337EDDDA969214B /* BarPresentationUITests.swift */; };
 		90F83AEA9D8AB91ED665322A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 29E0AB318D7497C12B251AEF /* Assets.xcassets */; };
 		92B161FCF62E59BCB1CD6320 /* UnifiedBackgroundTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29BDB4BEE062C602D22DB68B /* UnifiedBackgroundTests.swift */; };
 		966DF300A44F824DCD02573B /* BarStyle-Orbit-Selected@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 982167BA92940EC7DEC5C6D6 /* BarStyle-Orbit-Selected@2x.png */; };
@@ -32,6 +33,8 @@
 		A488014E9BEB8B7B69B51A9D /* BarStyleUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69EC710EA6C15D6643B886CC /* BarStyleUITests.swift */; };
 		B3FFE010B098F05C741522EB /* ShellRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89FD2286037B3B9BA1F63671 /* ShellRulesTests.swift */; };
 		C24028FCF9EB95A9DCE5FF32 /* Background-Aurora.html in Resources */ = {isa = PBXBuildFile; fileRef = 65754720AE35FBD24081BE28 /* Background-Aurora.html */; };
+		D3E6CCCCCDDFAFDBB9389DD0 /* BarPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 703B1D693D2ADD57AE5F0877 /* BarPresentationTests.swift */; };
+		E5CF1291C1540965A504E99E /* BarPresentationDemo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A6691BFDC16528FE9D865D7 /* BarPresentationDemo.swift */; };
 		EFFADF649373F3EF50ACEAC3 /* BarStyleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4F05739F33E546E153D76C /* BarStyleTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -53,6 +56,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		099FB81B8337EDDDA969214B /* BarPresentationUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarPresentationUITests.swift; sourceTree = "<group>"; };
 		0BAD8537442AA9568AF547E1 /* BoneShellDemoUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = BoneShellDemoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		13669912465ED80D32CEF2CE /* BackgroundDemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundDemo.swift; sourceTree = "<group>"; };
 		1F5E90C3E78A63D99C00DEE3 /* BackgroundIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundIntegrationTests.swift; sourceTree = "<group>"; };
@@ -68,12 +72,14 @@
 		65754720AE35FBD24081BE28 /* Background-Aurora.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "Background-Aurora.html"; sourceTree = "<group>"; };
 		69EC710EA6C15D6643B886CC /* BarStyleUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarStyleUITests.swift; sourceTree = "<group>"; };
 		6C90E8DCF08559097B65353E /* BoneShellDemoUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoneShellDemoUITests.swift; sourceTree = "<group>"; };
+		703B1D693D2ADD57AE5F0877 /* BarPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarPresentationTests.swift; sourceTree = "<group>"; };
 		7519AE62274B5F82DBEBF76A /* Background-Orbit.gif */ = {isa = PBXFileReference; lastKnownFileType = image.gif; path = "Background-Orbit.gif"; sourceTree = "<group>"; };
 		8124B4AC1CDB4B8DA61A9170 /* Background-Drift.mp4 */ = {isa = PBXFileReference; path = "Background-Drift.mp4"; sourceTree = "<group>"; };
 		89FD2286037B3B9BA1F63671 /* ShellRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellRulesTests.swift; sourceTree = "<group>"; };
 		982167BA92940EC7DEC5C6D6 /* BarStyle-Orbit-Selected@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "BarStyle-Orbit-Selected@2x.png"; sourceTree = "<group>"; };
 		9A18526A8380B22D505F04CA /* DemoComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoComponents.swift; sourceTree = "<group>"; };
 		9A4F05739F33E546E153D76C /* BarStyleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarStyleTests.swift; sourceTree = "<group>"; };
+		9A6691BFDC16528FE9D865D7 /* BarPresentationDemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarPresentationDemo.swift; sourceTree = "<group>"; };
 		C610C03C87061F22442A64F1 /* BoneShellDemo.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = BoneShellDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C8C3B29C5615404626FFC707 /* DemoIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoIntegrationTests.swift; sourceTree = "<group>"; };
 		DAF21C1B81534AD383C310EF /* MaterialDemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialDemo.swift; sourceTree = "<group>"; };
@@ -107,6 +113,7 @@
 			isa = PBXGroup;
 			children = (
 				EA087C819EF93C84400EA58D /* BackgroundUITests.swift */,
+				099FB81B8337EDDDA969214B /* BarPresentationUITests.swift */,
 				69EC710EA6C15D6643B886CC /* BarStyleUITests.swift */,
 				6C90E8DCF08559097B65353E /* BoneShellDemoUITests.swift */,
 			);
@@ -205,6 +212,7 @@
 			isa = PBXGroup;
 			children = (
 				4BCDFF30D421B233025B55F2 /* BackgroundEngineTests.swift */,
+				703B1D693D2ADD57AE5F0877 /* BarPresentationTests.swift */,
 				9A4F05739F33E546E153D76C /* BarStyleTests.swift */,
 				89FD2286037B3B9BA1F63671 /* ShellRulesTests.swift */,
 				29BDB4BEE062C602D22DB68B /* UnifiedBackgroundTests.swift */,
@@ -217,6 +225,7 @@
 			children = (
 				47ED3B7A036B43CF9D2A8367 /* App.swift */,
 				13669912465ED80D32CEF2CE /* BackgroundDemo.swift */,
+				9A6691BFDC16528FE9D865D7 /* BarPresentationDemo.swift */,
 				FC8E380BEE0B64E439FC1EAF /* BarStyleDemo.swift */,
 				9A18526A8380B22D505F04CA /* DemoComponents.swift */,
 				42A2BE19A0D38B9F365C57C4 /* DemoScenes.swift */,
@@ -359,6 +368,7 @@
 			files = (
 				7A9D589ED30DEE7FB12B162D /* BackgroundEngineTests.swift in Sources */,
 				7C0597BB8FE54891E96B8C34 /* BackgroundIntegrationTests.swift in Sources */,
+				D3E6CCCCCDDFAFDBB9389DD0 /* BarPresentationTests.swift in Sources */,
 				41F356099B73F8089C13A10E /* BarStyleIntegrationTests.swift in Sources */,
 				EFFADF649373F3EF50ACEAC3 /* BarStyleTests.swift in Sources */,
 				64DC6F0C59FFB719008AE6EF /* DemoIntegrationTests.swift in Sources */,
@@ -372,6 +382,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A06A9AD27A510E4A5B726A63 /* BackgroundUITests.swift in Sources */,
+				7E3EE57E962E8E9C56A549CB /* BarPresentationUITests.swift in Sources */,
 				A488014E9BEB8B7B69B51A9D /* BarStyleUITests.swift in Sources */,
 				12A1D2260F31D1ED7D530387 /* BoneShellDemoUITests.swift in Sources */,
 			);
@@ -383,6 +394,7 @@
 			files = (
 				107A275DFD1323040B07EE4F /* App.swift in Sources */,
 				99C7F1F33C062089E34D580E /* BackgroundDemo.swift in Sources */,
+				E5CF1291C1540965A504E99E /* BarPresentationDemo.swift in Sources */,
 				01E41D3AC1BD22BEEB8F78D4 /* BarStyleDemo.swift in Sources */,
 				1E9102498880F129A838FAD7 /* DemoComponents.swift in Sources */,
 				60DD7CC68CCC183F789D658D /* DemoScenes.swift in Sources */,
@@ -418,7 +430,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.4.0;
+				MARKETING_VERSION = 0.5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.taokoplay.BoneShellDemo;
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
@@ -488,7 +500,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.4.0;
+				MARKETING_VERSION = 0.5.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.taokoplay.BoneShellDemo;
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;

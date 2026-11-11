@@ -27,6 +27,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             ShellTab(id: "materials", title: "材质", symbol: "circle.lefthalf.filled", root: MaterialDemoController()),
             ShellTab(id: "about", title: "关于", symbol: "info.circle", root: AboutDemoController())
         ])
+        tabs.barPresentation = ProcessInfo.processInfo.arguments.contains("-system-bars") ? .system : .classic
         tabs.view.tintColor = DemoStyle.tint
         tabs.tabBar.accessibilityIdentifier = "demo.tabs"
         let window = UIWindow(windowScene: scene)

@@ -6,7 +6,7 @@ final class BackgroundUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = ["-ui-testing"]
+        app.launchArguments = ["-ui-testing", "-system-bars"]
         app.launch()
         let scene = app.buttons["scene.backgrounds"]
         XCTAssertTrue(scene.waitForExistence(timeout: 10))

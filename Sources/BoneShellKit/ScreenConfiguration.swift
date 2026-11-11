@@ -55,6 +55,8 @@ public enum ShellBackgroundComposition: Equatable {
 @MainActor
 public struct ScreenConfiguration {
     public var navigation = NavigationConfiguration()
+    /// Nil inherits container defaults; a value changes both managed bars for this page.
+    public var barPresentation: ShellBarPresentation? = nil
     public var content: ShellContentPlacement = .safeArea
     public var avoidsKeyboard: Bool = false
     public var background: ShellBackgroundConfiguration? = nil

@@ -5,7 +5,7 @@ final class BoneShellDemoUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = ["-ui-testing"]
+        app.launchArguments = ["-ui-testing", "-system-bars"]
         app.launch()
         XCTAssertTrue(app.buttons["scene.navigation"].waitForExistence(timeout: 10))
     }

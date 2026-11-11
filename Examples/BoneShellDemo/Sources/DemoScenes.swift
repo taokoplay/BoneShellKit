@@ -8,11 +8,12 @@ final class DemoCatalogController: DemoStackController {
         screen.navigation.usesLargeTitle = true
     }
     override func buildDemo() {
-        intro("页面骨架，交给系统适配", "0.4 验证版 · 栏位字体、图标与多媒体背景。")
+        intro("页面骨架，交给系统适配", "0.5 验证版 · 系统与经典栏位、字体及整体背景。")
         let scenes: [(String, String, String, String, () -> UIViewController)] = [
             ("导航与多按钮", "优先级、更多菜单与导航外观", "rectangle.topthird.inset.filled", "navigation", { NavigationDemoController() }),
             ("背景与切页", "图片、动图、MP4、HTML 与缓存", "photo.on.rectangle.angled", "backgrounds", { BackgroundDemoController() }),
             ("栏位字体与图标", "字号、颜色与普通 / 选中图标", "textformat.size", "bar-style", { BarStyleDemoController() }),
+            ("栏位类型", "系统风格与 26 以下经典风格", "rectangle.split.2x1", "presentation", { BarPresentationDemoController() }),
             ("窗口与安全区", "实时查看当前窗口与内容区域", "arrow.up.left.and.arrow.down.right", "adaptive", { AdaptiveDemoController() }),
             ("表单与键盘", "输入、保存与键盘避让", "keyboard", "form", { FormDemoController() }),
             ("标签状态保留", "输入文字，切换标签后再回来", "square.stack.3d.up", "state", { let page = FormDemoController(); page.pageTitle = "标签状态保留"; return page }),
@@ -208,7 +209,7 @@ final class AboutDemoController: DemoStackController {
         screen.navigation.usesLargeTitle = true
     }
     override func buildDemo() {
-        intro("BoneShellKit", "0.4.0 · 原生 UIKit SDK 与独立 Demo")
+        intro("BoneShellKit", "0.5.0 · 原生 UIKit SDK 与独立 Demo")
         backgroundState.accessibilityIdentifier = "about.backgrounds"
         card([backgroundState])
         card([DemoStyle.label("本版可体验", style: .headline), DemoStyle.label("原生导航与标签容器\n栏位字体、颜色与标签图标\n三处多媒体背景\n操作优先级与更多菜单\n安全区、表单与键盘\n列表详情分栏\n原生玻璃、仿玻璃与实色表面")])
