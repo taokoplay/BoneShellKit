@@ -1,0 +1,7 @@
+# Swift / Xcode local build outputs
+.build/
+.swiftpm/
+DerivedData/
+*.xcresult/
+xcuserdata/
+.DS_Store

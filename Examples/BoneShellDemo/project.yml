@@ -1,0 +1,90 @@
+name: BoneShellDemo
+options:
+  bundleIdPrefix: com.taokoplay
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+packages:
+  BoneShellKit:
+    path: ../..
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    DEVELOPMENT_TEAM: 2PX9496FD6
+    CODE_SIGN_STYLE: Automatic
+    IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+targets:
+  BoneShellDemo:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+      - Resources
+    dependencies:
+      - package: BoneShellKit
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: BoneShell Demo
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: true
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.taokoplay.BoneShellDemo
+        MARKETING_VERSION: 0.4.0
+        CURRENT_PROJECT_VERSION: 1
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SUPPORTS_MACCATALYST: NO
+  BoneShellDemoTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests
+      - ../../Tests/BoneShellKitTests
+    dependencies:
+      - target: BoneShellDemo
+      - package: BoneShellKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.taokoplay.BoneShellDemo.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/BoneShellDemo.app/BoneShellDemo"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+  BoneShellDemoUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - UITests
+    dependencies:
+      - target: BoneShellDemo
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.taokoplay.BoneShellDemo.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: BoneShellDemo
+schemes:
+  BoneShellDemo:
+    build:
+      targets:
+        BoneShellDemo: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - BoneShellDemoTests
+        - BoneShellDemoUITests
