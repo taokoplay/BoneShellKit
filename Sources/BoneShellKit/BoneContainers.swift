@@ -274,13 +274,13 @@ public struct ShellTab {
         return ""
     }
 
-    public init(id: String, title: String, symbol: String, root: UIViewController) {
-        self.init(id: id, title: title, icon: .systemSymbol(symbol), root: root)
+    public init(id: String, title: String, symbol: String, selectedIconMode: ShellTabSelectedIconMode = .automatic, root: UIViewController) {
+        self.init(id: id, title: title, icon: .systemSymbol(symbol), selectedIconMode: selectedIconMode, root: root)
     }
 
-    public init(id: String, title: String, icon: ShellTabIcon, selectedIcon: ShellTabIcon? = nil, root: UIViewController) {
+    public init(id: String, title: String, icon: ShellTabIcon, selectedIcon: ShellTabIcon? = nil, selectedIconMode: ShellTabSelectedIconMode = .automatic, root: UIViewController) {
         self.id = id
-        self.item = ShellTabItemConfiguration(title: title, icon: icon, selectedIcon: selectedIcon)
+        self.item = ShellTabItemConfiguration(title: title, icon: icon, selectedIcon: selectedIcon, selectedIconMode: selectedIconMode)
         self.root = root
     }
 }
@@ -470,17 +470,24 @@ open class BoneTabBarController: UITabBarController {
         let normal = configuration.icon?.resolve(traits: traitCollection)
         let selected = configuration.selectedIcon?.resolve(traits: traitCollection)
         item.title = configuration.title
-        if style.normalIconColor != nil || style.selectedIconColor != nil {
-            item.image = coloredIcon(normal, color: style.normalIconColor ?? tabBar.unselectedItemTintColor)
-            item.selectedImage = coloredIcon(selected ?? normal, color: style.selectedIconColor ?? tabBar.tintColor)
-        } else {
-            item.image = normal
-            item.selectedImage = selected
+        let hasIconColors = style.normalIconColor != nil || style.selectedIconColor != nil
+        item.image = hasIconColors ? coloredIcon(normal, color: style.normalIconColor ?? tabBar.unselectedItemTintColor) : normal
+        switch configuration.selectedIconMode {
+        case .automatic:
+            item.selectedImage = hasIconColors ? coloredIcon(selected ?? normal, color: style.selectedIconColor ?? tabBar.tintColor) : selected
+        case .selectedColor:
+            let color = style.selectedIconColor ?? style.selected.color
+                ?? (isViewLoaded ? tabBar.tintColor : nil) ?? .systemBlue
+            // Use the normal artwork explicitly: UIKit must not substitute a filled symbol.
+            item.selectedImage = coloredIcon(normal ?? selected, color: color, force: true)
+        case .selectedImage:
+            // Detach from template/symbol metadata so the selected artwork keeps its own pixels.
+            item.selectedImage = originalIcon(selected ?? normal)
         }
     }
 
-    private func coloredIcon(_ image: UIImage?, color: UIColor?) -> UIImage? {
-        guard let image = image, image.renderingMode != .alwaysOriginal, let color = color,
+    private func coloredIcon(_ image: UIImage?, color: UIColor?, force: Bool = false) -> UIImage? {
+        guard let image = image, (force || image.renderingMode != .alwaysOriginal), let color = color,
               image.size.width > 0, image.size.height > 0 else { return image }
         let resolved = color.resolvedColor(with: traitCollection)
         let source = image.isSymbolImage
@@ -498,6 +505,19 @@ open class BoneTabBarController: UITabBarController {
             resolved.setFill()
             UIRectFill(CGRect(origin: .zero, size: source.size))
             mask.draw(at: .zero, blendMode: .destinationIn, alpha: 1)
+        }.withRenderingMode(.alwaysOriginal)
+    }
+
+    private func originalIcon(_ image: UIImage?) -> UIImage? {
+        guard let image = image, image.size.width > 0, image.size.height > 0 else { return image }
+        let source = image.isSymbolImage
+            ? image.applyingSymbolConfiguration(UIImage.SymbolConfiguration(pointSize: 25)) ?? image : image
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = max(source.scale, traitCollection.displayScale)
+        format.preferredRange = .standard
+        format.opaque = false
+        return UIGraphicsImageRenderer(size: source.size, format: format).image { _ in
+            source.withRenderingMode(.alwaysOriginal).draw(at: .zero)
         }.withRenderingMode(.alwaysOriginal)
     }
 

@@ -6,7 +6,7 @@ final class BarStyleUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = ["-ui-testing"]
+        app.launchArguments = ["-ui-testing", "-system-bars"]
         app.launch()
         let scene = app.buttons["scene.bar-style"]
         XCTAssertTrue(scene.waitForExistence(timeout: 10))
@@ -63,9 +63,9 @@ final class BarStyleUITests: XCTestCase {
 
         let about = app.tabBars.buttons["tab.about"]
         XCTAssertTrue(about.waitForExistence(timeout: 5))
-        about.tap()
+        tapVisibleTab(about)
         waitUntilSelected(about)
-        app.tabBars.buttons["tab.examples"].tap()
+        tapVisibleTab(app.tabBars.buttons["tab.examples"])
         XCTAssertTrue(input.waitForExistence(timeout: 5))
         XCTAssertEqual(input.value as? String, "KeepStyle123")
         waitForStatus(["图标：彩色图片"], id: "bar-style.detail.status")
@@ -105,15 +105,20 @@ final class BarStyleUITests: XCTestCase {
         let control = app.segmentedControls[id].buttons[title]
         reveal(control)
         control.tap()
-        XCTAssertTrue(control.isSelected)
+        let selected = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in control.exists && control.isSelected }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [selected], timeout: 5), .completed)
     }
 
     private func reveal(_ element: XCUIElement, swipingUp: Bool = true,
                         file: StaticString = #filePath, line: UInt = #line) {
         let scroll = app.scrollViews["demo.scroll"].firstMatch
         for _ in 0..<8 {
-            if element.exists && element.isHittable { return }
-            if swipingUp { scroll.swipeUp() } else { scroll.swipeDown() }
+            var safe = scroll.frame.insetBy(dx: 0, dy: 12)
+            let native = app.tabBars.firstMatch
+            if native.exists { safe.size.height = max(0, min(safe.maxY, native.frame.minY - 12) - safe.minY) }
+            if element.exists && element.isHittable && safe.contains(element.frame) { return }
+            if element.exists && element.frame.minY < safe.minY { scroll.swipeDown() }
+            else if swipingUp { scroll.swipeUp() } else { scroll.swipeDown() }
         }
         XCTAssertTrue(element.exists && element.isHittable, "Control must be visible and tappable", file: file, line: line)
     }
@@ -125,13 +130,27 @@ final class BarStyleUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [condition], timeout: 8), .completed)
     }
 
+    private func tapVisibleTab(_ tab: XCUIElement) {
+        for _ in 0..<3 {
+            if tab.exists && tab.isHittable { break }
+            app.scrollViews["demo.scroll"].firstMatch.swipeDown()
+        }
+        let visible = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in tab.exists && tab.isHittable }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [visible], timeout: 5), .completed)
+        tab.tap()
+    }
+
     private func waitUntilSelected(_ tab: XCUIElement) {
         let condition = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in tab.exists && tab.isSelected }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [condition], timeout: 5), .completed)
     }
 
     private func keepScreenshot(_ name: String) {
-        let attachment = XCTAttachment(screenshot: app.screenshot())
+        let screenshot = app.screenshot()
+        let diagnostic = FileManager.default.temporaryDirectory.appendingPathComponent("BoneShell-style-last.png")
+        try? screenshot.pngRepresentation.write(to: diagnostic)
+        print("BONESHELL_UI_DIAGNOSTIC " + diagnostic.path)
+        let attachment = XCTAttachment(screenshot: screenshot)
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)

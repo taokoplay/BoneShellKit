@@ -1,4 +1,4 @@
-# BoneShellKit 0.3 栏位字体、颜色与图标
+# BoneShellKit 0.6 栏位字体、颜色与图标
 
 导航栏和标签栏的文字通过 `ShellTextStyle` 设置，支持字号、字体、粗细、颜色及 Dynamic Type。导航提供普通标题、大标题、副标题与按钮四种角色；标签提供普通态和选中态的文字及图标颜色。标签图标可使用 SF Symbol、bundle 资源图片或 UIImage，并可在运行时替换。
 
@@ -83,6 +83,41 @@ navigation.navigationStyle = ShellNavigationStyle(
 页面样式是整份覆盖值，其中 font 或 color 为 nil 的字段保留 UIKit 值。需要只修改容器样式中的一个字段时，先复制容器样式，再修改字段并赋给页面。
 
 修改页面状态后调用 `refreshScreenConfiguration()`；修改容器的 `navigationStyle` 或 `tabBarStyle` 会刷新当前页面。内容和导航栈不会因此重新创建。样式与图片 / 动图 / MP4 / HTML 背景共同应用，切换背景时不会清除字体和颜色。
+
+## 选中时使用颜色还是图片
+
+每个条目通过 `selectedIconMode` 明确选择选中时的显示方式：
+
+| 模式 | 选中图案与颜色 |
+| --- | --- |
+| `.automatic` | 默认兼容已有行为：采用已有 selectedIcon 和 UIImage 渲染模式。 |
+| `.selectedColor` | 沿用普通图标图案，保留透明孔洞和轮廓，按当前选中颜色着色；不换成独立的选中图案。 |
+| `.selectedImage` | 使用 selectedIcon 的原色图片，保留图案、透明区域和多色细节；未提供时用普通图片原色回退。 |
+
+```swift
+ShellTab(
+    id: "profile", title: "我的",
+    icon: .asset("ProfileTab", bundle: .main),
+    selectedIcon: .asset("ProfileTabSelected", bundle: .main),
+    selectedIconMode: .selectedImage,
+    root: ProfileController()
+)
+```
+
+如果只希望选中时改变颜色，设置 `.selectedColor`；使用的颜色依次为 `tabBarStyle.selectedIconColor`、选中标题颜色 `tabBarStyle.selected.color` 和当前标签栏 tint。通过 SDK 的样式属性更新颜色会刷新条目。该模式即使普通 UIImage 原先为 `.alwaysOriginal`，也会明确按选中颜色绘制。
+
+颜色模式根据 alpha 轮廓着色，适合透明底图；带有不透明背景或多色细节的图片应选择 `.selectedImage` 来保留图案像素。两个显式模式都会提供确定的选中图像，避免系统自动替换 SF Symbol 的填充图案。普通态的原有配置保持独立。
+
+运行时也可更新：
+
+```swift
+if var item = tabs.tabItemConfiguration(for: "profile") {
+    item.selectedIconMode = .selectedColor
+    tabs.updateTabItem(id: "profile", configuration: item)
+}
+```
+
+这只更新原生条目和 SDK 经典呈现，不改变标签选中项、页面控制器或导航栈。系统与经典类型使用同一选中策略。Demo 的“栏位字体与图标”新增“选中时如何显示”，可直接对照普通轮廓着色和独立选中图片原色。
 
 ## 普通和选中图标
 

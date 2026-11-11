@@ -45,7 +45,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.taokoplay.BoneShellDemo
-        MARKETING_VERSION: 0.5.0
+        MARKETING_VERSION: 0.6.0
         CURRENT_PROJECT_VERSION: 1
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SUPPORTS_MACCATALYST: NO

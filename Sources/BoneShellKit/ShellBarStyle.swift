@@ -91,11 +91,13 @@ public struct ShellTabItemConfiguration {
     public var title: String
     public var icon: ShellTabIcon?
     public var selectedIcon: ShellTabIcon?
+    public var selectedIconMode: ShellTabSelectedIconMode
 
-    public init(title: String, icon: ShellTabIcon? = nil, selectedIcon: ShellTabIcon? = nil) {
+    public init(title: String, icon: ShellTabIcon? = nil, selectedIcon: ShellTabIcon? = nil, selectedIconMode: ShellTabSelectedIconMode = .automatic) {
         self.title = title
         self.icon = icon
         self.selectedIcon = selectedIcon
+        self.selectedIconMode = selectedIconMode
     }
 }
 

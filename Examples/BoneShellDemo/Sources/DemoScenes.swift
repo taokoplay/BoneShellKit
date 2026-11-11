@@ -8,7 +8,7 @@ final class DemoCatalogController: DemoStackController {
         screen.navigation.usesLargeTitle = true
     }
     override func buildDemo() {
-        intro("页面骨架，交给系统适配", "0.5 验证版 · 系统与经典栏位、字体及整体背景。")
+        intro("页面骨架，交给系统适配", "0.6 验证版 · 系统与经典栏位、字体及整体背景。")
         let scenes: [(String, String, String, String, () -> UIViewController)] = [
             ("导航与多按钮", "优先级、更多菜单与导航外观", "rectangle.topthird.inset.filled", "navigation", { NavigationDemoController() }),
             ("背景与切页", "图片、动图、MP4、HTML 与缓存", "photo.on.rectangle.angled", "backgrounds", { BackgroundDemoController() }),
@@ -209,7 +209,7 @@ final class AboutDemoController: DemoStackController {
         screen.navigation.usesLargeTitle = true
     }
     override func buildDemo() {
-        intro("BoneShellKit", "0.5.0 · 原生 UIKit SDK 与独立 Demo")
+        intro("BoneShellKit", "0.6.0 · 原生 UIKit SDK 与独立 Demo")
         backgroundState.accessibilityIdentifier = "about.backgrounds"
         card([backgroundState])
         card([DemoStyle.label("本版可体验", style: .headline), DemoStyle.label("原生导航与标签容器\n栏位字体、颜色与标签图标\n三处多媒体背景\n操作优先级与更多菜单\n安全区、表单与键盘\n列表详情分栏\n原生玻璃、仿玻璃与实色表面")])

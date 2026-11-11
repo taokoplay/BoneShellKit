@@ -23,6 +23,7 @@ final class BarStyleDemoController: DemoStackController {
     private(set) var tabFontSize: CGFloat?
     private(set) var tabColorIndex = 0
     private(set) var iconMode = 0
+    private(set) var selectedIconMode: ShellTabSelectedIconMode = .automatic
     private var navigationScalesWithDynamicType = true
     private var tabScalesWithDynamicType = true
     private var iconMessage: String?
@@ -32,6 +33,9 @@ final class BarStyleDemoController: DemoStackController {
     private let tabFontPicker = UISegmentedControl(items: ["系统", "10", "12", "14"])
     private let tabColorPicker = UISegmentedControl(items: ["系统", "灰 / 蓝", "蓝 / 橙"])
     private let iconPicker = UISegmentedControl(items: ["SF 图标", "资源图片", "彩色图片"])
+    private let selectedIconPicker = UISegmentedControl(items: ["自动", "选中颜色", "选中图片"])
+    private let selectedIconModes: [ShellTabSelectedIconMode] = [.automatic, .selectedColor, .selectedImage]
+    private let selectedIconNames = ["自动", "选中颜色", "选中图片"]
     private let navigationSizes: [CGFloat] = [16, 20, 24]
     private let tabSizes: [CGFloat] = [10, 12, 14]
     private let navigationColorNames = ["系统", "蓝色", "橙色"]
@@ -103,8 +107,13 @@ final class BarStyleDemoController: DemoStackController {
         card([DemoStyle.label("标签字号", style: .headline), tabFontPicker,
               DemoStyle.label("普通 / 选中颜色", style: .subheadline), tabColorPicker])
         bind(iconPicker, id: "bar-style.icons") { [weak self] in self?.setIconMode($0) }
+        bind(selectedIconPicker, id: "bar-style.selected-icon-mode") { [weak self] index in
+            guard let self = self else { return }
+            self.setSelectedIconMode(self.selectedIconModes[index])
+        }
         card([DemoStyle.label("标签图标", style: .headline), iconPicker,
-              DemoStyle.label("资源图片随标签着色；彩色图片保留青绿与橙色。图片选中时使用实心图案。", style: .footnote, color: .secondaryLabel)])
+              DemoStyle.label("选中时如何显示", style: .subheadline), selectedIconPicker,
+              DemoStyle.label("选中颜色沿用普通图标轮廓；选中图片使用独立图片并保留原色。自动保持已有渲染方式。", style: .footnote, color: .secondaryLabel)])
         button("打开输入详情", symbol: "arrow.right.circle", id: "bar-style.detail") { [weak self] in
             self?.openDetail()
         }
@@ -150,7 +159,7 @@ final class BarStyleDemoController: DemoStackController {
         }
         var updated = false
         for tab in originalTabs where tabs.tabItemConfiguration(for: tab.id) != nil {
-            let configuration: ShellTabItemConfiguration
+            var configuration: ShellTabItemConfiguration
             switch index {
             case 1:
                 configuration = ShellTabItemConfiguration(
@@ -163,11 +172,27 @@ final class BarStyleDemoController: DemoStackController {
             default:
                 configuration = ShellTabItemConfiguration(title: tab.title, icon: .systemSymbol(tab.symbol))
             }
+            configuration.selectedIconMode = selectedIconMode
             updated = tabs.updateTabItem(id: tab.id, configuration: configuration) || updated
         }
         guard updated else { return false }
         iconMode = index
         iconMessage = nil
+        updateControls()
+        return true
+    }
+
+    @discardableResult
+    func setSelectedIconMode(_ mode: ShellTabSelectedIconMode) -> Bool {
+        guard let tabs = tabBarController as? BoneTabBarController else { return false }
+        var updated = false
+        for tab in originalTabs {
+            guard var item = tabs.tabItemConfiguration(for: tab.id) else { continue }
+            item.selectedIconMode = mode
+            updated = tabs.updateTabItem(id: tab.id, configuration: item) || updated
+        }
+        guard updated else { return false }
+        selectedIconMode = mode
         updateControls()
         return true
     }
@@ -180,6 +205,7 @@ final class BarStyleDemoController: DemoStackController {
         tabColorIndex = 0
         navigationScalesWithDynamicType = true
         tabScalesWithDynamicType = true
+        selectedIconMode = .automatic
         let restoredIcons = setIconMode(0)
         applyStyles()
         return restoredIcons
@@ -213,9 +239,10 @@ final class BarStyleDemoController: DemoStackController {
         tabFontPicker.selectedSegmentIndex = tabFontSize.flatMap { tabSizes.firstIndex(of: $0) }.map { $0 + 1 } ?? 0
         tabColorPicker.selectedSegmentIndex = tabColorIndex
         iconPicker.selectedSegmentIndex = iconMode
+        selectedIconPicker.selectedSegmentIndex = selectedIconModes.firstIndex(of: selectedIconMode) ?? 0
         let navigationSize = navigationFontSize.map { "\(Int($0)) pt" } ?? "系统"
         let tabSize = tabFontSize.map { "\(Int($0)) pt" } ?? "系统"
-        statusLabel.text = "导航：\(navigationSize) / \(navigationColorNames[navigationColorIndex])\n标签：\(tabSize) / \(tabColorNames[tabColorIndex])\n图标：\(iconMessage ?? iconNames[iconMode])"
+        statusLabel.text = "导航：\(navigationSize) / \(navigationColorNames[navigationColorIndex])\n标签：\(tabSize) / \(tabColorNames[tabColorIndex])\n图标：\(iconMessage ?? iconNames[iconMode])\n选中图标：\(selectedIconNames[selectedIconModes.firstIndex(of: selectedIconMode) ?? 0])"
     }
 }
 

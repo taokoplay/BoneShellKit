@@ -1,6 +1,63 @@
+# BoneShellKit 0.6 实现与验证记录
+
+记录时间：2026-11-11T16:56:18.688310+08:00。当前交付：**0.6.0（Build 1）**。已通过真机 UI 验证，并在结束自动化后正常启动于已授权 iPhone 13 Pro；随后独立查询确认进程存在。
+
+## 本轮实现
+
+每个标签增加 `ShellTabSelectedIconMode` 与 `ShellTabItemConfiguration.selectedIconMode`，两种 `ShellTab` 初始化方式也可直接指定：
+
+| 模式 | 选中时的图像 |
+| --- | --- |
+| `.automatic` | 默认兼容原有 selectedIcon 和 UIImage 渲染行为。 |
+| `.selectedColor` | 使用普通图标图案，按当前选中颜色着色，保留 alpha 轮廓与透明孔洞。 |
+| `.selectedImage` | 使用独立 selectedIcon 的原色图像，保留多色细节、图案及透明区域；缺省时回退到普通图像原色。 |
+
+颜色模式优先使用 `selectedIconColor`，然后选中文字颜色和标签栏 tint；即使源图是 `.alwaysOriginal`，显式颜色模式也按选中颜色绘制。两种显式模式均提供确定的图像，避免系统把轮廓 SF Symbol 自动替换为填充图案。
+
+系统与经典栏位共用同一条目解析策略。运行时通过 `updateTabItem(id:configuration:)` 更新既有条目，不替换控制器、导航栈或选中项。`.automatic` 保留源兼容与已有行为。
+
+Demo 首页“栏位字体与图标”增加“选中时如何显示”：自动 / 选中颜色 / 选中图片；切换图标来源保留当前策略，恢复默认会回到自动。接入示例和图像适用范围见 [栏位样式](Bar-Styling.md)。
+
+## 最终执行结果
+
+| 检查 | 实际环境 / 范围 | 结果 |
+| --- | --- | --- |
+| SDK / Demo 构建 | Xcode 27.1、Swift 5、iOS 15 部署目标 | 通过 |
+| 单元 / 集成测试 | iPhone 13 Pro 模拟器，iOS 26.0；全部当前单元 / 集成范围，含新增 5 项图标测试 | 60 通过 / 0 失败 / 0 跳过 |
+| 样式 UI 回归 | iPhone 13 Pro 真机，iOS 26.5；字体、两类图标、输入 / 导航保留和恢复默认 | 3 通过 / 0 失败 / 0 跳过 |
+| 新选中模式 UI | 同上；经典和系统栏位分别切换颜色 / 图片，再离开并返回标签 | 2 通过 / 0 失败 / 0 跳过 |
+| 本轮有效通过范围 | 三个各自完整的结果包，不重复计数 | **65 个唯一用例：60 单元 / 集成 + 5 真机 UI** |
+| 实际画面核对 | 真机的经典 / 系统 × 颜色 / 图片，四张成功截图 | 颜色模式保持空心轮廓；图片模式保持绿 / 橙原色、图案和透明孔洞 |
+| 真机包签名 | 0.6.0（Build 1） | codesign deep / strict 验证通过 |
+| 手机交付 | 已授权 iPhone 13 Pro，iOS 26.5 | UI 测试完成安装；结束后无测试参数正常启动，独立查询确认进程存在 |
+| 源码一致性 | 44 份源码、工程规格及图标指纹 | SDK / Demo / 单元测试与 60 项通过时一致；后续仅旧 UI helper 更新，已由真机回归验证 |
+
+新增 SDK 用例检查普通图案透明轮廓、选中图片原色与缺省回退、图标色优先级、SF Symbol 轮廓不被填充替换，以及两种栏位下的自动兼容与运行时状态保留。
+
+此前混合模拟器 UI 运行中，两个新用例已通过，但旧样式用例存在交互时机问题，且结果收集未正常完成；不将该运行计为最终通过结果。修正仅涉及旧 UI helper 等待实际选中、完整可见后再操作，未改动已通过单元范围的 SDK / Demo。模拟器控制命令随后超时，最终改用已授权手机，取得上述两个完整的真机 UI 结果包；未重启共享模拟器服务。
+
+## 验证边界
+
+- 本轮复验与需求相关的 5 项 UI；背景与完整栏位类型矩阵保留在下方 0.5 历史记录，本轮不宣称全部 UI 已重跑。
+- iOS 15 检查部署目标与 API availability，未运行真实 iOS 15–25 runtime；iPad / Duo 全姿态、完整辅助字号和 RTL 矩阵未在本轮运行。
+- 颜色模式按 alpha 轮廓着色，适合透明底图。带不透明背景或多色细节的图片选择 `.selectedImage` 保留原图像素。
+- UI 自动化关闭 UIKit 动画；本轮没有 Instruments 帧率、峰值内存或耗电测量。
+- 本轮代码与此前 0.5 修改保留在本地工作区，尚未提交或推送；远端仍为此前 0.4 交付。
+
+## 证据与复现
+
+打开 Demo 共享 Scheme，进入“栏位字体与图标”，切换“资源图片”和“选中时如何显示”。命令入口见 [README](../README.md)，规划见 [测试规划](Demo-Test-Plan.md)。临时证据保留在执行会话目录，不纳入源码：
+
+- 单元 / 集成：`bone-shell-selected-icon-unit-final.xcresult`、`bone-shell-selected-icon-unit-summary.json`。
+- 真机样式 UI：`bone-shell-selected-icon-device-ui.xcresult`、`bone-shell-selected-icon-device-style-summary.json`。
+- 真机选中模式 UI：`bone-shell-selected-icon-mode-device-ui.xcresult`、`bone-shell-selected-icon-device-mode-summary.json`。
+- 成功截图：`bone-shell-selected-icon-device-attachments/`；核对页：`bone-shell-selected-icon-visual-check.html`。
+- 签名 / 正常启动 / 进程：`bone-shell-selected-icon-signed-app-final.json`、`bone-shell-selected-icon-phone-final.json` 及其引用 JSON。
+- 汇总：`bone-shell-selected-icon-verification.json`；最终源码 / 规格 / 图标指纹：`4c34fd2e896f04fd3f6e37566400d3369f2d2194e004924c99db13c20c04b067`，清单：`bone-shell-selected-icon-source-final.json`。
+
 ---
 
-# BoneShellKit 0.5 实现与验证记录
+## 历史：BoneShellKit 0.5 实现与验证记录
 
 记录时间：2026-11-11T15:41:20.905267+08:00。当前交付：**0.5.0（Build 1）**。已安装并启动于已授权手机，随后独立查询确认进程存在。
 
