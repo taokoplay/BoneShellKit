@@ -1,4 +1,6 @@
-# BoneShellKit 0.6 栏位字体、颜色与图标
+# 栏位字体、颜色与图标
+
+适用于当前 **0.8 验证版**。示例需 `import UIKit`、`import BoneShellKit`，并在主线程 / `@MainActor` 上使用。栏位形态与样式分别配置，四种呈现模式见 [栏位类型](Bar-Presentation.md)。
 
 导航栏和标签栏的文字通过 `ShellTextStyle` 设置，支持字号、字体、粗细、颜色及 Dynamic Type。导航提供普通标题、大标题、副标题与按钮四种角色；标签提供普通态和选中态的文字及图标颜色。标签图标可使用 SF Symbol、bundle 资源图片或 UIImage，并可在运行时替换。
 
@@ -63,7 +65,9 @@ override func configureScreen(_ screen: inout ScreenConfiguration) {
 }
 ```
 
-样式同时应用到系统的 stacked、inline、compact inline 三种布局，以及标准和滚动边缘 Appearance。当前接口配置整个标签栏的普通 / 选中态；每个标签分别提供自己的标题和图标。过大的标签文字仍可能按系统栏位规则截断或紧凑化。
+原生栏位的样式写入 stacked、inline、compact inline 三种布局，以及 standard / scroll-edge Appearance；经典与兼容胶囊使用同一份样式配置，原生 dock 同步文字属性并维护独立条目副本。当前接口配置整个标签栏的普通 / 选中态，每个标签单独提供标题与图标。过大字号仍受系统栏位高度、截断和紧凑布局约束。
+
+iOS 26 原生 dock 的非选中文字颜色受 UIKit 玻璃合成影响，本轮配置蓝色后仍观察到系统深色文字。不能将属性已设置解释为最终像素完全一致；字号和完整行高已单独验证，详见 [实现与验证记录](Implementation-Status.md)。
 
 `normalIconColor` / `selectedIconColor` 作用于可着色的模板图标，文字颜色可以分别配置。明确配置颜色时，SDK 按当前 traits 生成对应颜色的图标，兼容原生栏位未采用未选中 tint 的情况。使用 `.alwaysOriginal` 的彩色 UIImage 保留自身颜色。
 
@@ -117,7 +121,7 @@ if var item = tabs.tabItemConfiguration(for: "profile") {
 }
 ```
 
-这只更新原生条目和 SDK 经典呈现，不改变标签选中项、页面控制器或导航栈。系统与经典类型使用同一选中策略。Demo 的“栏位字体与图标”新增“选中时如何显示”，可直接对照普通轮廓着色和独立选中图片原色。
+这会更新原有目的地条目及当前栏位呈现，包括经典、兼容胶囊和原生 dock，不重建标签内容控制器，也不改变选中项、导航栈或业务输入。Demo 首页进入“标签栏”，在“选中时如何显示”中对照普通轮廓着色与独立选中图片原色。
 
 ## 普通和选中图标
 
@@ -162,14 +166,19 @@ let updated = tabs.updateTabItem(
 )
 ```
 
-更新发生在原有 `UITabBarItem` 上，保留标签控制器、当前选中项、各标签的导航栈和业务输入。ID 必须是初始化时唯一的 `ShellTab.id`；找不到 ID 或对应控制器已从容器移除时返回 false，不修改其他标签。
+目的地更新发生在原有 `UITabBarItem` 上；原生 dock 使用稳定副本同步显示数据，避免与隐藏的容器栏共享 UI 表示。标签控制器、当前选中项、各标签的导航栈和业务输入会保留。ID 必须是初始化时唯一的 `ShellTab.id`；找不到 ID 或对应控制器已移除时返回 `false`，不修改其他标签。
 
 `tabItemConfiguration(for:)` 返回当前条目配置，可复制修改后再整体更新。配置是完整替换：`selectedIcon = nil` 表示选中时采用普通图标；`icon = nil` 清除普通图标。稳定 ID、tag 和可访问性标识不会随标题变化而变化。兼容属性 `ShellTab.symbol` 对自定义图片返回空字符串，新代码可读取 `ShellTab.item.icon`。
 
-所有样式和更新入口均在 `@MainActor` 上使用，不修改全局 `UIAppearance`，也不访问私有栏位视图。
+所有样式和更新入口均在 `@MainActor` 上使用，不修改全局 `UIAppearance`，不使用私有类名或 KVC。原生 dock 的拟合测量和标识恢复使用公开的 `UIView`、`UIControl`、`UILabel` 属性；系统版本升级后仍需验证实际呈现。
 
 ## Demo 与验证
 
-Demo 首页“栏位字体与图标”可调整导航字号 / 颜色、标签字号 / 颜色，以及 SF Symbol、资源图和保留原色的 UIImage 图标。支持普通 / 选中图标对照、恢复系统配置和详情页输入状态检查。
+Demo 的设置分为两页：
+
+- “导航栏”：标题字号 / 颜色、副标题、大标题、按钮字号、导航形态，以及输入详情页。形态可跟随标签、使用系统或使用经典导航。
+- “标签栏”：标签字号 / 颜色、SF Symbol / 资源 / 原色 UIImage、选中策略、自动 / 经典 / 胶囊形态、左右附加按钮，以及整体背景。
+
+恢复默认时，导航页恢复继承标签容器；标签页恢复 Demo 默认 `.automatic`，并清除附加按钮和页面背景。空样式恢复字体 / 颜色，与 `.system` 栏位呈现是两个独立设置。
 
 实际执行数量、运行环境、截图及手机安装结果见 [验证记录](Implementation-Status.md)。旧版 OS 和 iPad / Duo 全部布局仍按 [测试规划](Demo-Test-Plan.md) 单独验收；公开 API 编译通过不等同于所有系统姿态都已运行。
