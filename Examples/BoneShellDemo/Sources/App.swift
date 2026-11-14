@@ -27,7 +27,8 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             ShellTab(id: "materials", title: "材质", symbol: "circle.lefthalf.filled", root: MaterialDemoController()),
             ShellTab(id: "about", title: "关于", symbol: "info.circle", root: AboutDemoController())
         ])
-        tabs.barPresentation = ProcessInfo.processInfo.arguments.contains("-system-bars") ? .system : .classic
+        tabs.barPresentation = Self.presentation(from: ProcessInfo.processInfo.arguments)
+        tabs.tabBarAccessories = Self.accessories(from: ProcessInfo.processInfo.arguments)
         tabs.view.tintColor = DemoStyle.tint
         tabs.tabBar.accessibilityIdentifier = "demo.tabs"
         let window = UIWindow(windowScene: scene)
@@ -35,5 +36,33 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.rootViewController = tabs
         self.window = window
         window.makeKeyAndVisible()
+    }
+
+    /// Test flags select a presentation without spoofing OS capabilities.
+    private static func presentation(from arguments: [String]) -> ShellBarPresentation {
+        if arguments.contains("-classic-bars") { return .classic }
+        if arguments.contains("-capsule-bars") { return .capsule }
+        if arguments.contains("-system-bars") { return .system }
+        return .automatic
+    }
+
+    /// `-tabs-accessory leading|trailing|both` opens straight onto a dock row, so the
+    /// capsule-plus-circle arrangement can be inspected without touching the pickers.
+    private static func accessories(from arguments: [String]) -> [ShellTabBarAccessory] {
+        guard let flag = arguments.firstIndex(of: "-tabs-accessory"),
+              arguments.indices.contains(flag + 1) else { return [] }
+        let mode = arguments[flag + 1]
+        var items: [ShellTabBarAccessory] = []
+        if mode == "leading" || mode == "both" {
+            items.append(ShellTabBarAccessory(id: "demo.accessory.leading",
+                                              icon: .systemSymbol("square.and.pencil"),
+                                              position: .leading, accessibilityLabel: "新建") { })
+        }
+        if mode == "trailing" || mode == "both" {
+            items.append(ShellTabBarAccessory(id: "demo.accessory.trailing",
+                                              icon: .systemSymbol("magnifyingglass"),
+                                              position: .trailing, accessibilityLabel: "搜索") { })
+        }
+        return items
     }
 }

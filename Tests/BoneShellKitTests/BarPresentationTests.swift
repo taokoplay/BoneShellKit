@@ -161,6 +161,36 @@ final class BarPresentationTests: XCTestCase {
         tabs.barPresentation = .system
     }
 
+    func testPoppedClassicPageRestoresOnlyTheSDKTopInsetBeforeReuse() throws {
+        let (tabs, navigation) = containers(PresentationFixture())
+        let oldKey = keyWindow()
+        let window = show(tabs)
+        defer { window.isHidden = true; window.rootViewController = nil; oldKey?.makeKeyAndVisible() }
+        tabs.barPresentation = .classic
+        let detail = PresentationFixture()
+        detail.additionalSafeAreaInsets = UIEdgeInsets(top: 11, left: 2, bottom: 7, right: 3)
+        navigation.pushViewController(detail, animated: false)
+        tabs.view.layoutIfNeeded()
+        navigation.view.layoutIfNeeded()
+        XCTAssertGreaterThan(detail.additionalSafeAreaInsets.top, 11)
+        var external = detail.additionalSafeAreaInsets
+        external.top += 4
+        detail.additionalSafeAreaInsets = external
+
+        XCTAssertTrue(navigation.popViewController(animated: false) === detail)
+        tabs.view.layoutIfNeeded()
+        XCTAssertEqual(detail.additionalSafeAreaInsets, UIEdgeInsets(top: 15, left: 2, bottom: 7, right: 3),
+                       "A retained page must leave its old navigation without SDK-owned padding")
+
+        let replacement = BoneNavigationController(rootViewController: detail)
+        window.rootViewController = replacement
+        replacement.barPresentation = .classic
+        replacement.view.layoutIfNeeded()
+        replacement.barPresentation = .system
+        replacement.view.layoutIfNeeded()
+        XCTAssertEqual(detail.additionalSafeAreaInsets.top, 15, accuracy: 0.5)
+    }
+
     private func containers(_ page: PresentationFixture) -> (BoneTabBarController, BoneNavigationController) {
         let tabs = BoneTabBarController(tabs: [
             ShellTab(id: "first", title: "First", symbol: "1.circle", root: page),

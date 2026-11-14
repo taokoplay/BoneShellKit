@@ -23,27 +23,27 @@ final class TabSelectedIconUITests: XCTestCase {
 
     private func exercise(system: Bool) {
         app = XCUIApplication()
-        app.launchArguments = system ? ["-ui-testing", "-system-bars"] : ["-ui-testing"]
+        app.launchArguments = system ? ["-ui-testing", "-system-bars"] : ["-ui-testing", "-classic-bars"]
         app.launch()
-        let scene = app.buttons["scene.bar-style"]
+        let scene = app.buttons["scene.tab-bars"]
         XCTAssertTrue(scene.waitForExistence(timeout: 10))
         reveal(scene)
         scene.tap()
-        XCTAssertTrue(app.segmentedControls["bar-style.icons"].waitForExistence(timeout: 5))
-        choose("bar-style.icons", "资源图片")
-        choose("bar-style.tab-colors", "蓝 / 橙")
-        choose("bar-style.selected-icon-mode", "选中颜色")
-        waitForStatus("选中图标：选中颜色")
+        XCTAssertTrue(app.segmentedControls["tabbar.icons"].waitForExistence(timeout: 5))
+        choose("tabbar.icons", "资源图片")
+        choose("tabbar.colors", "蓝 / 橙")
+        choose("tabbar.selected-mode", "选中颜色")
+        waitForStatus("选中：选中颜色")
         XCTAssertTrue(app.buttons["tab.examples"].isSelected)
         keepScreenshot(system ? "System selected color outline" : "Classic selected color outline")
-        choose("bar-style.selected-icon-mode", "选中图片")
-        waitForStatus("选中图标：选中图片")
+        choose("tabbar.selected-mode", "选中图片")
+        waitForStatus("选中：选中图片")
         keepScreenshot(system ? "System selected original image" : "Classic selected original image")
         tapVisibleTab("tab.about")
         XCTAssertTrue(app.staticTexts["about.backgrounds"].waitForExistence(timeout: 5))
         tapVisibleTab("tab.examples")
-        waitForStatus("选中图标：选中图片")
-        XCTAssertTrue(app.segmentedControls["bar-style.selected-icon-mode"].buttons["选中图片"].isSelected)
+        waitForStatus("选中：选中图片")
+        XCTAssertTrue(app.segmentedControls["tabbar.selected-mode"].buttons["选中图片"].isSelected)
     }
 
     private func choose(_ id: String, _ title: String) {
@@ -86,7 +86,7 @@ final class TabSelectedIconUITests: XCTestCase {
     }
 
     private func waitForStatus(_ text: String) {
-        let label = app.staticTexts["bar-style.status"]
+        let label = app.staticTexts["tabbar.status"]
         let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in label.exists && label.label.contains(text) }, object: nil)
         XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed)
     }

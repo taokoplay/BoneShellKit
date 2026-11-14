@@ -5,7 +5,8 @@ final class BoneShellDemoUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = ["-ui-testing", "-system-bars"]
+        // Exercise native menus and transitions with normal UIKit animations.
+        app.launchArguments = ["-system-bars"]
         app.launch()
         XCTAssertTrue(app.buttons["scene.navigation"].waitForExistence(timeout: 10))
     }
@@ -44,6 +45,10 @@ final class BoneShellDemoUITests: XCTestCase {
         overflow.tap()
         let help = app.buttons["帮助"]
         XCTAssertTrue(help.waitForExistence(timeout: 5))
+        let menu = XCTAttachment(screenshot: app.screenshot())
+        menu.name = "Native navigation overflow menu"
+        menu.lifetime = .keepAlways
+        add(menu)
         help.tap()
         XCTAssertEqual(app.staticTexts["navigation.event"].label, "已触发 2 次：帮助")
     }

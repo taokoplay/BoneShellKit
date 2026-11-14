@@ -57,7 +57,13 @@ public struct ScreenConfiguration {
     public var navigation = NavigationConfiguration()
     /// Nil inherits container defaults; a value changes both managed bars for this page.
     public var barPresentation: ShellBarPresentation? = nil
+    /// Safe-area placement keeps fixed content clear of bars. A registered primary scroll view
+    /// extends beneath a floating tab capsule, with safe-area padding applied to its scrollable
+    /// content so the last item remains reachable.
     public var content: ShellContentPlacement = .safeArea
+    /// Opacity fade at the screen bottom for primary scroll content beneath a floating tab bar.
+    /// The glass controls are not faded. Set to zero to disable; the default is 80 points.
+    public var floatingTabBarFadeHeight: CGFloat = 80
     public var avoidsKeyboard: Bool = false
     public var background: ShellBackgroundConfiguration? = nil
     public var backgroundComposition: ShellBackgroundComposition = .independent

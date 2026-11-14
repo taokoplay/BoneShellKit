@@ -5,10 +5,14 @@ open class BoneViewController: UIViewController {
     public let contentView = UIView()
     public let backgroundView = ShellBackgroundView()
     public var resolvedBarPresentation: ShellBarPresentation {
-        screenConfiguration.barPresentation
-            ?? (navigationController as? BoneNavigationController)?.barPresentation
-            ?? (tabBarController as? BoneTabBarController)?.barPresentation
-            ?? .system
+        if let navigation = navigationController as? BoneNavigationController {
+            return navigation.resolvedBarPresentation
+        }
+        if let tabs = tabBarController as? BoneTabBarController {
+            return tabs.resolvedBarPresentation
+        }
+        return (screenConfiguration.barPresentation ?? .system)
+            .resolved(supportsNativeCapsule: ShellBarPresentation.supportsNativeCapsule)
     }
 
     @available(iOS 27.1, *)
@@ -35,6 +39,9 @@ open class BoneViewController: UIViewController {
     private var keyboardBottomConstraint: NSLayoutConstraint?
     private weak var primaryScrollView: UIScrollView?
     private var lastActionLayoutKey: ActionLayoutKey?
+    private var scrollsUnderFloatingTabBar = false
+    private var originalBottomEdgeEffectHidden: Bool?
+    private let bottomContentFade = ShellScrollBottomFade()
     private var subtitleTitleView: ShellSubtitleTitleView?
 
     public init() { super.init(nibName: nil, bundle: nil) }
@@ -78,6 +85,7 @@ open class BoneViewController: UIViewController {
         super.viewWillAppear(animated)
         isShellVisible = false
         applyNavigationConfiguration()
+        refreshContentLayoutForBars()
         updateShellBackgrounds(playbackActive: false)
         lastActionLayoutKey = nil
         updateNavigationActions()
@@ -108,19 +116,35 @@ open class BoneViewController: UIViewController {
         updateLegacyKeyboardAvoidance()
         updateNavigationActions()
         standaloneUnifiedBackgroundHost?.layout()
+        updateBottomContentFade()
     }
 
     open override func viewSafeAreaInsetsDidChange() {
         super.viewSafeAreaInsetsDidChange()
         guard isViewLoaded else { return }
         updateNavigationActions()
+        refreshContentLayoutForBars()
     }
 
     open override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         guard isViewLoaded else { return }
-        applyNavigationConfiguration()
-        lastActionLayoutKey = nil
+        // Menu presentation can change unrelated traits. Replacing its source item in
+        // response dismisses the native menu before the user can choose an action.
+        let needsRestyling = previousTraitCollection.map { previous in
+            previous.hasDifferentColorAppearance(comparedTo: traitCollection)
+                || previous.preferredContentSizeCategory != traitCollection.preferredContentSizeCategory
+                || previous.legibilityWeight != traitCollection.legibilityWeight
+                || previous.layoutDirection != traitCollection.layoutDirection
+                || previous.displayScale != traitCollection.displayScale
+                || previous.horizontalSizeClass != traitCollection.horizontalSizeClass
+                || previous.verticalSizeClass != traitCollection.verticalSizeClass
+                || previous.userInterfaceIdiom != traitCollection.userInterfaceIdiom
+        } ?? true
+        if needsRestyling {
+            applyNavigationConfiguration()
+            lastActionLayoutKey = nil
+        }
         updateNavigationActions()
     }
 
@@ -139,8 +163,12 @@ open class BoneViewController: UIViewController {
     }
 
     public func registerPrimaryScrollView(_ scrollView: UIScrollView) {
+        if #available(iOS 26.0, *), let hidden = originalBottomEdgeEffectHidden {
+            primaryScrollView?.bottomEdgeEffect.isHidden = hidden
+        }
+        originalBottomEdgeEffectHidden = nil
         primaryScrollView = scrollView
-        updateScrollViewPolicy()
+        if isViewLoaded { updateContentLayout() }
     }
 
     internal func prepareBackgroundAssets(pageSize: CGSize, navigationSize: CGSize, tabSize: CGSize, scale: CGFloat, traits: UITraitCollection) {
@@ -216,16 +244,28 @@ open class BoneViewController: UIViewController {
             playbackActive: playbackActive, style: screenConfiguration.tabBarStyle, unifiedBackground: unified)
     }
 
+    private var shouldScrollUnderFloatingTabBar: Bool {
+        primaryScrollView != nil && !hidesBottomBarWhenPushed
+            && (tabBarController as? BoneTabBarController)?.floatsAboveScrollContent == true
+    }
+
+    /// A presentation switch changes the viewport, not the scroll view or business content.
+    internal func refreshContentLayoutForBars() {
+        guard isViewLoaded, scrollsUnderFloatingTabBar != shouldScrollUnderFloatingTabBar else { return }
+        updateContentLayout()
+    }
+
     private func updateContentLayout() {
         keyboardBottomConstraint?.isActive = false
         NSLayoutConstraint.deactivate(contentConstraints)
         keyboardBottomConstraint = nil
+        scrollsUnderFloatingTabBar = shouldScrollUnderFloatingTabBar
         let boundary = screenConfiguration.content == .safeArea
             ? view.safeAreaLayoutGuide : nil
         let top = boundary?.topAnchor ?? view.topAnchor
         let leading = boundary?.leadingAnchor ?? view.leadingAnchor
         let trailing = boundary?.trailingAnchor ?? view.trailingAnchor
-        let bottom = boundary?.bottomAnchor ?? view.bottomAnchor
+        let bottom = scrollsUnderFloatingTabBar ? view.bottomAnchor : (boundary?.bottomAnchor ?? view.bottomAnchor)
         let preferredBottom = contentView.bottomAnchor.constraint(equalTo: bottom)
         preferredBottom.priority = .defaultHigh
         contentConstraints = [
@@ -239,13 +279,13 @@ open class BoneViewController: UIViewController {
             let guide = view.keyboardLayoutGuide
             guide.followsUndockedKeyboard = false
             if #available(iOS 17.0, *) {
-                guide.usesBottomSafeArea = screenConfiguration.content == .safeArea
+                guide.usesBottomSafeArea = screenConfiguration.content == .safeArea && !scrollsUnderFloatingTabBar
             }
             let limit = contentView.bottomAnchor.constraint(lessThanOrEqualTo: guide.topAnchor)
             keyboardBottomConstraint = limit
             if #available(iOS 17.0, *) {
                 contentConstraints.append(limit)
-            } else if screenConfiguration.content == .safeArea {
+            } else if screenConfiguration.content == .safeArea && !scrollsUnderFloatingTabBar {
                 contentConstraints.append(limit)
             }
         }
@@ -256,7 +296,7 @@ open class BoneViewController: UIViewController {
 
     private func updateLegacyKeyboardAvoidance() {
         if #available(iOS 17.0, *) { return }
-        guard screenConfiguration.content == .underBars,
+        guard screenConfiguration.content == .underBars || scrollsUnderFloatingTabBar,
               let constraint = keyboardBottomConstraint else { return }
         // iOS 15–16 tie the hidden keyboard guide to the safe bottom. Only constrain
         // under-bar content to that guide while it actually obscures the view.
@@ -267,9 +307,35 @@ open class BoneViewController: UIViewController {
 
     private func updateScrollViewPolicy() {
         guard let scrollView = primaryScrollView else { return }
-        scrollView.contentInsetAdjustmentBehavior = screenConfiguration.content == .safeArea
-            ? .never : .automatic
+        if scrollsUnderFloatingTabBar {
+            // Extend the viewport; let UIKit add safe-area padding to the content so its last
+            // row and scroll indicator can still clear the glass without clipping the list.
+            scrollView.contentInsetAdjustmentBehavior = .always
+        } else {
+            scrollView.contentInsetAdjustmentBehavior = screenConfiguration.content == .safeArea
+                ? .never : .automatic
+        }
         if isViewLoaded { setContentScrollView(scrollView, for: .all) }
+        if #available(iOS 26.0, *) {
+            if scrollsUnderFloatingTabBar {
+                if originalBottomEdgeEffectHidden == nil {
+                    originalBottomEdgeEffectHidden = scrollView.bottomEdgeEffect.isHidden
+                }
+                scrollView.bottomEdgeEffect.isHidden = true
+            } else if let hidden = originalBottomEdgeEffectHidden {
+                scrollView.bottomEdgeEffect.isHidden = hidden
+                originalBottomEdgeEffectHidden = nil
+            }
+        }
+        updateBottomContentFade()
+    }
+
+    private func updateBottomContentFade() {
+        // A keyboard-shortened viewport must not fade its controls above the keyboard.
+        let reachesPageBottom = contentView.frame.maxY >= view.bounds.maxY - 0.5
+        let height = scrollsUnderFloatingTabBar && reachesPageBottom
+            ? screenConfiguration.floatingTabBarFadeHeight : 0
+        bottomContentFade.update(in: contentView, height: height)
     }
 
     private var effectiveNavigationStyle: ShellNavigationStyle {

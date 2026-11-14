@@ -103,6 +103,17 @@ class DemoStackController: BoneViewController {
 }
 
 @MainActor
+extension DemoStackController {
+    /// Wires a segmented control to a value handler and gives it a stable identifier.
+    func bind(_ picker: UISegmentedControl, id: String, action: @escaping (Int) -> Void) {
+        picker.accessibilityIdentifier = id
+        picker.addAction(UIAction { [weak picker] _ in
+            action(picker?.selectedSegmentIndex ?? 0)
+        }, for: .valueChanged)
+    }
+}
+
+@MainActor
 final class DemoRow: UIControl {
     init(title: String, detail: String, symbol: String, id: String, action: @escaping () -> Void) {
         super.init(frame: .zero)

@@ -211,6 +211,10 @@ final class ShellClassicNavigationBar: UIView {
 final class ShellClassicTabBar: UIView {
     var onSelect: ((Int) -> Void)?
     private(set) var contentHeight: CGFloat = 49
+    /// Horizontal space kept free at each end, for accessory buttons drawn inside the bar.
+    var itemInsets: (leading: CGFloat, trailing: CGFloat) = (0, 0) {
+        didSet { setNeedsLayout() }
+    }
     var bottomInset: CGFloat = 0 {
         didSet {
             setNeedsLayout()
@@ -239,6 +243,9 @@ final class ShellClassicTabBar: UIView {
         super.init(coder: coder)
         configureView()
     }
+
+    /// Number of destination slots currently laid out.
+    var itemCount: Int { buttons.count }
 
     func update(items: [UITabBarItem], selectedIndex: Int, style: ShellTabBarStyle,
                 material: ShellMaterial, showsMediaBackground: Bool) {
@@ -296,15 +303,16 @@ final class ShellClassicTabBar: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         backdrop.frame = bounds
-        guard !buttons.isEmpty else { return }
         let height = max(0, bounds.height - max(0, bottomInset))
         let count = buttons.count
         let isRTL = effectiveUserInterfaceLayoutDirection == .rightToLeft
+        let innerX = bounds.minX + (isRTL ? itemInsets.trailing : itemInsets.leading)
+        let innerWidth = max(0, bounds.width - itemInsets.leading - itemInsets.trailing)
         for (index, button) in buttons.enumerated() {
             let visualIndex = isRTL ? count - 1 - index : index
-            let left = bounds.width * CGFloat(visualIndex) / CGFloat(count)
-            let right = bounds.width * CGFloat(visualIndex + 1) / CGFloat(count)
-            button.frame = CGRect(x: bounds.minX + left, y: bounds.minY,
+            let left = innerWidth * CGFloat(visualIndex) / CGFloat(count)
+            let right = innerWidth * CGFloat(visualIndex + 1) / CGFloat(count)
+            button.frame = CGRect(x: innerX + left, y: bounds.minY,
                                   width: right - left, height: height)
         }
     }
@@ -391,7 +399,16 @@ private final class ShellClassicActionButton: UIButton {
 }
 
 @MainActor
-private final class ShellClassicTabButton: UIButton {
+final class ShellClassicTabButton: UIButton {
+    /// Draws a translucent capsule behind the selected item. Used by the capsule tab bar.
+    var showsSelectionPill = false {
+        didSet { updatePill() }
+    }
+    var selectionPillColor: UIColor = .clear {
+        didSet { pillView.backgroundColor = selectionPillColor }
+    }
+
+    private let pillView = UIView()
     private let iconView = UIImageView()
     private let textLabel = UILabel()
     private let badgeLabel = UILabel()
@@ -411,6 +428,11 @@ private final class ShellClassicTabButton: UIButton {
         iconView.isAccessibilityElement = false
         iconView.contentMode = .scaleAspectFit
         iconView.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 25)
+        pillView.isAccessibilityElement = false
+        pillView.isUserInteractionEnabled = false
+        pillView.layer.cornerCurve = .continuous
+        pillView.isHidden = true
+        addSubview(pillView)
         textLabel.isAccessibilityElement = false
         textLabel.textAlignment = .center
         textLabel.numberOfLines = 1
@@ -449,6 +471,7 @@ private final class ShellClassicTabButton: UIButton {
         if !item.isEnabled { traits.insert(.notEnabled) }
         accessibilityTraits = traits
         setNeedsLayout()
+        updatePill()
     }
 
     override func layoutSubviews() {
@@ -470,6 +493,14 @@ private final class ShellClassicTabButton: UIButton {
                                       y: max(bounds.minY, iconView.frame.minY - 3), width: width, height: height)
             badgeLabel.layer.cornerRadius = height / 2
         }
+        pillView.frame = bounds.insetBy(dx: 2, dy: 4)
+        pillView.layer.cornerRadius = pillView.bounds.height / 2
+    }
+
+    private func updatePill() {
+        pillView.backgroundColor = selectionPillColor
+        pillView.isHidden = !showsSelectionPill || !isSelected
+        setNeedsLayout()
     }
 
     override var isHighlighted: Bool {

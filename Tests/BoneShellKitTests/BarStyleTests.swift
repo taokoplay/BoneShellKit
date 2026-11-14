@@ -83,6 +83,28 @@ final class BarStyleTests: XCTestCase {
         }
     }
 
+    func testUnrelatedTraitNotificationsPreserveTheNativeMenuSource() throws {
+        let page = StyledActionFixture()
+        page.loadViewIfNeeded()
+        page.view.bounds = CGRect(x: 0, y: 0, width: 320, height: 600)
+        page.refreshScreenConfiguration()
+        let source = try XCTUnwrap(page.navigationItem.rightBarButtonItems?.first {
+            $0.accessibilityIdentifier == "shell.overflow"
+        })
+        let menu = try XCTUnwrap(source.menu)
+        page.traitCollectionDidChange(page.traitCollection)
+        let retained = page.navigationItem.rightBarButtonItems?.first { $0.accessibilityIdentifier == "shell.overflow" }
+        XCTAssertTrue(retained === source, "Transient menu traits must not replace its presenting item")
+        XCTAssertTrue(retained?.menu === menu)
+
+        let oppositeStyle: UIUserInterfaceStyle = page.traitCollection.userInterfaceStyle == .dark ? .light : .dark
+        let previous = UITraitCollection(traitsFrom: [page.traitCollection, UITraitCollection(userInterfaceStyle: oppositeStyle)])
+        page.traitCollectionDidChange(previous)
+        XCTAssertFalse(page.navigationItem.rightBarButtonItems?.first {
+            $0.accessibilityIdentifier == "shell.overflow"
+        } === source, "Actual appearance changes still refresh navigation styling")
+    }
+
     func testNavigationButtonTintRestoresOnPushAndReturnsOnPop() {
         let root = TintFixture()
         let navigation = BoneNavigationController(rootViewController: root)
