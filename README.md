@@ -22,13 +22,13 @@ UIKit 页面骨架 SDK，当前为 **0.8 验证版**。提供页面内容区域�
 .package(path: "../BoneShellKit")
 ```
 
-也可使用远程分支：
+远程接入本次发布的 0.8 验证版本：
 
 ```swift
-.package(url: "https://github.com/taokoplay/BoneShellKit.git", branch: "main")
+.package(url: "https://github.com/taokoplay/BoneShellKit.git", exact: "0.8.0")
 ```
 
-本 README 描述当前源码；远程接入前应确认目标分支包含需要的修订。已有标签 `v0.6.0`，0.8 尚未打标签，二者功能范围不同。
+0.8 验证版通过 `v0.8.0` 标签接入；历史标签 `v0.6.0` 不包含后续的自动 / 胶囊模式与标签栏附加动作。需要使用开发分支时可改为 `branch: "main"`，接入范围按该分支实际修订确认。
 
 ## 最小接入
 
