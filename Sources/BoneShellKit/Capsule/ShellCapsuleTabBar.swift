@@ -31,6 +31,7 @@ final class ShellCapsuleTabBar: UIView {
     private struct Model {
         let items: [UITabBarItem]
         let selectedIndex: Int
+        let labelDisplayModes: [ShellTabLabelDisplayMode]
         let style: ShellTabBarStyle
         let material: ShellMaterial
         let showsMediaBackground: Bool
@@ -52,10 +53,11 @@ final class ShellCapsuleTabBar: UIView {
         configureView()
     }
 
-    func update(items: [UITabBarItem], selectedIndex: Int, style: ShellTabBarStyle,
+    func update(items: [UITabBarItem], selectedIndex: Int,
+                labelDisplayModes: [ShellTabLabelDisplayMode] = [], style: ShellTabBarStyle,
                 material: ShellMaterial, showsMediaBackground: Bool) {
-        model = Model(items: items, selectedIndex: selectedIndex, style: style,
-                      material: material, showsMediaBackground: showsMediaBackground)
+        model = Model(items: items, selectedIndex: selectedIndex, labelDisplayModes: labelDisplayModes,
+                      style: style, material: material, showsMediaBackground: showsMediaBackground)
         applyModel()
     }
 
@@ -73,8 +75,13 @@ final class ShellCapsuleTabBar: UIView {
             ?? UIFont.preferredFont(forTextStyle: .caption2, compatibleWith: traitCollection)
         let selectedFont = style.selected.resolvedFont(for: .caption2, traits: traitCollection)
             ?? UIFont.preferredFont(forTextStyle: .caption2, compatibleWith: traitCollection)
-        let newHeight = max(Self.minimumContentHeight,
-                            ceil(25 + 2 + max(normalFont.lineHeight, selectedFont.lineHeight) + 16))
+        let hasLabels = model.items.enumerated().contains { index, item in
+            let mode = model.labelDisplayModes.indices.contains(index)
+                ? model.labelDisplayModes[index] : style.labelDisplayMode
+            return mode != .never && item.title?.isEmpty == false
+        }
+        let titleHeight = hasLabels ? 2 + max(normalFont.lineHeight, selectedFont.lineHeight) : 0
+        let newHeight = max(Self.minimumContentHeight, ceil(25 + titleHeight + 16))
         if abs(contentHeight - newHeight) > 0.1 {
             contentHeight = newHeight
             invalidateIntrinsicContentSize()
@@ -92,6 +99,8 @@ final class ShellCapsuleTabBar: UIView {
         let pillColor = (tintColor ?? .systemBlue).withAlphaComponent(0.16)
         for (index, item) in model.items.enumerated() {
             let selected = index == model.selectedIndex
+            let labelMode = model.labelDisplayModes.indices.contains(index)
+                ? model.labelDisplayModes[index] : style.labelDisplayMode
             let role = selected ? style.selected : style.normal
             let color = role.color ?? (selected ? (tintColor ?? .systemBlue) : .secondaryLabel)
             let iconColor = (selected ? style.selectedIconColor : style.normalIconColor)
@@ -99,7 +108,8 @@ final class ShellCapsuleTabBar: UIView {
             buttons[index].selectionPillColor = pillColor
             buttons[index].update(item: item, selected: selected,
                                   font: selected ? selectedFont : normalFont,
-                                  color: color, iconColor: iconColor)
+                                  color: color, iconColor: iconColor,
+                                  showsTitle: labelMode.isVisible(isSelected: selected))
         }
         backdrop.update(material: model.material, showsMediaBackground: model.showsMediaBackground)
         accessibilityElements = buttons

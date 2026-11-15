@@ -28,6 +28,7 @@ final class ShellNativeDockBar: UIView {
         let imageSize: CGSize
         let normalFont: UIFont?
         let selectedFont: UIFont?
+        let labelMode: ShellTabLabelDisplayMode
     }
     private var itemMetrics: [ItemMetrics] = []
     private var itemCopies: [ObjectIdentifier: UITabBarItem] = [:]
@@ -35,8 +36,13 @@ final class ShellNativeDockBar: UIView {
     private final class SelectionProxy: NSObject, UITabBarDelegate {
         var onSelect: ((Int) -> Void)?
         func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
-            guard let index = tabBar.items?.firstIndex(where: { $0 === item }) else { return }
-            onSelect?(index)
+            // Updating captions can rebuild UIKit's representations. Let its selection
+            // event finish before refreshing the destination's style and content.
+            DispatchQueue.main.async { [weak self, weak tabBar, weak item] in
+                guard let tabBar = tabBar, let item = item, tabBar.selectedItem === item,
+                      let index = tabBar.items?.firstIndex(where: { $0 === item }) else { return }
+                self?.onSelect?(index)
+            }
         }
     }
     private let proxy = SelectionProxy()
@@ -84,15 +90,20 @@ final class ShellNativeDockBar: UIView {
 
     func update(items: [UITabBarItem], selected: Int,
                 leading: [ShellBarAccessoryItem], trailing: [ShellBarAccessoryItem],
-                style: ShellTabBarStyle) {
-        let items = dockItems(from: items)
+                labelDisplayModes: [ShellTabLabelDisplayMode] = [], style: ShellTabBarStyle) {
+        let sources = items
+        let modes = sources.indices.map {
+            labelDisplayModes.indices.contains($0) ? labelDisplayModes[$0] : style.labelDisplayMode
+        }
+        let items = dockItems(from: sources, selected: selected, labelModes: modes)
         let previousItems = tabBar.items ?? []
         let itemsChanged = previousItems.count != items.count
             || zip(previousItems, items).contains { $0.0 !== $0.1 }
-        let metrics = items.map {
-            ItemMetrics(title: $0.title, imageSize: $0.image?.size ?? .zero,
+        let metrics = sources.enumerated().map { index, item in
+            ItemMetrics(title: item.title, imageSize: item.image?.size ?? .zero,
                         normalFont: style.normal.resolvedFont(for: .caption2, traits: traitCollection),
-                        selectedFont: style.selected.resolvedFont(for: .caption2, traits: traitCollection))
+                        selectedFont: style.selected.resolvedFont(for: .caption2, traits: traitCollection),
+                        labelMode: modes[index])
         }
         let accessoriesChanged = leading.map(\.id) != leadingButtons.compactMap(\.accessibilityIdentifier)
             || trailing.map(\.id) != trailingButtons.compactMap(\.accessibilityIdentifier)
@@ -126,18 +137,21 @@ final class ShellNativeDockBar: UIView {
                 button.update(item: item, tint: tint, font: font, compact: true, material: .systemGlass)
             }
         }
+        tabHost.setNeedsLayout()
         setNeedsLayout()
     }
 
     /// Keep UIKit's view representations separate from the hidden container bar.
-    private func dockItems(from sources: [UITabBarItem]) -> [UITabBarItem] {
+    private func dockItems(from sources: [UITabBarItem], selected: Int,
+                           labelModes: [ShellTabLabelDisplayMode]) -> [UITabBarItem] {
         let identities = Set(sources.map { ObjectIdentifier($0) })
         itemCopies = itemCopies.filter { identities.contains($0.key) }
-        return sources.map { source in
+        return sources.enumerated().map { index, source in
             let id = ObjectIdentifier(source)
             let item = itemCopies[id] ?? UITabBarItem()
             itemCopies[id] = item
-            item.title = source.title
+            let title = labelModes[index].isVisible(isSelected: index == selected) ? source.title : nil
+            if item.title != title { item.title = title }
             item.image = source.image
             item.selectedImage = source.selectedImage
             item.imageInsets = source.imageInsets
@@ -149,8 +163,9 @@ final class ShellNativeDockBar: UIView {
             item.isEnabled = source.isEnabled
             item.tag = source.tag
             item.accessibilityIdentifier = source.accessibilityIdentifier
-            item.accessibilityLabel = source.accessibilityLabel
+            item.accessibilityLabel = source.accessibilityLabel ?? source.title
             item.accessibilityHint = source.accessibilityHint
+            item.accessibilityValue = source.accessibilityValue
             for state: UIControl.State in [.normal, .selected, .disabled, .focused] {
                 let attributes = source.titleTextAttributes(for: state)
                 if !NSDictionary(dictionary: item.titleTextAttributes(for: state) ?? [:]).isEqual(to: attributes ?? [:]) {
@@ -323,18 +338,13 @@ final class ShellDockTabHost: UIView {
     }
 
     /// UIKit does not always transfer item IDs to controls rebuilt after a fitted layout.
-    /// Match public controls and captions in each content group, preserving logical order.
+    /// Match public destination controls even when their visual captions are hidden.
     private func updateAccessibilityIdentifiers() {
         guard let items = tabBar.items, !items.isEmpty else { return }
-        let titles = Set(items.compactMap(\.title))
         var groups: [ObjectIdentifier: [UIView]] = [:]
-        func hasCaption(_ view: UIView) -> Bool {
-            if let label = view as? UILabel, let text = label.text, titles.contains(text) { return true }
-            return view.subviews.contains(where: hasCaption)
-        }
         func collect(_ view: UIView) {
             guard !view.isHidden, view.alpha > 0.01 else { return }
-            if view is UIControl, let parent = view.superview, hasCaption(view) {
+            if view is UIControl, let parent = view.superview {
                 groups[ObjectIdentifier(parent), default: []].append(view)
             }
             view.subviews.forEach(collect)
@@ -345,6 +355,16 @@ final class ShellDockTabHost: UIView {
             controls.sort { rtl ? $0.frame.maxX > $1.frame.maxX : $0.frame.minX < $1.frame.minX }
             for (control, item) in zip(controls, items) {
                 control.accessibilityIdentifier = item.accessibilityIdentifier
+                control.accessibilityLabel = item.accessibilityLabel ?? item.title
+                control.accessibilityHint = item.accessibilityHint
+                let isSelected = item === tabBar.selectedItem
+                if let destination = control as? UIControl, destination.isSelected != isSelected {
+                    destination.isSelected = isSelected
+                }
+                var traits = control.accessibilityTraits
+                if isSelected { traits.insert(.selected) }
+                else { traits.remove(.selected) }
+                if control.accessibilityTraits != traits { control.accessibilityTraits = traits }
             }
         }
     }

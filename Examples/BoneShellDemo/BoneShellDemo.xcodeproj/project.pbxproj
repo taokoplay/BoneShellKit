@@ -17,6 +17,7 @@
 		18DFF180DFC58C1E0B2D52CF /* TabBarUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A0216B1E75DE44DDE2DB2C7 /* TabBarUITests.swift */; };
 		1A07048E1E233D8D53109942 /* BarStyle-Orbit@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = F0881810D524E0AD7CB476FA /* BarStyle-Orbit@2x.png */; };
 		1E9102498880F129A838FAD7 /* DemoComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A18526A8380B22D505F04CA /* DemoComponents.swift */; };
+		22F1A9486212FDCF9B5446BA /* TabLabelDisplayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 551B9D8C8CC789AFE41C5E35 /* TabLabelDisplayTests.swift */; };
 		283881E66C9E7DDD087F6214 /* Background-Orbit.gif in Resources */ = {isa = PBXBuildFile; fileRef = 7519AE62274B5F82DBEBF76A /* Background-Orbit.gif */; };
 		2B0016744FE335B5A48513F0 /* TabSelectedIconUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4355AA4DB68857FD4DD53241 /* TabSelectedIconUITests.swift */; };
 		31F1A306921682273B00B9EA /* Background-Drift.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 8124B4AC1CDB4B8DA61A9170 /* Background-Drift.mp4 */; };
@@ -76,6 +77,7 @@
 		47ED3B7A036B43CF9D2A8367 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		482BE1656E2C23DE5297BADE /* TabSelectedIconTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabSelectedIconTests.swift; sourceTree = "<group>"; };
 		4BCDFF30D421B233025B55F2 /* BackgroundEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundEngineTests.swift; sourceTree = "<group>"; };
+		551B9D8C8CC789AFE41C5E35 /* TabLabelDisplayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabLabelDisplayTests.swift; sourceTree = "<group>"; };
 		642BA4D0E2E5628586BAC482 /* BarNavigationDemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarNavigationDemo.swift; sourceTree = "<group>"; };
 		65754720AE35FBD24081BE28 /* Background-Aurora.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "Background-Aurora.html"; sourceTree = "<group>"; };
 		6C90E8DCF08559097B65353E /* BoneShellDemoUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoneShellDemoUITests.swift; sourceTree = "<group>"; };
@@ -226,6 +228,7 @@
 				76FAEEACEB1BEAC023436F1D /* CapsuleBarTests.swift */,
 				89FD2286037B3B9BA1F63671 /* ShellRulesTests.swift */,
 				FEC557F27F0E179C0485486A /* TabBarAccessoryTests.swift */,
+				551B9D8C8CC789AFE41C5E35 /* TabLabelDisplayTests.swift */,
 				482BE1656E2C23DE5297BADE /* TabSelectedIconTests.swift */,
 				29BDB4BEE062C602D22DB68B /* UnifiedBackgroundTests.swift */,
 			);
@@ -387,6 +390,7 @@
 				64DC6F0C59FFB719008AE6EF /* DemoIntegrationTests.swift in Sources */,
 				B3FFE010B098F05C741522EB /* ShellRulesTests.swift in Sources */,
 				4731D8B003CDF3342FA57BEE /* TabBarAccessoryTests.swift in Sources */,
+				22F1A9486212FDCF9B5446BA /* TabLabelDisplayTests.swift in Sources */,
 				0B1742CB8311C9FA45745E49 /* TabSelectedIconTests.swift in Sources */,
 				92B161FCF62E59BCB1CD6320 /* UnifiedBackgroundTests.swift in Sources */,
 			);

@@ -57,15 +57,21 @@ public struct ShellTabBarStyle {
     public var selected: ShellTextStyle
     public var normalIconColor: UIColor?
     public var selectedIconColor: UIColor?
+    /// Default caption policy for destinations without a per-item override.
+    public var labelDisplayMode: ShellTabLabelDisplayMode
 
-    public init(normal: ShellTextStyle? = nil, selected: ShellTextStyle? = nil, normalIconColor: UIColor? = nil, selectedIconColor: UIColor? = nil) {
+    public init(normal: ShellTextStyle? = nil, selected: ShellTextStyle? = nil, normalIconColor: UIColor? = nil, selectedIconColor: UIColor? = nil, labelDisplayMode: ShellTabLabelDisplayMode = .always) {
         self.normal = normal ?? ShellTextStyle()
         self.selected = selected ?? ShellTextStyle()
         self.normalIconColor = normalIconColor
         self.selectedIconColor = selectedIconColor
+        self.labelDisplayMode = labelDisplayMode
     }
 
-    var isEmpty: Bool { normal.isEmpty && selected.isEmpty && normalIconColor == nil && selectedIconColor == nil }
+    var isEmpty: Bool {
+        normal.isEmpty && selected.isEmpty && normalIconColor == nil
+            && selectedIconColor == nil && labelDisplayMode == .always
+    }
 }
 
 @MainActor
@@ -92,12 +98,15 @@ public struct ShellTabItemConfiguration {
     public var icon: ShellTabIcon?
     public var selectedIcon: ShellTabIcon?
     public var selectedIconMode: ShellTabSelectedIconMode
+    /// Nil inherits the current tab-bar style. The title remains available to accessibility.
+    public var labelDisplayMode: ShellTabLabelDisplayMode?
 
-    public init(title: String, icon: ShellTabIcon? = nil, selectedIcon: ShellTabIcon? = nil, selectedIconMode: ShellTabSelectedIconMode = .automatic) {
+    public init(title: String, icon: ShellTabIcon? = nil, selectedIcon: ShellTabIcon? = nil, selectedIconMode: ShellTabSelectedIconMode = .automatic, labelDisplayMode: ShellTabLabelDisplayMode? = nil) {
         self.title = title
         self.icon = icon
         self.selectedIcon = selectedIcon
         self.selectedIconMode = selectedIconMode
+        self.labelDisplayMode = labelDisplayMode
     }
 }
 

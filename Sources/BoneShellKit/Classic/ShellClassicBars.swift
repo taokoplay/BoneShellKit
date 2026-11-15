@@ -225,6 +225,7 @@ final class ShellClassicTabBar: UIView {
     private struct Model {
         let items: [UITabBarItem]
         let selectedIndex: Int
+        let labelDisplayModes: [ShellTabLabelDisplayMode]
         let style: ShellTabBarStyle
         let material: ShellMaterial
         let showsMediaBackground: Bool
@@ -247,10 +248,11 @@ final class ShellClassicTabBar: UIView {
     /// Number of destination slots currently laid out.
     var itemCount: Int { buttons.count }
 
-    func update(items: [UITabBarItem], selectedIndex: Int, style: ShellTabBarStyle,
+    func update(items: [UITabBarItem], selectedIndex: Int,
+                labelDisplayModes: [ShellTabLabelDisplayMode] = [], style: ShellTabBarStyle,
                 material: ShellMaterial, showsMediaBackground: Bool) {
-        model = Model(items: items, selectedIndex: selectedIndex, style: style,
-                      material: material, showsMediaBackground: showsMediaBackground)
+        model = Model(items: items, selectedIndex: selectedIndex, labelDisplayModes: labelDisplayModes,
+                      style: style, material: material, showsMediaBackground: showsMediaBackground)
         applyModel()
     }
 
@@ -267,7 +269,13 @@ final class ShellClassicTabBar: UIView {
             ?? UIFont.preferredFont(forTextStyle: .caption2, compatibleWith: traitCollection)
         let selectedFont = style.selected.resolvedFont(for: .caption2, traits: traitCollection)
             ?? UIFont.preferredFont(forTextStyle: .caption2, compatibleWith: traitCollection)
-        let newHeight = max(49, ceil(25 + max(normalFont.lineHeight, selectedFont.lineHeight) + 8))
+        let hasLabels = model.items.enumerated().contains { index, item in
+            let mode = model.labelDisplayModes.indices.contains(index)
+                ? model.labelDisplayModes[index] : style.labelDisplayMode
+            return mode != .never && item.title?.isEmpty == false
+        }
+        let titleHeight = hasLabels ? max(normalFont.lineHeight, selectedFont.lineHeight) : 0
+        let newHeight = max(49, ceil(25 + titleHeight + 8))
         if contentHeight != newHeight {
             contentHeight = newHeight
             invalidateIntrinsicContentSize()
@@ -283,13 +291,16 @@ final class ShellClassicTabBar: UIView {
         }
         for (index, item) in model.items.enumerated() {
             let selected = index == model.selectedIndex
+            let labelMode = model.labelDisplayModes.indices.contains(index)
+                ? model.labelDisplayModes[index] : style.labelDisplayMode
             let role = selected ? style.selected : style.normal
             let color = role.color ?? (selected ? (tintColor ?? .systemBlue) : .secondaryLabel)
             let iconColor = (selected ? style.selectedIconColor : style.normalIconColor)
                 ?? (selected ? (tintColor ?? .systemBlue) : .secondaryLabel)
             buttons[index].update(item: item, selected: selected,
                                   font: selected ? selectedFont : normalFont,
-                                  color: color, iconColor: iconColor)
+                                  color: color, iconColor: iconColor,
+                                  showsTitle: labelMode.isVisible(isSelected: selected))
         }
         backdrop.update(material: model.material, showsMediaBackground: model.showsMediaBackground)
         accessibilityElements = buttons
@@ -412,6 +423,7 @@ final class ShellClassicTabButton: UIButton {
     private let iconView = UIImageView()
     private let textLabel = UILabel()
     private let badgeLabel = UILabel()
+    private var showsCaption = true
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -448,11 +460,14 @@ final class ShellClassicTabButton: UIButton {
         }
     }
 
-    func update(item: UITabBarItem, selected: Bool, font: UIFont, color: UIColor, iconColor: UIColor) {
+    func update(item: UITabBarItem, selected: Bool, font: UIFont, color: UIColor, iconColor: UIColor,
+                showsTitle: Bool = true) {
         let image = selected ? (item.selectedImage ?? item.image) : item.image
         iconView.image = image.map { $0.renderingMode == .alwaysOriginal ? $0 : $0.withRenderingMode(.alwaysTemplate) }
         iconView.tintColor = iconColor
         textLabel.text = item.title
+        showsCaption = showsTitle && item.title?.isEmpty == false
+        textLabel.isHidden = !showsCaption
         textLabel.font = font
         textLabel.textColor = color
         badgeLabel.font = UIFontMetrics(forTextStyle: .caption2)
@@ -476,12 +491,13 @@ final class ShellClassicTabButton: UIButton {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let titleHeight = min(textLabel.font.lineHeight, bounds.height)
-        let totalHeight = 25 + 2 + titleHeight
+        let titleHeight = showsCaption ? min(textLabel.font.lineHeight, bounds.height) : 0
+        let totalHeight = 25 + (showsCaption ? 2 + titleHeight : 0)
         let top = bounds.minY + max(0, (bounds.height - totalHeight) / 2)
         iconView.frame = CGRect(x: bounds.midX - 12.5, y: top, width: 25, height: 25)
-        textLabel.frame = CGRect(x: bounds.minX + 4, y: iconView.frame.maxY + 2,
-                                 width: max(0, bounds.width - 8), height: titleHeight)
+        textLabel.frame = showsCaption
+            ? CGRect(x: bounds.minX + 4, y: iconView.frame.maxY + 2,
+                     width: max(0, bounds.width - 8), height: titleHeight) : .zero
         if !badgeLabel.isHidden {
             let empty = badgeLabel.text?.isEmpty != false
             let size = badgeLabel.sizeThatFits(bounds.size)
@@ -493,7 +509,10 @@ final class ShellClassicTabButton: UIButton {
                                       y: max(bounds.minY, iconView.frame.minY - 3), width: width, height: height)
             badgeLabel.layer.cornerRadius = height / 2
         }
-        pillView.frame = bounds.insetBy(dx: 2, dy: 4)
+        let pillBounds = bounds.insetBy(dx: 2, dy: 4)
+        let pillWidth = max(0, showsCaption ? pillBounds.width : min(pillBounds.width, pillBounds.height))
+        pillView.frame = CGRect(x: bounds.midX - pillWidth / 2, y: pillBounds.minY,
+                                width: pillWidth, height: max(0, pillBounds.height))
         pillView.layer.cornerRadius = pillView.bounds.height / 2
     }
 

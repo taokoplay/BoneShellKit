@@ -21,7 +21,7 @@ final class TabBarUITests: XCTestCase {
     }
 
     func testEveryTabSettingIsOnOnePage() {
-        for id in ["tabbar.size", "tabbar.colors", "tabbar.icons", "tabbar.selected-mode",
+        for id in ["tabbar.size", "tabbar.colors", "tabbar.labels", "tabbar.icons", "tabbar.selected-mode",
                    "tabbar.presentation", "tabbar.accessories"] {
             reveal(app.segmentedControls[id])
             XCTAssertTrue(app.segmentedControls[id].exists, "Missing \(id)")
@@ -152,7 +152,72 @@ final class TabBarUITests: XCTestCase {
         XCTAssertFalse(app.buttons["accessory.search"].exists)
     }
 
+    func testLabelDisplayModesAcrossClassicNativeCapsuleAndDock() throws {
+        guard #available(iOS 26.0, *) else {
+            throw XCTSkip("The native capsule and dock screenshot matrix requires iOS 26 or later")
+        }
+        let renderers = [("经典", "classic", "无"),
+                         ("胶囊", "native-capsule", "无"),
+                         ("胶囊", "native-dock", "左右")]
+        let modes = [("始终显示", "always"), ("始终隐藏", "never"),
+                     ("仅选中", "selectedOnly"), ("仅未选中", "unselectedOnly")]
+        for (presentation, renderer, accessories) in renderers {
+            choose("tabbar.presentation", presentation)
+            choose("tabbar.accessories", accessories)
+            waitForStatus(["形态：\(presentation)", "附加按钮：\(accessories)"])
+            for (title, mode) in modes {
+                choose("tabbar.labels", title)
+                waitForStatus(["文字：\(title)"])
+                assertTabAccessibilityAndSelection("tab.examples")
+                if mode == "selectedOnly" {
+                    app.buttons["tab.about"].tap()
+                    XCTAssertTrue(app.staticTexts["about.backgrounds"].waitForExistence(timeout: 5))
+                    keepScreenshot("Tab labels \(renderer) selectedOnly about")
+                    assertTabAccessibilityAndSelection("tab.about")
+                    app.buttons["tab.examples"].tap()
+                    XCTAssertTrue(app.segmentedControls["tabbar.labels"].waitForExistence(timeout: 5))
+                    waitForStatus(["文字：仅选中", "形态：\(presentation)", "附加按钮：\(accessories)"])
+                    XCTAssertTrue(app.segmentedControls["tabbar.labels"].buttons["仅选中"].isSelected)
+                    assertTabAccessibilityAndSelection("tab.examples")
+                }
+                if renderer == "classic" {
+                    XCTAssertTrue(app.otherElements["shell.classic.tabs"].exists)
+                } else {
+                    XCTAssertEqual(app.tabBars.count, 1)
+                    XCTAssertEqual(app.tabBars["shell.dock.tabs"].exists, renderer == "native-dock")
+                }
+                XCTAssertEqual(app.buttons["accessory.compose"].exists, accessories == "左右")
+                XCTAssertEqual(app.buttons["accessory.search"].exists, accessories == "左右")
+                // AX names stay semantic even when captions are hidden. Review actual pixels
+                // and icon centering in these twelve screen captures, not in the AX tree.
+                keepScreenshot("Tab labels \(renderer) \(mode)")
+            }
+        }
+        let reset = app.buttons["tabbar.reset"]
+        reveal(reset)
+        reset.tap()
+        waitForStatus(["文字：始终显示", "形态：自动", "附加按钮：无"])
+        XCTAssertTrue(app.segmentedControls["tabbar.labels"].buttons["始终显示"].isSelected)
+    }
+
     // MARK: - Helpers
+
+    private func choose(_ id: String, _ title: String) {
+        let segment = app.segmentedControls[id].buttons[title]
+        reveal(segment)
+        if !segment.isSelected { segment.tap() }
+        XCTAssertTrue(segment.isSelected)
+    }
+
+    private func assertTabAccessibilityAndSelection(_ selectedID: String) {
+        for (id, title) in [("tab.examples", "示例"), ("tab.materials", "材质"), ("tab.about", "关于")] {
+            let tab = app.buttons[id]
+            XCTAssertEqual(app.buttons.matching(identifier: id).count, 1)
+            XCTAssertTrue(tab.isHittable)
+            XCTAssertEqual(tab.label, title, "Hidden captions must retain their accessibility names")
+            XCTAssertEqual(tab.isSelected, id == selectedID)
+        }
+    }
 
     private func assertReadableTabCaption(_ id: String) {
         let item = app.buttons[id]
@@ -186,8 +251,21 @@ final class TabBarUITests: XCTestCase {
     private func reveal(_ element: XCUIElement, upward: Bool = true) {
         let scroll = app.scrollViews["demo.scroll"].firstMatch
         for _ in 0..<7 {
-            if element.exists && element.isHittable { return }
-            if upward { scroll.swipeUp() } else { scroll.swipeDown() }
+            var safe = scroll.frame.insetBy(dx: 0, dy: 12)
+            let header = app.otherElements["shell.classic.navigation"]
+            if header.exists {
+                let bottom = safe.maxY
+                safe.origin.y = max(safe.minY, header.frame.maxY + 8)
+                safe.size.height = max(0, bottom - safe.minY)
+            }
+            let classic = app.otherElements["shell.classic.tabs"]
+            let native = app.tabBars.firstMatch
+            if classic.exists { safe.size.height = max(0, min(safe.maxY, classic.frame.minY - 8) - safe.minY) }
+            else if native.exists { safe.size.height = max(0, min(safe.maxY, native.frame.minY - 8) - safe.minY) }
+            if element.exists && element.isHittable && safe.contains(element.frame) { return }
+            if element.exists { element.frame.minY < safe.minY ? scroll.swipeDown() : scroll.swipeUp() }
+            else if upward { scroll.swipeUp() }
+            else { scroll.swipeDown() }
         }
         XCTAssertTrue(element.exists && element.isHittable)
     }

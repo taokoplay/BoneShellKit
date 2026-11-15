@@ -22,6 +22,7 @@ enum TabBarDemoIcons {
 final class TabBarDemoController: DemoStackController {
     private(set) var tabFontSize: CGFloat?
     private(set) var tabColorIndex = 0
+    private(set) var labelDisplayMode: ShellTabLabelDisplayMode = .always
     private(set) var iconMode = 0
     private(set) var selectedIconMode: ShellTabSelectedIconMode = .automatic
     private(set) var presentationIndex = 0
@@ -34,6 +35,8 @@ final class TabBarDemoController: DemoStackController {
     private let presentationNames = ["自动", "经典", "胶囊"]
     private let selectedIconModes: [ShellTabSelectedIconMode] = [.automatic, .selectedColor, .selectedImage]
     private let selectedIconNames = ["自动", "选中颜色", "选中图片"]
+    private let labelDisplayModes: [ShellTabLabelDisplayMode] = [.always, .never, .selectedOnly, .unselectedOnly]
+    private let labelDisplayNames = ["始终显示", "始终隐藏", "仅选中", "仅未选中"]
     private let colorNames = ["系统", "灰 / 蓝", "蓝 / 橙"]
     private let iconNames = ["SF 图标", "资源图片", "彩色图片"]
     private let accessoryNames = ["无", "左", "右", "左右"]
@@ -45,6 +48,7 @@ final class TabBarDemoController: DemoStackController {
 
     private let sizePicker = UISegmentedControl(items: ["系统", "10", "12", "14"])
     private let colorPicker = UISegmentedControl(items: ["系统", "灰 / 蓝", "蓝 / 橙"])
+    private let labelPicker = UISegmentedControl(items: ["始终显示", "始终隐藏", "仅选中", "仅未选中"])
     private let iconPicker = UISegmentedControl(items: ["SF 图标", "资源图片", "彩色图片"])
     private let selectedIconPicker = UISegmentedControl(items: ["自动", "选中颜色", "选中图片"])
     private let presentationPicker = UISegmentedControl(items: ["自动", "经典", "胶囊"])
@@ -54,12 +58,14 @@ final class TabBarDemoController: DemoStackController {
     private var style: ShellTabBarStyle {
         let normal: UIColor? = [nil, UIColor.secondaryLabel, UIColor.systemBlue][tabColorIndex]
         let selected: UIColor? = [nil, UIColor.systemBlue, UIColor.systemOrange][tabColorIndex]
-        return ShellTabBarStyle(
+        var style = ShellTabBarStyle(
             normal: ShellTextStyle(font: tabFontSize.map { .systemFont(ofSize: $0) }, color: normal),
             selected: ShellTextStyle(font: tabFontSize.map { .systemFont(ofSize: $0, weight: .semibold) },
                                      color: selected),
             normalIconColor: normal, selectedIconColor: selected
         )
+        style.labelDisplayMode = labelDisplayMode
+        return style
     }
 
     private var presentation: ShellBarPresentation { presentations[presentationIndex] }
@@ -75,7 +81,7 @@ final class TabBarDemoController: DemoStackController {
     }
 
     override func buildDemo() {
-        intro("标签栏的全部设置", "字号与颜色、图标来源、选中时的显示方式、栏位形态、左右附加按钮和标签栏背景，都在这一页。")
+        intro("标签栏的全部设置", "文字显示、字号与颜色、图标来源、选中时的显示方式、栏位形态、左右附加按钮和标签栏背景，都在这一页。")
         status.accessibilityIdentifier = "tabbar.status"
         card([status])
         button("恢复系统标签外观", symbol: "arrow.counterclockwise", id: "tabbar.reset") { [weak self] in
@@ -92,8 +98,14 @@ final class TabBarDemoController: DemoStackController {
             self.tabColorIndex = index
             self.apply()
         }
+        bind(labelPicker, id: "tabbar.labels") { [weak self] index in
+            guard let self = self else { return }
+            self.labelDisplayMode = self.labelDisplayModes[index]
+            self.apply()
+        }
         card([DemoStyle.label("标签字号", style: .headline), sizePicker,
-              DemoStyle.label("普通 / 选中颜色", style: .subheadline), colorPicker])
+              DemoStyle.label("普通 / 选中颜色", style: .subheadline), colorPicker,
+              DemoStyle.label("标签文字显示", style: .subheadline), labelPicker])
 
         bind(iconPicker, id: "tabbar.icons") { [weak self] index in
             guard let self = self else { return }
@@ -143,6 +155,7 @@ final class TabBarDemoController: DemoStackController {
         guard let tabs = tabBarController as? BoneTabBarController else { return }
         tabs.barPresentation = presentation
         tabs.tabBarAccessories = accessories()
+        tabs.tabBarStyle.labelDisplayMode = labelDisplayMode
         refreshScreenConfiguration()
         syncPickers()
         updateStatus()
@@ -200,6 +213,7 @@ final class TabBarDemoController: DemoStackController {
     func reset() {
         tabFontSize = nil
         tabColorIndex = 0
+        labelDisplayMode = .always
         selectedIconMode = .automatic
         presentationIndex = 0
         accessoryIndex = 0
@@ -218,6 +232,11 @@ final class TabBarDemoController: DemoStackController {
 
     func setAccessoryIndexForTesting(_ index: Int) {
         accessoryIndex = index
+        apply()
+    }
+
+    func setLabelDisplayModeForTesting(_ mode: ShellTabLabelDisplayMode) {
+        labelDisplayMode = mode
         apply()
     }
 
@@ -247,6 +266,7 @@ final class TabBarDemoController: DemoStackController {
     private func syncPickers() {
         sizePicker.selectedSegmentIndex = tabFontSize.flatMap { sizes.firstIndex(of: $0) }.map { $0 + 1 } ?? 0
         colorPicker.selectedSegmentIndex = tabColorIndex
+        labelPicker.selectedSegmentIndex = labelDisplayModes.firstIndex(of: labelDisplayMode) ?? 0
         iconPicker.selectedSegmentIndex = iconMode
         selectedIconPicker.selectedSegmentIndex = selectedIconModes.firstIndex(of: selectedIconMode) ?? 0
         presentationPicker.selectedSegmentIndex = presentationIndex
@@ -260,6 +280,7 @@ final class TabBarDemoController: DemoStackController {
             .map { "\(presentationNames[presentationIndex]) → \(Self.name($0.resolvedBarPresentation))" }
             ?? presentationNames[presentationIndex]
         var text = "字号：\(size) / \(colorNames[tabColorIndex])\n图标：\(iconNames[iconMode])"
+        text += "\n文字：\(labelDisplayNames[labelDisplayModes.firstIndex(of: labelDisplayMode) ?? 0])"
         text += "\n选中：\(selectedIconNames[selectedIconModes.firstIndex(of: selectedIconMode) ?? 0])"
         text += "\n形态：\(presentationName)\n附加按钮：\(accessoryNames[accessoryIndex])"
         text += "\n背景：\(showsBackground ? "整体画布" : "默认")"

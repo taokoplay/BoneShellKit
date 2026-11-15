@@ -296,13 +296,19 @@ public struct ShellTab {
         return ""
     }
 
-    public init(id: String, title: String, symbol: String, selectedIconMode: ShellTabSelectedIconMode = .automatic, root: UIViewController) {
-        self.init(id: id, title: title, icon: .systemSymbol(symbol), selectedIconMode: selectedIconMode, root: root)
+    public init(id: String, title: String, symbol: String,
+                selectedIconMode: ShellTabSelectedIconMode = .automatic,
+                labelDisplayMode: ShellTabLabelDisplayMode? = nil, root: UIViewController) {
+        self.init(id: id, title: title, icon: .systemSymbol(symbol), selectedIconMode: selectedIconMode,
+                  labelDisplayMode: labelDisplayMode, root: root)
     }
 
-    public init(id: String, title: String, icon: ShellTabIcon, selectedIcon: ShellTabIcon? = nil, selectedIconMode: ShellTabSelectedIconMode = .automatic, root: UIViewController) {
+    public init(id: String, title: String, icon: ShellTabIcon, selectedIcon: ShellTabIcon? = nil,
+                selectedIconMode: ShellTabSelectedIconMode = .automatic,
+                labelDisplayMode: ShellTabLabelDisplayMode? = nil, root: UIViewController) {
         self.id = id
-        self.item = ShellTabItemConfiguration(title: title, icon: icon, selectedIcon: selectedIcon, selectedIconMode: selectedIconMode)
+        self.item = ShellTabItemConfiguration(title: title, icon: icon, selectedIcon: selectedIcon,
+                                             selectedIconMode: selectedIconMode, labelDisplayMode: labelDisplayMode)
         self.root = root
     }
 }
@@ -382,6 +388,7 @@ open class BoneTabBarController: UITabBarController {
         guard isViewLoaded, !updatingBarPresentation else { return }
         updatingBarPresentation = true
         defer { updatingBarPresentation = false }
+        updateTabLabelPresentation()
         if tabBarRendering == .native {
             restoreNativeTabBar()
             removeAccessoryButtons()
@@ -444,6 +451,7 @@ open class BoneTabBarController: UITabBarController {
         let items = allItems.count > 5 ? Array(allItems.prefix(4)) + [selfDrawnMoreItem] : allItems
         let selection = allItems.count > 5 ? min(selectedIndex, 4) : selectedIndex
         let style = currentTabBarStyle
+        let labelModes = tabLabelModes(for: items, style: style)
         switch tabBarRendering {
         case .dock:
             // The dock draws its own circles, so the container must not keep a second copy.
@@ -467,7 +475,7 @@ open class BoneTabBarController: UITabBarController {
             }
             bar.update(items: items, selected: selection,
                        leading: accessoryItems(.leading), trailing: accessoryItems(.trailing),
-                       style: style)
+                       labelDisplayModes: labelModes, style: style)
             if bar.superview !== view { view.addSubview(bar) }
         case .classic:
             syncAccessoryButtons()
@@ -479,7 +487,7 @@ open class BoneTabBarController: UITabBarController {
             }
             guard let bar = classicTabBar else { return }
             bar.tintColor = tabBar.tintColor
-            bar.update(items: items, selectedIndex: selection, style: style,
+            bar.update(items: items, selectedIndex: selection, labelDisplayModes: labelModes, style: style,
                        material: .systemDefault, showsMediaBackground: media)
             if bar.superview !== view { view.addSubview(bar) }
         case .capsule:
@@ -492,7 +500,7 @@ open class BoneTabBarController: UITabBarController {
             }
             guard let bar = capsuleTabBar else { return }
             bar.tintColor = tabBar.tintColor
-            bar.update(items: items, selectedIndex: selection, style: style,
+            bar.update(items: items, selectedIndex: selection, labelDisplayModes: labelModes, style: style,
                        material: .automatic, showsMediaBackground: media)
             if bar.superview !== view { view.addSubview(bar) }
         case .native:
@@ -917,12 +925,16 @@ open class BoneTabBarController: UITabBarController {
     @MainActor private final class TabRecord {
         weak var controller: UIViewController?
         var configuration: ShellTabItemConfiguration
+        var generatedAccessibilityLabel: String?
         init(controller: UIViewController, configuration: ShellTabItemConfiguration) {
             self.controller = controller
             self.configuration = configuration
         }
     }
     private var tabRecords: [String: TabRecord] = [:]
+    private weak var nativeMoreLabelItem: UITabBarItem?
+    private var nativeMoreSemanticTitle: String?
+    private var generatedMoreAccessibilityLabel: String?
     private var originalSelectedTint: UIColor?
     private var originalNormalTint: UIColor?
     private var overridesSelectedTint = false
@@ -948,6 +960,68 @@ open class BoneTabBarController: UITabBarController {
     private var currentTabBarStyle: ShellTabBarStyle {
         let page = ShellBarBackgroundHost.topScreen(in: selectedViewController)
         return page?.screenConfiguration.tabBarStyle ?? tabBarStyle
+    }
+
+    private func tabLabelModes(for items: [UITabBarItem], style: ShellTabBarStyle) -> [ShellTabLabelDisplayMode] {
+        var modes: [ObjectIdentifier: ShellTabLabelDisplayMode] = [:]
+        for record in tabRecords.values {
+            guard let controller = record.controller else { continue }
+            modes[ObjectIdentifier(controller.tabBarItem)] = record.configuration.labelDisplayMode ?? style.labelDisplayMode
+        }
+        return items.map { modes[ObjectIdentifier($0)] ?? style.labelDisplayMode }
+    }
+
+    private func updateTabLabelPresentation() {
+        let style = currentTabBarStyle
+        let usesNativeItems = tabBarRendering == .native
+        let moreItem: UITabBarItem? = (viewControllers?.count ?? 0) > 5
+            ? moreNavigationController.tabBarItem : nil
+        let hasNativeMore = usesNativeItems && moreItem.map { more in
+            tabBar.items?.contains(where: { $0 === more }) == true
+        } == true
+        let visibleItems = Set((tabBar.items ?? []).map(ObjectIdentifier.init))
+        for record in tabRecords.values {
+            guard let controller = record.controller,
+                  viewControllers?.contains(where: { $0 === controller }) == true else { continue }
+            let item = controller.tabBarItem!
+            let mode = record.configuration.labelDisplayMode ?? style.labelDisplayMode
+            // UIKit also uses overflow items' titles in the More destination list.
+            let isOverflow = hasNativeMore && !visibleItems.contains(ObjectIdentifier(item))
+            let showsTitle = !usesNativeItems || isOverflow
+                || mode.isVisible(isSelected: controller === selectedViewController)
+            let title = showsTitle ? record.configuration.title : nil
+            if item.title != title { item.title = title }
+            if mode == .always {
+                if let generated = record.generatedAccessibilityLabel, item.accessibilityLabel == generated {
+                    item.accessibilityLabel = nil
+                }
+                record.generatedAccessibilityLabel = nil
+            } else if item.accessibilityLabel == nil || item.accessibilityLabel == record.generatedAccessibilityLabel {
+                item.accessibilityLabel = record.configuration.title
+                record.generatedAccessibilityLabel = record.configuration.title
+            }
+        }
+        if let item = moreItem {
+            if nativeMoreLabelItem !== item {
+                nativeMoreLabelItem = item
+                nativeMoreSemanticTitle = item.title
+                generatedMoreAccessibilityLabel = nil
+            } else if let title = item.title, title != nativeMoreSemanticTitle {
+                nativeMoreSemanticTitle = title
+            }
+            let mode = hasNativeMore ? style.labelDisplayMode : .always
+            let title = mode.isVisible(isSelected: tabBar.selectedItem === item) ? nativeMoreSemanticTitle : nil
+            if item.title != title { item.title = title }
+            if mode == .always {
+                if let generated = generatedMoreAccessibilityLabel, item.accessibilityLabel == generated {
+                    item.accessibilityLabel = nil
+                }
+                generatedMoreAccessibilityLabel = nil
+            } else if item.accessibilityLabel == nil || item.accessibilityLabel == generatedMoreAccessibilityLabel {
+                item.accessibilityLabel = nativeMoreSemanticTitle
+                generatedMoreAccessibilityLabel = nativeMoreSemanticTitle
+            }
+        }
     }
 
     private func applyTabItem(_ configuration: ShellTabItemConfiguration, to item: UITabBarItem, style: ShellTabBarStyle? = nil) {

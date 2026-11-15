@@ -1,6 +1,8 @@
 # BoneShellKit
 
-UIKit 页面骨架 SDK，当前为 **0.8 验证版**。提供页面内容区域、原生容器封装、栏位模式与样式、标签栏附加动作，以及页面 / 导航 / 标签多媒体背景。
+UIKit 页面骨架 SDK。提供页面内容区域、原生容器封装、栏位模式与样式、标签栏附加动作，以及页面 / 导航 / 标签多媒体背景。
+
+已发布版本为 **v0.8.0**。当前源码新增 Tab 文字显示策略，尚未发布，使用该能力需接入本地 Package。版本变化见 [更新记录](CHANGELOG.md)。
 
 ## 构建与运行基线
 
@@ -22,13 +24,13 @@ UIKit 页面骨架 SDK，当前为 **0.8 验证版**。提供页面内容区域�
 .package(path: "../BoneShellKit")
 ```
 
-远程接入本次发布的 0.8 验证版本：
+远程接入已发布的 0.8.0 验证版本：
 
 ```swift
 .package(url: "https://github.com/taokoplay/BoneShellKit.git", exact: "0.8.0")
 ```
 
-0.8 验证版通过 `v0.8.0` 标签接入；历史标签 `v0.6.0` 不包含后续的自动 / 胶囊模式与标签栏附加动作。需要使用开发分支时可改为 `branch: "main"`，接入范围按该分支实际修订确认。
+0.8 验证版通过 `v0.8.0` 标签接入；历史标签 `v0.6.0` 不包含后续的自动 / 胶囊模式与标签栏附加动作。需要使用开发分支时可改为 `branch: "main"`，可用功能以远端实际修订为准；本次文字显示策略目前仅本地源码可用。
 
 ## 最小接入
 
@@ -106,11 +108,33 @@ func makeRootController() -> BoneTabBarController {
 
 原生 dock 的非选中文字颜色受 UIKit 玻璃合成影响，当前不保证指定颜色与最终像素完全一致。其原生滚动收起联动也未作为 SDK 能力提供，详见 [栏位模式与边界](Documentation/Bar-Presentation.md)。
 
+### 标签文字显示（未发布）
+
+以下 API 为**未发布开发增量，v0.8.0 不包含**，运行与视觉结果见 [本地验证记录](Documentation/Implementation-Status.md#本地开发增量标签文字显示策略)。`ShellTabLabelDisplayMode` 支持：
+
+| 模式 | 可见文字 |
+| --- | --- |
+| `.always` | 始终显示，默认值 |
+| `.never` | 始终隐藏 |
+| `.selectedOnly` | 仅选中项显示 |
+| `.unselectedOnly` | 仅未选中项显示 |
+
+```swift
+tabs.tabBarStyle.labelDisplayMode = .selectedOnly
+
+if var item = tabs.tabItemConfiguration(for: "home") {
+    item.labelDisplayMode = .never  // 单独隐藏首页文字
+    tabs.updateTabItem(id: "home", configuration: item)
+}
+```
+
+整栏通过 `tabs.tabBarStyle` 设置，页面的 `screen.tabBarStyle` 仍为整份覆盖；单个条目的 `ShellTabItemConfiguration.labelDisplayMode` 默认 `nil`，继承当前生效样式，设回 `nil` 即恢复继承。两种 `ShellTab` 初始化器也可在 `root:` 前传入该可选参数。隐藏时保留配置中的语义标题和无障碍名称，并让图标居中；原生“更多”按钮跟随整栏策略，溢出列表中的目的地名称保留。完整规则见 [样式说明](Documentation/Bar-Styling.md#标签文字显示策略本地开发)。
+
 当前没有 App / Scene 全局配置对象、通用 adapter、导航分组 / 加载 / badge 声明、自定义侧栏或 SwiftUI 桥接产品。完整能力清单与后续计划见 [SDK 范围与规划](Documentation/SDK-Plan.md)。
 
 ## 运行 Demo 与测试
 
-打开 `Examples/BoneShellDemo/BoneShellDemo.xcodeproj`，选择共享 Scheme `BoneShellDemo`。Demo 通过本地相对路径引用 SDK，内置素材不需要网络或账号。底部有“示例 / 材质 / 关于”；导航栏和标签栏设置位于两个独立页面，完整入口见 [Demo 与测试说明](Documentation/Demo-Test-Plan.md)。
+打开 `Examples/BoneShellDemo/BoneShellDemo.xcodeproj`，选择共享 Scheme `BoneShellDemo`。Demo 通过本地相对路径引用 SDK，内置素材不需要网络或账号。底部有“示例 / 材质 / 关于”；导航栏和标签栏设置位于两个独立页面。本地开发的标签页新增“始终显示 / 始终隐藏 / 仅选中 / 仅未选中”四段开关（`tabbar.labels`），状态显示“文字：…”并在恢复时回到 `.always`；此增量未包含在 v0.8.0 中。完整入口见 [Demo 与测试说明](Documentation/Demo-Test-Plan.md)。
 
 已包含生成后的 Xcode 工程。修改 `project.yml`，或增删 Demo / 测试源文件时，从仓库根目录重新生成：
 
@@ -141,6 +165,7 @@ Scheme 包含 `BoneShellDemoTests` 和 `BoneShellDemoUITests`；前者同时编�
 
 ## 文档导航
 
+- [版本更新记录](CHANGELOG.md)
 - [SDK 当前范围与后续规划](Documentation/SDK-Plan.md)
 - [Demo 入口、自动化与待验收矩阵](Documentation/Demo-Test-Plan.md)
 - [自动、经典、胶囊与系统栏位](Documentation/Bar-Presentation.md)
