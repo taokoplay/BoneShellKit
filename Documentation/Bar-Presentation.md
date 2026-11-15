@@ -2,7 +2,7 @@
 
 `ShellBarPresentation` 将栏位外观与字体、颜色、材质分开配置。SDK 默认 `.system`，Demo 默认 `.automatic`。
 
-既有呈现模式适用于 0.8 验证版；下文文字显示策略是**未发布，仅当前本地开发源码，v0.8.0 不包含**的增量，运行与视觉验证见 [本地验证记录](Implementation-Status.md#本地开发增量标签文字显示策略)。示例在 `@MainActor` 上使用，并需导入 UIKit / BoneShellKit；`HomeController`、`SettingsController` 由宿主提供。附件示例放在宿主控制器的方法中，由该控制器实现 `openProfile()`、`openComposer()`，使用弱引用回调。
+适用于 v0.9.0 验证版；文字显示策略自 v0.9.0 提供，v0.8.0 不包含，运行与视觉验证见 [验证记录](Implementation-Status.md#090-标签文字显示策略与验证)。示例在 `@MainActor` 上使用，并需导入 UIKit / BoneShellKit；`HomeController`、`SettingsController` 由宿主提供。附件示例放在宿主控制器的方法中，由该控制器实现 `openProfile()`、`openComposer()`，使用弱引用回调。
 
 | 类型 | iOS 26 及以上 | iOS 26 以下 |
 | --- | --- | --- |
@@ -123,9 +123,9 @@ override func configureScreen(_ screen: inout ScreenConfiguration) {
 
 [字体、颜色与图标](Bar-Styling.md) 的配置会传递到各模式，包含普通 / 大标题 / 副标题、导航文字按钮、标签普通 / 选中态、本地图片和独立选中图标。栏位类型与 `ShellGlassView` 的材质分别配置。
 
-本地开发增量 `ShellTabLabelDisplayMode` 提供 `.always / .never / .selectedOnly / .unselectedOnly`。使用 `tabs.tabBarStyle.labelDisplayMode = .selectedOnly` 设置全栏；页面样式仍整份覆盖该字段，单条目通过可选的 `configuration.labelDisplayMode` 覆盖（`nil` 继承当前样式）。`ShellTabBarStyle` 初始化器默认 `.always`，两种 `ShellTab` 初始化器在 `root:` 前接受默认 `nil` 的可选策略。此 API **未发布，仅当前本地开发源码，v0.8.0 不包含**。
+v0.9.0 新增 `ShellTabLabelDisplayMode`，提供 `.always / .never / .selectedOnly / .unselectedOnly`。使用 `tabs.tabBarStyle.labelDisplayMode = .selectedOnly` 设置全栏；页面样式仍整份覆盖该字段，单条目通过可选的 `configuration.labelDisplayMode` 覆盖（`nil` 继承当前样式）。`ShellTabBarStyle` 初始化器默认 `.always`，两种 `ShellTab` 初始化器在 `root:` 前接受默认 `nil` 的可选策略。v0.8.0 不包含此 API。
 
-策略覆盖原生、经典、兼容胶囊与原生 dock；配置中的语义 `title` 保留，隐藏时提供无障碍名称并保留宿主自定义名称。隐藏文字后图标居中，选中项变化后重新判定文字。文字策略与栏位形态、附件配置相互独立；iOS 26 的实际截图已核对，兼容胶囊通过能力注入单元测试，尚未完成旧系统实际运行验证。详细继承规则见 [样式说明](Bar-Styling.md#标签文字显示策略本地开发)。
+策略覆盖原生、经典、兼容胶囊与原生 dock；配置中的语义 `title` 保留，隐藏时提供无障碍名称并保留宿主自定义名称。隐藏文字后图标居中，选中项变化后重新判定文字。文字策略与栏位形态、附件配置相互独立；iOS 26 的实际截图已核对，兼容胶囊通过能力注入单元测试，尚未完成旧系统实际运行验证。详细继承规则见 [样式说明](Bar-Styling.md#标签文字显示策略)。
 
 iOS 26 独立原生 dock 的非选中文字颜色受 UIKit 玻璃合成影响：本轮观察到传入蓝色后仍呈系统深色，当前不保证该颜色的像素一致性。字号、完整文字行高与图标渲染分别验证。
 
@@ -137,7 +137,7 @@ UIKit 对 `UISearchTab` 提供专用搜索呈现，普通 `UITab` 的 placement 
 
 ## Demo 与验证
 
-Demo 的“导航栏”和“标签栏”分别集中对应设置。导航形态可跟随标签 / 系统 / 经典；标签页可选择自动 / 经典 / 胶囊和附加按钮无 / 左 / 右 / 左右，点击页内按钮显示回执。标签页恢复默认会回到 `.automatic`；显式 `.system` 可通过启动参数或宿主 API 请求。本地未发布增量新增 `tabbar.labels` 四段开关“始终显示 / 始终隐藏 / 仅选中 / 仅未选中”、状态“文字：…”，reset 回到 `.always` 并保留原有恢复规则。
+Demo 的“导航栏”和“标签栏”分别集中对应设置。导航形态可跟随标签 / 系统 / 经典；标签页可选择自动 / 经典 / 胶囊和附加按钮无 / 左 / 右 / 左右，点击页内按钮显示回执。标签页恢复默认会回到 `.automatic`；显式 `.system` 可通过启动参数或宿主 API 请求。v0.9.0 新增 `tabbar.labels` 四段开关“始终显示 / 始终隐藏 / 仅选中 / 仅未选中”、状态“文字：…”，reset 回到 `.always` 并保留原有恢复规则。
 
 启动参数仅选择请求类型，不伪造系统能力：
 
@@ -154,4 +154,4 @@ Demo 的“导航栏”和“标签栏”分别集中对应设置。导航形态
 
 执行命令见 [README](../README.md)，用例与设备矩阵见 [Demo 与测试规划](Demo-Test-Plan.md)，已完成范围见 [实现与验证记录](Implementation-Status.md)。几何、命中、遮罩、恢复及低版本兼容分支由单元 / 集成测试检查；UI 测试在实际运行系统中保留截图附件，用于核对文字、间距、投影与连续切换状态。
 
-本地 UI case `testLabelDisplayModesAcrossClassicNativeCapsuleAndDock` 已在 iPhone 13 Pro / iOS 26.0 遍历经典、原生胶囊无附件、原生 dock 左右附件与四种策略，保留 12 张策略截图及 3 张切到关于的截图，均为 `.keepAlways`。仅选中时往返关于 / 示例，验证设置页、选中项与 AX 名称；15 张原图和对比已打开核对，视觉隐藏及图标居中与几何断言分别确认，不能由 AX 文字名称推断。该用例包含在本次 105 项相关回归中，实际范围见 [验证记录](Implementation-Status.md#本地开发增量标签文字显示策略)，不沿用既有 0.8 回归结论。
+UI case `testLabelDisplayModesAcrossClassicNativeCapsuleAndDock` 已在 iPhone 13 Pro / iOS 26.0 遍历经典、原生胶囊无附件、原生 dock 左右附件与四种策略，保留 12 张策略截图及 3 张切到关于的截图，均为 `.keepAlways`。仅选中时往返关于 / 示例，验证设置页、选中项与 AX 名称；15 张原图和对比已打开核对，视觉隐藏及图标居中与几何断言分别确认，不能由 AX 文字名称推断。该用例包含在文字策略的 105 项相关回归中，实际范围见 [验证记录](Implementation-Status.md#090-标签文字显示策略与验证)，不沿用既有 0.8 回归结论。

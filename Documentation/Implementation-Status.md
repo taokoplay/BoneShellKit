@@ -1,6 +1,6 @@
 # 当前实现与验证基线
 
-历史功能代码基线：**`9f758a1`，BoneShellKit 0.8.0（Build 1）**。下列 0.8 功能回归及文档校对结果均为既有记录。标签文字显示策略是**未发布，仅当前本地开发源码，v0.8.0 不包含**的增量；其 SDK、Demo、测试和文档验收另见下节，不能沿用旧回归结论。版本变更见 [更新记录](../CHANGELOG.md)。
+当前发布版本为 **v0.9.0 / Demo 0.9.0（Build 1）**，文字策略功能源码基线为 `bd7a7f6`；发布准备仅更新版本元数据与文档，Swift 功能源码未变。0.8 既有功能代码基线为 `9f758a1`，历史回归及文档校对结果仍独立保留。标签文字显示策略从 v0.9.0 开始提供，v0.8.0 不包含。版本变更见 [更新记录](../CHANGELOG.md)。
 
 ## 0.8 既有实现
 
@@ -16,9 +16,9 @@
 
 详细公开接口与未实现的设计见 [SDK 范围](SDK-Plan.md)；使用方式见 [README](../README.md)、[栏位模式](Bar-Presentation.md)、[样式](Bar-Styling.md) 和 [背景](Backgrounds.md)。
 
-## 本地开发增量：标签文字显示策略
+## 0.9.0 标签文字显示策略与验证
 
-新增 `ShellTabLabelDisplayMode`（`.always / .never / .selectedOnly / .unselectedOnly`）、`ShellTabBarStyle.labelDisplayMode`（默认 `.always`）、条目与两种 `ShellTab` 初始化器上的可选覆盖（默认 `nil`）。页面样式整份覆盖包含该字段；文字隐藏时须保留语义标题、无障碍名称和图标居中。此 API **未发布，仅当前本地开发源码，v0.8.0 不包含**。
+新增 `ShellTabLabelDisplayMode`（`.always / .never / .selectedOnly / .unselectedOnly`）、`ShellTabBarStyle.labelDisplayMode`（默认 `.always`）、条目与两种 `ShellTab` 初始化器上的可选覆盖（默认 `nil`）。页面样式整份覆盖包含该字段；文字隐藏时保留语义标题、无障碍名称和图标居中。此 API **自 v0.9.0 提供，v0.8.0 不包含**。
 
 Demo 新增 `tabbar.labels` 四段开关，状态显示“文字：…”，reset 回到 `.always`。集成测试覆盖 picker、配置、单条目覆盖、旧设置与栈保留；UI 用例 `testLabelDisplayModesAcrossClassicNativeCapsuleAndDock` 保留经典 / 原生胶囊无附件 / 原生 dock 左右附件 × 四策略共 12 张截图，另留 3 张切到关于的截图。仅选中模式往返关于 / 示例并验证设置页、实际选中项及 AX 名称。
 
@@ -28,14 +28,14 @@ Demo 新增 `tabbar.labels` 四段开关，状态显示“文字：…”，rese
 | 标签栏及选中图标 UI 回归 | 6 项 `TabBarUITests` + 2 项 `TabSelectedIconUITests`，8 通过 / 0 失败 / 0 跳过 |
 | 文字策略矩阵与实际截图 | 经典 / 原生胶囊 / 原生 dock × 四策略 12 张，另有切到关于 3 张，共 15 张最终运行原图已保留 |
 | 视觉与几何 | 已打开原图与对比：文字显示符合策略、隐藏文字后图标居中、无文字裁切，切页后原生选中外观正确；经典 / 兼容胶囊另有真实 label 隐藏及中心点断言，既有 dock 附件对齐断言通过 |
-| 真机目标构建 | generic iOS 构建通过，codesign deep / strict 校验通过；未将构建视为本次真机运行 |
+| 发布包构建 | Demo 0.9.0（Build 1）generic iOS 重新构建通过，产物版本与 codesign deep / strict 校验通过；未将构建视为真机运行 |
 | 本次开发包真机安装 | iPhone 13 Pro / iOS 26.5 覆盖安装并启动成功，安装记录、应用版本及运行进程分别核对；仅确认安装与启动，未执行真机四策略完整回归 |
 | 文档检查 | 含更新记录的 10 份 Markdown、97 处本地链接 / 锚点、25 段 SDK Swift 示例、2 段包声明、2 段 Shell 命令通过；XcodeGen 重生成结果与测试工程一致 |
 | 旧系统与辅助设置 | 兼容胶囊通过能力注入单元测试；实际 iOS 15–25、iPad / Duo、VoiceOver、RTL 及完整辅助字号矩阵未执行 |
 
-本次在 **Xcode 27.1、iPhone 13 Pro / iOS 26.0** 上单次执行 **105 项（97 单元 / 集成 + 8 UI）全部通过**，结果包为 `bone-shell-label-final-regression.xcresult`。本地原图、栏位 / 切页对比及源文件校验保存在 `Documentation/Verification/Tab-Labels-Development/`。用例范围与定向参数见 [测试规划](Demo-Test-Plan.md#本地开发的文字策略用例)。下列 109 个唯一用例仍为 0.8 分批历史基线，不与本次合并计数。
+文字策略功能回归在 **Xcode 27.1、iPhone 13 Pro / iOS 26.0** 上单次执行 **105 项（97 单元 / 集成 + 8 UI）全部通过**，结果包为 `bone-shell-label-final-regression.xcresult`；执行时 Demo 版本为 0.8.0（Build 1），功能源码已提交为 `bd7a7f6`。本地原图、栏位 / 切页对比及源文件校验保存在 `Documentation/Verification/Tab-Labels-Development/`。用例范围与定向参数见 [测试规划](Demo-Test-Plan.md#文字策略用例)。下列 109 个唯一用例仍为 0.8 分批历史基线，不与本次合并计数。
 
-本次真机安装包由上述开发源码构建，Demo 版本号仍为 **0.8.0（Build 1）**；它包含未发布的文字显示策略，不能仅凭版本号将其等同于已发布的 `v0.8.0` 标签内容。
+此前安装到真机的文字策略开发包版本为 **0.8.0（Build 1）**，包含当时尚未发布的新增功能，不能仅凭版本号将其等同于 `v0.8.0` 标签内容。v0.9.0 发布准备已将 Demo 版本调整为 0.9.0（Build 1）；Swift 源码与上述通过回归的版本保持一致，发布构建和签名另行核对，不将其描述为重新执行了全部 105 项。
 
 ## 0.8 既有功能验证（历史基线）
 

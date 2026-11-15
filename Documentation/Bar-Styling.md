@@ -1,6 +1,6 @@
 # 栏位字体、颜色与图标
 
-既有样式接口适用于 **0.8 验证版**；下文“标签文字显示策略”是**未发布，仅当前本地开发源码，v0.8.0 不包含**的增量，运行与视觉验证见 [本地验证记录](Implementation-Status.md#本地开发增量标签文字显示策略)。示例需 `import UIKit`、`import BoneShellKit`，并在主线程 / `@MainActor` 上使用。栏位形态与样式分别配置，四种呈现模式见 [栏位类型](Bar-Presentation.md)。
+适用于 **v0.9.0 验证版**；“标签文字显示策略”自 v0.9.0 提供，v0.8.0 不包含，运行与视觉验证见 [验证记录](Implementation-Status.md#090-标签文字显示策略与验证)。示例需 `import UIKit`、`import BoneShellKit`，并在主线程 / `@MainActor` 上使用。栏位形态与样式分别配置，四种呈现模式见 [栏位类型](Bar-Presentation.md)。
 
 导航栏和标签栏的文字通过 `ShellTextStyle` 设置，支持字号、字体、粗细、颜色及 Dynamic Type。导航提供普通标题、大标题、副标题与按钮四种角色；标签提供普通态和选中态的文字及图标颜色。标签图标可使用 SF Symbol、bundle 资源图片或 UIImage，并可在运行时替换。
 
@@ -71,9 +71,9 @@ iOS 26 原生 dock 的非选中文字颜色受 UIKit 玻璃合成影响，本轮
 
 `normalIconColor` / `selectedIconColor` 作用于可着色的模板图标，文字颜色可以分别配置。明确配置颜色时，SDK 按当前 traits 生成对应颜色的图标，兼容原生栏位未采用未选中 tint 的情况。使用 `.alwaysOriginal` 的彩色 UIImage 保留自身颜色。
 
-## 标签文字显示策略（本地开发）
+## 标签文字显示策略
 
-本节 API **未发布，仅当前本地开发源码，v0.8.0 不包含**。`ShellTabLabelDisplayMode: String, CaseIterable, Sendable` 声明四种策略：
+本节 API **自 v0.9.0 提供，v0.8.0 不包含**。`ShellTabLabelDisplayMode: String, CaseIterable, Sendable` 声明四种策略：
 
 | 策略 | 文字显示 |
 | --- | --- |
@@ -116,7 +116,7 @@ ShellTab(id: "profile", title: "我的", icon: .systemSymbol("person"),
          labelDisplayMode: .never, root: ProfileController())
 ```
 
-策略只控制栏上的可见文字，配置中的语义 `title` 保留；隐藏时提供无障碍名称，并保留宿主自定义名称。隐藏文字时图标在条目内居中。当前选中项变化后重新判定文字，字体、图标、颜色、内容实例和导航栈沿用原有配置。原生“更多”按钮跟随整栏策略，溢出列表中的目的地名称保留。实现涵盖原生、经典、兼容胶囊和原生 dock；iOS 26 实测和旧系统尚未验证的范围见 [验证记录](Implementation-Status.md#本地开发增量标签文字显示策略)，不能用自动化树中的文字名称判断视觉隐藏。
+策略只控制栏上的可见文字，配置中的语义 `title` 保留；隐藏时提供无障碍名称，并保留宿主自定义名称。隐藏文字时图标在条目内居中。当前选中项变化后重新判定文字，字体、图标、颜色、内容实例和导航栈沿用原有配置。原生“更多”按钮跟随整栏策略，溢出列表中的目的地名称保留。实现涵盖原生、经典、兼容胶囊和原生 dock；iOS 26 实测和旧系统尚未验证的范围见 [验证记录](Implementation-Status.md#090-标签文字显示策略与验证)，不能用自动化树中的文字名称判断视觉隐藏。
 
 ## 默认值、继承与恢复
 
@@ -129,7 +129,7 @@ navigation.navigationStyle = ShellNavigationStyle(
 // 页面不设置 tabBarStyle 时，继承 tabs.tabBarStyle。
 ```
 
-`screen.navigation.style = nil` 与 `screen.tabBarStyle = nil` 继承对应容器配置。显式设置空的 `ShellNavigationStyle()` 或 `ShellTabBarStyle()` 跳过 SDK 容器的字体 / 颜色样式，使用宿主原始 / 系统外观；本地开发版本的空 `ShellTabBarStyle()` 还会将文字策略设为默认 `.always`。
+`screen.navigation.style = nil` 与 `screen.tabBarStyle = nil` 继承对应容器配置。显式设置空的 `ShellNavigationStyle()` 或 `ShellTabBarStyle()` 跳过 SDK 容器的字体 / 颜色样式，使用宿主原始 / 系统外观；v0.9.0 中空 `ShellTabBarStyle()` 还会将文字策略设为默认 `.always`。
 
 页面样式是整份覆盖值，其中 font 或 color 为 nil 的字段保留 UIKit 值。需要只修改容器样式中的一个字段时，先复制容器样式，再修改字段并赋给页面。
 
@@ -224,8 +224,8 @@ let updated = tabs.updateTabItem(
 Demo 的设置分为两页：
 
 - “导航栏”：标题字号 / 颜色、副标题、大标题、按钮字号、导航形态，以及输入详情页。形态可跟随标签、使用系统或使用经典导航。
-- “标签栏”：标签字号 / 颜色、SF Symbol / 资源 / 原色 UIImage、选中策略、自动 / 经典 / 胶囊形态、左右附加按钮，以及整体背景。本地开发增量提供 `tabbar.labels` 四段开关“始终显示 / 始终隐藏 / 仅选中 / 仅未选中”，状态包含“文字：…”；该增量未发布。
+- “标签栏”：标签字号 / 颜色、SF Symbol / 资源 / 原色 UIImage、选中策略、自动 / 经典 / 胶囊形态、左右附加按钮，以及整体背景。v0.9.0 提供 `tabbar.labels` 四段开关“始终显示 / 始终隐藏 / 仅选中 / 仅未选中”，状态包含“文字：…”。
 
-恢复默认时，导航页恢复继承标签容器；标签页恢复 Demo 默认 `.automatic`，并清除附加按钮和页面背景。本地开发的标签文字策略同时恢复 `.always`。空样式恢复字体 / 颜色，与 `.system` 栏位呈现是两个独立设置。
+恢复默认时，导航页恢复继承标签容器；标签页恢复 Demo 默认 `.automatic`，并清除附加按钮和页面背景，文字策略同时恢复 `.always`。空样式恢复字体 / 颜色，与 `.system` 栏位呈现是两个独立设置。
 
 实际执行数量、运行环境、截图及手机安装结果见 [验证记录](Implementation-Status.md)。旧版 OS 和 iPad / Duo 全部布局仍按 [测试规划](Demo-Test-Plan.md) 单独验收；公开 API 编译通过不等同于所有系统姿态都已运行。

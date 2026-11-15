@@ -2,7 +2,7 @@
 
 UIKit 页面骨架 SDK。提供页面内容区域、原生容器封装、栏位模式与样式、标签栏附加动作，以及页面 / 导航 / 标签多媒体背景。
 
-已发布版本为 **v0.8.0**。当前源码新增 Tab 文字显示策略，尚未发布，使用该能力需接入本地 Package。版本变化见 [更新记录](CHANGELOG.md)。
+最新发布版本为 **v0.9.0**，包含 Tab 文字显示策略、整栏与单项覆盖。版本变化见 [更新记录](CHANGELOG.md)。
 
 ## 构建与运行基线
 
@@ -12,7 +12,7 @@ UIKit 页面骨架 SDK。提供页面内容区域、原生容器封装、栏位�
 | Swift Package | tools version 5.9，Swift 5 语言模式，一个 `BoneShellKit` library 产品 |
 | 编译工具链 | 已验证 Xcode 27.1；源码使用 UIKit 26 / 27.1 API，需包含这些声明的编译 SDK，不能据部署目标推断旧 Xcode 可构建 |
 | 依赖 | Apple 系统框架，无第三方 Package 依赖 |
-| Demo | UIKit Universal App，0.8.0（Build 1），共享 Scheme `BoneShellDemo` |
+| Demo | UIKit Universal App，0.9.0（Build 1），共享 Scheme `BoneShellDemo` |
 
 最低部署目标与实际运行验证分开记录。当前功能回归运行于 iPhone 13 Pro / iOS 26.0 模拟器；旧系统、iPad / Duo 等矩阵的完成情况见 [实现与验证记录](Documentation/Implementation-Status.md)。
 
@@ -24,13 +24,13 @@ UIKit 页面骨架 SDK。提供页面内容区域、原生容器封装、栏位�
 .package(path: "../BoneShellKit")
 ```
 
-远程接入已发布的 0.8.0 验证版本：
+远程接入已发布的 0.9.0 验证版本：
 
 ```swift
-.package(url: "https://github.com/taokoplay/BoneShellKit.git", exact: "0.8.0")
+.package(url: "https://github.com/taokoplay/BoneShellKit.git", exact: "0.9.0")
 ```
 
-0.8 验证版通过 `v0.8.0` 标签接入；历史标签 `v0.6.0` 不包含后续的自动 / 胶囊模式与标签栏附加动作。需要使用开发分支时可改为 `branch: "main"`，可用功能以远端实际修订为准；本次文字显示策略目前仅本地源码可用。
+按精确标签锁定所需能力：`v0.9.0` 包含文字显示策略，`v0.8.0` 不包含；历史标签 `v0.6.0` 还不包含自动 / 胶囊模式与标签栏附加动作。分支接入的可用功能以远端实际修订为准，不能将默认分支等同于最新标签。
 
 ## 最小接入
 
@@ -108,9 +108,9 @@ func makeRootController() -> BoneTabBarController {
 
 原生 dock 的非选中文字颜色受 UIKit 玻璃合成影响，当前不保证指定颜色与最终像素完全一致。其原生滚动收起联动也未作为 SDK 能力提供，详见 [栏位模式与边界](Documentation/Bar-Presentation.md)。
 
-### 标签文字显示（未发布）
+### 标签文字显示（v0.9.0+）
 
-以下 API 为**未发布开发增量，v0.8.0 不包含**，运行与视觉结果见 [本地验证记录](Documentation/Implementation-Status.md#本地开发增量标签文字显示策略)。`ShellTabLabelDisplayMode` 支持：
+以下 API **自 v0.9.0 提供，v0.8.0 不包含**，运行与视觉结果见 [验证记录](Documentation/Implementation-Status.md#090-标签文字显示策略与验证)。`ShellTabLabelDisplayMode` 支持：
 
 | 模式 | 可见文字 |
 | --- | --- |
@@ -128,13 +128,13 @@ if var item = tabs.tabItemConfiguration(for: "home") {
 }
 ```
 
-整栏通过 `tabs.tabBarStyle` 设置，页面的 `screen.tabBarStyle` 仍为整份覆盖；单个条目的 `ShellTabItemConfiguration.labelDisplayMode` 默认 `nil`，继承当前生效样式，设回 `nil` 即恢复继承。两种 `ShellTab` 初始化器也可在 `root:` 前传入该可选参数。隐藏时保留配置中的语义标题和无障碍名称，并让图标居中；原生“更多”按钮跟随整栏策略，溢出列表中的目的地名称保留。完整规则见 [样式说明](Documentation/Bar-Styling.md#标签文字显示策略本地开发)。
+整栏通过 `tabs.tabBarStyle` 设置，页面的 `screen.tabBarStyle` 仍为整份覆盖；单个条目的 `ShellTabItemConfiguration.labelDisplayMode` 默认 `nil`，继承当前生效样式，设回 `nil` 即恢复继承。两种 `ShellTab` 初始化器也可在 `root:` 前传入该可选参数。隐藏时保留配置中的语义标题和无障碍名称，并让图标居中；原生“更多”按钮跟随整栏策略，溢出列表中的目的地名称保留。完整规则见 [样式说明](Documentation/Bar-Styling.md#标签文字显示策略)。
 
 当前没有 App / Scene 全局配置对象、通用 adapter、导航分组 / 加载 / badge 声明、自定义侧栏或 SwiftUI 桥接产品。完整能力清单与后续计划见 [SDK 范围与规划](Documentation/SDK-Plan.md)。
 
 ## 运行 Demo 与测试
 
-打开 `Examples/BoneShellDemo/BoneShellDemo.xcodeproj`，选择共享 Scheme `BoneShellDemo`。Demo 通过本地相对路径引用 SDK，内置素材不需要网络或账号。底部有“示例 / 材质 / 关于”；导航栏和标签栏设置位于两个独立页面。本地开发的标签页新增“始终显示 / 始终隐藏 / 仅选中 / 仅未选中”四段开关（`tabbar.labels`），状态显示“文字：…”并在恢复时回到 `.always`；此增量未包含在 v0.8.0 中。完整入口见 [Demo 与测试说明](Documentation/Demo-Test-Plan.md)。
+打开 `Examples/BoneShellDemo/BoneShellDemo.xcodeproj`，选择共享 Scheme `BoneShellDemo`。Demo 通过本地相对路径引用 SDK，内置素材不需要网络或账号。底部有“示例 / 材质 / 关于”；导航栏和标签栏设置位于两个独立页面。v0.9.0 的标签页新增“始终显示 / 始终隐藏 / 仅选中 / 仅未选中”四段开关（`tabbar.labels`），状态显示“文字：…”并在恢复时回到 `.always`。完整入口见 [Demo 与测试说明](Documentation/Demo-Test-Plan.md)。
 
 已包含生成后的 Xcode 工程。修改 `project.yml`，或增删 Demo / 测试源文件时，从仓库根目录重新生成：
 

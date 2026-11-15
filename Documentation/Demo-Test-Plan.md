@@ -1,6 +1,6 @@
 # Demo 入口与测试规划
 
-既有能力基线：**0.8.0（Build 1），功能修订 `9f758a1`**。标签文字显示策略增量**未发布，仅当前本地开发源码，v0.8.0 不包含**；新增用例另行验证。本文件区分实际入口、现有自动化和后续验收目标；D01–D15、T01–T37 是规划追踪 ID，不是页面数或 XCTest 通过数量。执行结果见 [验证记录](Implementation-Status.md)。
+当前 SDK / Demo 基线：**v0.9.0 / 0.9.0（Build 1）**。标签文字显示策略自此版本加入，新增用例独立验证。本文件区分实际入口、现有自动化和后续验收目标；D01–D15、T01–T37 是规划追踪 ID，不是页面数或 XCTest 通过数量。功能回归、发布构建与历史结果分别见 [验证记录](Implementation-Status.md)。
 
 ## 1. 实际工程与入口
 
@@ -13,7 +13,7 @@
 | 导航与多按钮 | `scene.navigation` | 增减右侧操作、主操作与 SDK 更多菜单、切换导航材质、进入详情 |
 | 背景与切页 | `scene.backgrounds` | 图片 / GIF / MP4 / HTML、五种作用区域、1 或 3 个动态名额、预取 / 清缓存切页、连续切换 |
 | 导航栏 | `scene.navigation-bars` | 标题字号 / 颜色、副标题、大标题、按钮字号、继承 / 系统 / 经典、输入详情、恢复默认 |
-| 标签栏 | `scene.tab-bars` | 字号 / 颜色、三种图标来源、选中策略、自动 / 经典 / 胶囊、左右附加动作、背景、恢复默认；本地未发布增量新增文字显示四种策略 |
+| 标签栏 | `scene.tab-bars` | 字号 / 颜色、三种图标来源、选中策略、自动 / 经典 / 胶囊、左右附加动作、背景、恢复默认；v0.9.0 新增文字显示四种策略 |
 | 窗口与安全区 | `scene.adaptive` | 当前窗口、内容区域、尺寸类别和安全区信息；不是 Duo 姿态模拟器 |
 | 表单与键盘 | `scene.form` | 输入、保存、停靠键盘避让 |
 | 标签状态保留 | `scene.state` | 输入后切换标签再返回，观察输入和当前栈 |
@@ -23,7 +23,7 @@
 
 导航和标签设置已拆为两页，旧“栏位字体与图标”“栏位类型”独立入口已移除。导航页恢复为继承标签模式；标签页恢复 `.automatic`，清除附加动作和页面背景。目录部分页尾提示仍沿用早期规划文字，当前经典 / 兼容胶囊能力以 [SDK 范围](SDK-Plan.md) 为准。
 
-本地开发的文字开关 ID 为 `tabbar.labels`，四段标题为“始终显示 / 始终隐藏 / 仅选中 / 仅未选中”，依次对应 `.always / .never / .selectedOnly / .unselectedOnly`。状态含“文字：…”，reset 恢复 `.always`；改变策略时保留字号、颜色、图标、选中图标策略、形态、附件、背景、原有根控制器与导航栈。
+文字开关 ID 为 `tabbar.labels`，四段标题为“始终显示 / 始终隐藏 / 仅选中 / 仅未选中”，依次对应 `.always / .never / .selectedOnly / .unselectedOnly`。状态含“文字：…”，reset 恢复 `.always`；改变策略时保留字号、颜色、图标、选中图标策略、形态、附件、背景、原有根控制器与导航栈。
 
 ## 2. 启动参数
 
@@ -80,9 +80,9 @@ Demo 的 `BoneShellDemoTests` 同时编译上述 SDK 和 Demo 集成源；`BoneS
 
 文件数量、测试方法数量和历史执行通过数量分别统计。能力注入可检查旧版分支，不能替代真实旧版 runtime；测试中的条件 skip 必须按实际结果记录。
 
-### 本地开发的文字策略用例
+### 文字策略用例
 
-以下测试源码随未发布增量加入，不能引用 0.8 的历史通过数作为这些用例的执行结果：
+以下正式检查随 v0.9.0 的文字策略加入，不能引用 0.8 的历史通过数作为这些用例的执行结果：
 
 | XCTest 方法 | 检查范围 |
 | --- | --- |
@@ -92,7 +92,7 @@ Demo 的 `BoneShellDemoTests` 同时编译上述 SDK 和 Demo 集成源；`BoneS
 | `BarDemoIntegrationTests.testTabPresentationAndResetRestoreDefaults` | 既有 reset 用例扩展：文字策略、页面 / 容器样式、picker、状态恢复 `.always` |
 | `TabBarUITests.testLabelDisplayModesAcrossClassicNativeCapsuleAndDock` | iOS 26+ 上经典、原生胶囊无附件、原生 dock 左右附件 × 四种文字策略；仅选中时往返关于 / 示例，检查设置页、选中项与 AX 名称，再验证 reset |
 
-UI 矩阵新增一个 case，保留 **12 张策略全屏截图与 3 张切到关于的截图**。策略附件名为 `Tab labels <classic/native-capsule/native-dock> <always/never/selectedOnly/unselectedOnly>`，切页附件追加 `selectedOnly about`，均为 `.keepAlways`；iOS 26 以下明确 skip，不能记作原生路径通过。定向参数为 `-only-testing:BoneShellDemoUITests/TabBarUITests/testLabelDisplayModesAcrossClassicNativeCapsuleAndDock`。AX 名称必须保留，不能据自动化树中的文字名称判断视觉隐藏；需打开原图核对文字、图标居中、裁切及选中外观，并与几何断言分别记录。执行、导图与视觉结论见 [本地验证记录](Implementation-Status.md#本地开发增量标签文字显示策略)。
+UI 矩阵新增一个 case，保留 **12 张策略全屏截图与 3 张切到关于的截图**。策略附件名为 `Tab labels <classic/native-capsule/native-dock> <always/never/selectedOnly/unselectedOnly>`，切页附件追加 `selectedOnly about`，均为 `.keepAlways`；iOS 26 以下明确 skip，不能记作原生路径通过。定向参数为 `-only-testing:BoneShellDemoUITests/TabBarUITests/testLabelDisplayModesAcrossClassicNativeCapsuleAndDock`。AX 名称必须保留，不能据自动化树中的文字名称判断视觉隐藏；需打开原图核对文字、图标居中、裁切及选中外观，并与几何断言分别记录。执行、导图与视觉结论见 [验证记录](Implementation-Status.md#090-标签文字显示策略与验证)。
 
 ## 5. T01–T37 验收目标与现状
 
@@ -138,7 +138,7 @@ UI 矩阵新增一个 case，保留 **12 张策略全屏截图与 3 张切到关
 | T36 | D15 附件承载 | 已测 26+ dock / 系统槽位及旧 tab item 注入路径 |
 | T37 | D15 连续切换与恢复 | 已测五种连续状态、唯一标签标识、动作单次回调、回调替换、释放与栈 / 选中项保留 |
 
-T22 的历史覆盖不包含本地新增的 `labelDisplayMode`。本次文字策略集成 / UI 用例与截图矩阵已独立验证并记录于 [本地验证结果](Implementation-Status.md#本地开发增量标签文字显示策略)。
+T22 的历史覆盖不包含 v0.9.0 新增的 `labelDisplayMode`。文字策略集成 / UI 用例与截图矩阵已独立验证并记录于 [验证结果](Implementation-Status.md#090-标签文字显示策略与验证)。
 
 ## 6. 待运行矩阵与交付规则
 

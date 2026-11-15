@@ -1,6 +1,6 @@
 # SDK 当前范围与后续规划
 
-本文以功能代码基线 **`9f758a1` / 0.8.0（Build 1）** 整理既有能力；标签文字显示策略增量另行标注为**未发布，仅当前本地开发源码，v0.8.0 不包含**。接入从 [README](../README.md) 开始；本地增量与历史执行结果分别见 [验证记录](Implementation-Status.md)。完整设计设想保留在 [归档草案](Archive/Design-Draft.md)，其中的拟定类型不属于当前公开 API。
+本文以 **v0.9.0 / Demo 0.9.0（Build 1）** 为当前接口范围。标签文字显示策略自 v0.9.0 提供，v0.8.0 不包含。接入从 [README](../README.md) 开始；文字策略与历史执行结果分别见 [验证记录](Implementation-Status.md)。完整设计设想保留在 [归档草案](Archive/Design-Draft.md)，其中的拟定类型不属于当前公开 API。
 
 ## 1. 当前架构
 
@@ -56,9 +56,9 @@ BoneShellKit 是一个 UIKit 优先的 Swift Package，提供单一 `BoneShellKi
 
 当前没有 App → Scene → 容器 → 页面逐字段合并的通用配置层。页面样式是整份覆盖：`nil` 继承容器，显式空样式恢复宿主 / 系统值；要局部继承应先复制容器样式再修改字段。详见 [样式](Bar-Styling.md) 与 [背景的 nil / none 规则](Backgrounds.md#独立配置与默认值)。
 
-### 本地开发增量：标签文字显示策略
+### 0.9.0 新增：标签文字显示策略
 
-以下 API **未发布，仅当前本地开发源码，v0.8.0 不包含**：
+以下 API **自 v0.9.0 提供，v0.8.0 不包含**：
 
 | 接口 | 声明与默认值 |
 | --- | --- |
@@ -67,7 +67,7 @@ BoneShellKit 是一个 UIKit 优先的 Swift Package，提供单一 `BoneShellKi
 | `ShellTabItemConfiguration.labelDisplayMode` | 可选；初始化器新增参数，默认 `nil`，继承当前生效样式 |
 | `ShellTab` 两种初始化器 | 在 `root:` 前新增 `labelDisplayMode: ShellTabLabelDisplayMode? = nil` |
 
-全栏使用 `tabs.tabBarStyle.labelDisplayMode = .selectedOnly`。页面 `screen.tabBarStyle` 继续整份覆盖，包含该字段；单个条目用 `configuration.labelDisplayMode` 覆盖当前样式，设回 `nil` 恢复继承。策略依据当前选中项决定栏上的可见文字；配置中的语义 `title` 保留，隐藏时提供无障碍名称并使图标居中。原生“更多”按钮跟随整栏策略，溢出目的地名称保留。实现覆盖原生、经典、兼容胶囊与原生 dock；本地增量单独验证，不纳入 0.8 的历史通过结论。示例见 [样式说明](Bar-Styling.md#标签文字显示策略本地开发)。
+全栏使用 `tabs.tabBarStyle.labelDisplayMode = .selectedOnly`。页面 `screen.tabBarStyle` 继续整份覆盖，包含该字段；单个条目用 `configuration.labelDisplayMode` 覆盖当前样式，设回 `nil` 恢复继承。策略依据当前选中项决定栏上的可见文字；配置中的语义 `title` 保留，隐藏时提供无障碍名称并使图标居中。原生“更多”按钮跟随整栏策略，溢出目的地名称保留。实现覆盖原生、经典、兼容胶囊与原生 dock；文字策略单独验证，不纳入 0.8 的历史通过结论。示例见 [样式说明](Bar-Styling.md#标签文字显示策略)。
 
 ## 4. 栏位与操作的真实实现
 
