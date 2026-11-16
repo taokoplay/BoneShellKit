@@ -2,7 +2,7 @@
 
 UIKit 页面骨架 SDK。提供页面内容区域、原生容器封装、栏位模式与样式、标签栏附加动作，以及页面 / 导航 / 标签多媒体背景。
 
-最新发布版本为 **v0.9.0**，包含 Tab 文字显示策略、整栏与单项覆盖。版本变化见 [更新记录](CHANGELOG.md)。
+最新发布版本为 **v0.9.1**，补充 SDK 方法与字段中文说明，并包含 v0.9.0 的 Tab 文字显示策略、整栏与单项覆盖。版本变化见 [更新记录](CHANGELOG.md)。
 
 ## 构建与运行基线
 
@@ -24,17 +24,17 @@ UIKit 页面骨架 SDK。提供页面内容区域、原生容器封装、栏位�
 .package(path: "../BoneShellKit")
 ```
 
-远程接入已发布的 0.9.0 验证版本：
+远程接入已发布的 0.9.1 文档补充版本：
 
 ```swift
-.package(url: "https://github.com/taokoplay/BoneShellKit.git", exact: "0.9.0")
+.package(url: "https://github.com/taokoplay/BoneShellKit.git", exact: "0.9.1")
 ```
 
-按精确标签锁定所需能力：`v0.9.0` 包含文字显示策略，`v0.8.0` 不包含；历史标签 `v0.6.0` 还不包含自动 / 胶囊模式与标签栏附加动作。分支接入的可用功能以远端实际修订为准，不能将默认分支等同于最新标签。
+按精确标签锁定所需能力：`v0.9.1` 补充方法与字段参考文档，功能源码与 `v0.9.0` 相同；`v0.9.0` 包含文字显示策略，`v0.8.0` 不包含；历史标签 `v0.6.0` 还不包含自动 / 胶囊模式与标签栏附加动作。分支接入的可用功能以远端实际修订为准，不能将默认分支等同于最新标签。
 
 ## 最小接入
 
-页面在 `configureScreen(_:)` 中声明外观与操作，在 `buildContent(in:)` 中一次性构建业务内容。状态变化后调用 `refreshScreenConfiguration()` 更新声明，内容视图和导航栈保持原有实例。
+重写两个方法即可接入页面：`configureScreen(_:)` 设置外观，`buildContent(in:)` 添加业务视图。
 
 ```swift
 import UIKit
@@ -42,54 +42,31 @@ import BoneShellKit
 
 @MainActor
 final class HomeController: BoneViewController {
-    private var eventCount = 0
-    private let message = UILabel()
-
     override func configureScreen(_ screen: inout ScreenConfiguration) {
-        screen.navigation.title = "首页"
-        screen.navigation.subtitle = "已触发 \(eventCount) 次"
-        screen.navigation.trailingActions = [
-            NavigationAction(id: "add", title: "新增", symbol: "plus", priority: 20) { [weak self] in
-                guard let self = self else { return }
-                self.eventCount += 1
-                self.refreshScreenConfiguration()
-            }
-        ]
+        screen.navigation.title = "首页"     // 导航标题
+        screen.content = .safeArea            // 内容放在安全区内
+        screen.avoidsKeyboard = true          // 开启键盘避让，默认关闭
     }
 
     override func buildContent(in contentView: UIView) {
-        message.text = "业务内容放在 contentView 中"
-        message.numberOfLines = 0
-        message.textColor = .label
-        message.translatesAutoresizingMaskIntoConstraints = false
-        contentView.addSubview(message)
-        NSLayoutConstraint.activate([
-            message.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            message.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            message.centerYAnchor.constraint(equalTo: contentView.centerYAnchor)
-        ])
+        // 在 contentView 中添加业务视图。
     }
 }
 
 @MainActor
-final class SettingsController: BoneViewController {
-    override func configureScreen(_ screen: inout ScreenConfiguration) {
-        screen.navigation.title = "设置"
-    }
-}
-
-@MainActor
-func makeRootController() -> BoneTabBarController {
-    let tabs = BoneTabBarController(tabs: [
-        ShellTab(id: "home", title: "首页", symbol: "house", root: HomeController()),
-        ShellTab(id: "settings", title: "设置", symbol: "gearshape", root: SettingsController())
-    ])
-    tabs.barPresentation = .automatic
-    return tabs
+func makeRootController() -> BoneNavigationController {
+    BoneNavigationController(rootViewController: HomeController())
 }
 ```
 
-在宿主的 Scene 创建窗口后，将 `makeRootController()` 赋给 `window.rootViewController`。SDK 自动把非导航类型的标签 root 包装为 `BoneNavigationController`；已传入的导航控制器会被复用。需要完整的 SDK 导航模式与容器默认配置时，使用 `BoneNavigationController`。
+在宿主 Scene 创建窗口后，将 `makeRootController()` 赋给 `window.rootViewController`。页面状态变化后调用 `refreshScreenConfiguration()`，只更新配置，保留业务视图与导航栈。
+
+## SDK 方法与可设置字段
+
+- [SDK 方法说明](Documentation/Usage-Examples.md)：按类型列出创建方法、可调用 / 可重写的方法，以及参数、返回值和中文用途。
+- [可设置字段与中文说明](Documentation/API-Reference.md)：逐项列出页面、导航、标签、背景、材质等字段的类型、默认值和中文含义。
+
+继承、覆盖和恢复默认值的区别见 [设置生效规则](Documentation/API-Reference.md#设置生效规则)。
 
 ## 当前能力与默认值
 
@@ -165,6 +142,8 @@ Scheme 包含 `BoneShellDemoTests` 和 `BoneShellDemoUITests`；前者同时编�
 
 ## 文档导航
 
+- [SDK 方法说明](Documentation/Usage-Examples.md)
+- [可设置字段与中文说明](Documentation/API-Reference.md)
 - [版本更新记录](CHANGELOG.md)
 - [SDK 当前范围与后续规划](Documentation/SDK-Plan.md)
 - [Demo 入口、自动化与待验收矩阵](Documentation/Demo-Test-Plan.md)

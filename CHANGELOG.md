@@ -2,6 +2,15 @@
 
 已发布版本按 Git 标签记录。接入方式见 [README](README.md)，实际执行范围见 [验证记录](Documentation/Implementation-Status.md)。
 
+## 0.9.1
+
+发布标签：[v0.9.1](https://github.com/taokoplay/BoneShellKit/tree/v0.9.1)。
+
+- 新增 [SDK 方法说明](Documentation/Usage-Examples.md)，按类型说明创建入口、参数、返回值及用途。
+- 新增 [可设置字段与中文说明](Documentation/API-Reference.md)，集中列出字段类型、默认值、枚举值、只读结果及设置生效规则。
+- 简化 README 最小接入示例，补齐方法与字段参考入口，远程依赖示例锁定 0.9.1。
+- 本次仅更新文档；SDK、Demo 与测试的 Swift 源码保持 v0.9.0 的内容，Demo 版本仍为 0.9.0（Build 1）。
+
 ## 0.9.0
 
 已发布标签：[v0.9.0](https://github.com/taokoplay/BoneShellKit/tree/v0.9.0)。
