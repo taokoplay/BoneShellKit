@@ -8,7 +8,7 @@ final class DemoCatalogController: DemoStackController {
         screen.navigation.usesLargeTitle = true
     }
     override func buildDemo() {
-        intro("页面骨架，交给系统适配", "0.8 验证版 · 栏位类型与标签栏附加按钮。")
+        intro("页面骨架，交给系统适配", "0.10.0 · 导航图片、动作角色与自适应栏位。")
         let scenes: [(String, String, String, String, () -> UIViewController)] = [
             ("导航与多按钮", "优先级、更多菜单与导航外观", "rectangle.topthird.inset.filled", "navigation", { NavigationDemoController() }),
             ("背景与切页", "图片、动图、MP4、HTML 与缓存", "photo.on.rectangle.angled", "backgrounds", { BackgroundDemoController() }),
@@ -94,7 +94,9 @@ final class NavigationDemoController: DemoStackController {
     }
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        let value = "可见：\(visibleActionIDs.count) · 更多：\(overflowActionIDs.count)"
+        let value = usesSystemNavigationActionLayout
+            ? "系统布局 · 候选动作：\(visibleActionIDs.count)"
+            : "可见：\(visibleActionIDs.count) · 更多：\(overflowActionIDs.count)"
         if layoutLabel.text != value { layoutLabel.text = value }
     }
     private func updateActions() {
@@ -118,13 +120,13 @@ class FormDemoController: DemoStackController {
     override func configureScreen(_ screen: inout ScreenConfiguration) {
         screen.navigation.title = pageTitle
         screen.avoidsKeyboard = true
-        screen.navigation.trailingActions = [NavigationAction(id: "save", title: "保存", symbol: "checkmark", priority: 20, handler: { [weak self] in
+        screen.navigation.trailingActions = [NavigationAction(id: "save", title: "保存", symbol: "checkmark", priority: 20, role: .confirmation, handler: { [weak self] in
             guard let self = self else { return }
             self.view.endEditing(true)
             self.status.text = "已保存：\(self.input.text ?? "")"
         })]
         if showsCloseButton {
-            screen.navigation.leadingActions = [NavigationAction(id: "close", title: "关闭", symbol: "xmark", handler: { [weak self] in self?.dismiss(animated: true) })]
+            screen.navigation.leadingActions = [NavigationAction(id: "close", title: "关闭", symbol: "xmark", role: .cancellation, handler: { [weak self] in self?.dismiss(animated: true) })]
         }
     }
     override func buildDemo() {
@@ -209,7 +211,7 @@ final class AboutDemoController: DemoStackController {
         screen.navigation.usesLargeTitle = true
     }
     override func buildDemo() {
-        intro("BoneShellKit", "0.8.0 · 原生 UIKit SDK 与独立 Demo")
+        intro("BoneShellKit", "0.10.0 · 原生 UIKit SDK 与独立 Demo")
         backgroundState.accessibilityIdentifier = "about.backgrounds"
         card([backgroundState])
         card([DemoStyle.label("本版可体验", style: .headline), DemoStyle.label("原生导航与标签容器\n栏位字体、颜色与标签图标\n三处多媒体背景\n操作优先级与更多菜单\n安全区、表单与键盘\n列表详情分栏\n原生玻璃、仿玻璃与实色表面")])

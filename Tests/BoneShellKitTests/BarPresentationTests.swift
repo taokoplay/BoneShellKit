@@ -71,6 +71,13 @@ final class BarPresentationTests: XCTestCase {
         }
         XCTAssertTrue(navigation.navigationBar.accessibilityElementsHidden)
         let header = try XCTUnwrap(navigation.classicNavigationBarView)
+        let settled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            let headerBottom = header.convert(header.bounds, to: tabs.view).maxY
+            let contentTop = page.contentView.convert(page.contentView.bounds, to: tabs.view).minY
+            return abs(contentTop - headerBottom) <= 0.5
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [settled], timeout: 2), .completed,
+                       "UIKit safe-area updates must settle without covering or double-insetting content")
         let headerBottom = header.convert(header.bounds, to: tabs.view).maxY
         let contentTop = page.contentView.convert(page.contentView.bounds, to: tabs.view).minY
         XCTAssertGreaterThanOrEqual(contentTop, headerBottom - 0.5,
@@ -168,11 +175,18 @@ final class BarPresentationTests: XCTestCase {
         defer { window.isHidden = true; window.rootViewController = nil; oldKey?.makeKeyAndVisible() }
         tabs.barPresentation = .classic
         let detail = PresentationFixture()
+        detail.loadViewIfNeeded()
         detail.additionalSafeAreaInsets = UIEdgeInsets(top: 11, left: 2, bottom: 7, right: 3)
         navigation.pushViewController(detail, animated: false)
         tabs.view.layoutIfNeeded()
         navigation.view.layoutIfNeeded()
-        XCTAssertGreaterThan(detail.additionalSafeAreaInsets.top, 11)
+        // 部分容器已由 UIKit 预留足够高度，SDK 的额外贡献可以为零。
+        XCTAssertGreaterThanOrEqual(detail.additionalSafeAreaInsets.top, 11)
+        let header = try XCTUnwrap(navigation.classicNavigationBarView)
+        let headerBottom = header.convert(header.bounds, to: tabs.view).maxY
+        let contentTop = detail.contentView.convert(detail.contentView.bounds, to: tabs.view).minY
+        XCTAssertGreaterThanOrEqual(contentTop, headerBottom - 0.5,
+            "Classic content must clear the header: content=\(contentTop), header=\(headerBottom), safe=\(detail.view.safeAreaInsets)")
         var external = detail.additionalSafeAreaInsets
         external.top += 4
         detail.additionalSafeAreaInsets = external

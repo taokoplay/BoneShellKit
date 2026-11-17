@@ -2,6 +2,19 @@
 
 已发布版本按 Git 标签记录。接入方式见 [README](README.md)，实际执行范围见 [验证记录](Documentation/Implementation-Status.md)。
 
+## 0.10.0
+
+发布标签：[v0.10.0](https://github.com/taokoplay/BoneShellKit/tree/v0.10.0)。
+
+- `NavigationAction` 新增图片 `icon`、关闭 / 确认 `role`、`axisBehavior`，保留原有 symbol 初始化调用。
+- iOS 27+ 原生导航完整提交唯一动作，使用系统分组、优先级及溢出；iOS 27.1+ 映射轴向偏好。经典与旧系统保留横向宽度预算。
+- 按稳定 ID 复用按钮与原生分组；尺寸变化保留菜单来源，更新后使用最新有效回调，移除后释放回调。
+- 修复旧系统中修改已安装菜单动作引发的异常；经典导航按页面真实安全区计算自身 inset，保留宿主贡献并避免顶部遮挡。
+- Demo 增加图标来源与方向设置、恢复及集成 / UI 回归。使用与支持范围见 [导航动作与自适应](Documentation/Navigation-Actions.md)，实际执行结果另记于验证记录。
+- 最低部署目标仍为 iOS 15，新增 API 保留兼容默认值；v0.9.1 不包含这些扩展。任意自定义 UIView、加载 / badge 声明及自定义经典竖向栏位仍在后续范围。
+- 导航相关回归：Duo / iOS 27.1 的 52 项单元 / 集成全部通过；iPhone / iOS 18.6 的 45 项通过、7 项按版本跳过；两端各 2 项 UI 用例通过，Duo 为分批结果。完整姿态矩阵尚未验收，详见 [验证记录](Documentation/Implementation-Status.md)。
+- Demo 版本更新为 0.10.0（Build 1）；功能回归、发布准备构建及历史基线分别记录。
+
 ## 0.9.1
 
 发布标签：[v0.9.1](https://github.com/taokoplay/BoneShellKit/tree/v0.9.1)。

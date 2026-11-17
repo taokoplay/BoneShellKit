@@ -1,5 +1,22 @@
 import UIKit
 
+/// 导航与标签共用 SF Symbol、资源图片及 UIImage 的解析规则。
+public typealias ShellNavigationIcon = ShellTabIcon
+
+public enum ShellNavigationActionRole: String, CaseIterable, Sendable {
+    case normal
+    /// 关闭、取消等操作，放在前侧并保留原生返回按钮。
+    case cancellation
+    /// 完成、保存等操作；原生布局固定首个确认操作，其余仍可溢出。
+    case confirmation
+}
+
+public enum ShellNavigationActionAxisBehavior: String, CaseIterable, Sendable {
+    case automatic
+    case horizontalOnly
+    case verticalPreferred
+}
+
 @MainActor
 public struct NavigationAction {
     public var id: String
@@ -7,6 +24,10 @@ public struct NavigationAction {
     public var symbol: String
     public var priority: Int
     public var isEnabled: Bool
+    /// 非 nil 时覆盖 symbol；图片不可用时回退为文字。
+    public var icon: ShellNavigationIcon?
+    public var role: ShellNavigationActionRole
+    public var axisBehavior: ShellNavigationActionAxisBehavior
     public var handler: () -> Void
 
     public init(
@@ -15,6 +36,8 @@ public struct NavigationAction {
         symbol: String = "",
         priority: Int = 0,
         isEnabled: Bool = true,
+        role: ShellNavigationActionRole = .normal,
+        axisBehavior: ShellNavigationActionAxisBehavior = .automatic,
         handler: @escaping () -> Void
     ) {
         self.id = id
@@ -22,7 +45,30 @@ public struct NavigationAction {
         self.symbol = symbol
         self.priority = priority
         self.isEnabled = isEnabled
+        self.icon = nil
+        self.role = role
+        self.axisBehavior = axisBehavior
         self.handler = handler
+    }
+
+    public init(
+        id: String,
+        title: String,
+        icon: ShellNavigationIcon?,
+        priority: Int = 0,
+        isEnabled: Bool = true,
+        role: ShellNavigationActionRole = .normal,
+        axisBehavior: ShellNavigationActionAxisBehavior = .automatic,
+        handler: @escaping () -> Void
+    ) {
+        self.init(id: id, title: title, priority: priority, isEnabled: isEnabled,
+                  role: role, axisBehavior: axisBehavior, handler: handler)
+        self.icon = icon
+    }
+
+    func resolvedImage(traits: UITraitCollection) -> UIImage? {
+        if let icon = icon { return icon.resolve(traits: traits) }
+        return symbol.isEmpty ? nil : UIImage(systemName: symbol)
     }
 }
 
@@ -80,6 +126,9 @@ public struct ShellActionLayout {
         guard maximumVisible > 0 else { return [] }
         let unique = uniqueActions(actions)
         let selected = unique.enumerated().sorted {
+            let firstConfirms = $0.element.role == .confirmation
+            let secondConfirms = $1.element.role == .confirmation
+            if firstConfirms != secondConfirms { return firstConfirms }
             if $0.element.priority == $1.element.priority { return $0.offset < $1.offset }
             return $0.element.priority > $1.element.priority
         }.prefix(maximumVisible)
@@ -90,7 +139,10 @@ public struct ShellActionLayout {
     static func visibleIDs(actions: [NavigationAction], availableWidth: CGFloat, width: (NavigationAction) -> CGFloat) -> [String] {
         let unique = uniqueActions(actions)
         let ordered = unique.enumerated().sorted {
-            $0.element.priority == $1.element.priority ? $0.offset < $1.offset : $0.element.priority > $1.element.priority
+            let firstConfirms = $0.element.role == .confirmation
+            let secondConfirms = $1.element.role == .confirmation
+            if firstConfirms != secondConfirms { return firstConfirms }
+            return $0.element.priority == $1.element.priority ? $0.offset < $1.offset : $0.element.priority > $1.element.priority
         }
         var remaining = max(0, availableWidth)
         var selected = Set<String>()

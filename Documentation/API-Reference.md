@@ -1,6 +1,6 @@
 # SDK 可设置字段与中文说明
 
-适用于 **v0.9.0**。方法和创建入口见 [SDK 方法说明](Usage-Examples.md)。页面字段在 `configureScreen(_:)` 中设置；容器字段直接赋值。标注“创建时设置”的值不能在创建后直接修改，只读结果单列在文末。
+适用于 **v0.10.0**。导航图片、动作角色、轴向偏好及系统动作布局自 v0.10.0 提供，v0.9.1 不包含。方法和创建入口见 [SDK 方法说明](Usage-Examples.md)。页面字段在 `configureScreen(_:)` 中设置；容器字段直接赋值。标注“创建时设置”的值不能在创建后直接修改，只读结果单列在文末。
 
 ## 页面配置：ScreenConfiguration
 
@@ -40,9 +40,14 @@
 | `id` | `String` | 必填 | 按钮的稳定标识，同一页左右两组应唯一；重复时保留首项 |
 | `title` | `String` | 必填 | 按钮名称，也用于菜单和无障碍名称 |
 | `symbol` | `String` | `""` | SF Symbol 图标名称；空字符串显示文字按钮 |
+| `icon`（v0.10.0+） | `ShellNavigationIcon?` | `nil` | 非 nil 时覆盖 symbol；支持系统符号、资源图片和 UIImage，解析失败显示标题 |
+| `role`（v0.10.0+） | `ShellNavigationActionRole` | `.normal` | `.cancellation` 放在前侧；`.confirmation` 放在后侧，原生布局固定首个确认动作 |
+| `axisBehavior`（v0.10.0+） | `ShellNavigationActionAxisBehavior` | `.automatic` | 自动 / `.horizontalOnly` 仅横向 / `.verticalPreferred` 优先竖向，iOS 27.1+ 映射到系统 |
 | `priority` | `Int` | `0` | 保留在栏上的优先级，越大越优先，不改变显示顺序 |
 | `isEnabled` | `Bool` | `true` | 是否允许点击 |
 | `handler` | `() -> Void` | 必填 | 点击回调，引用页面时可用 `[weak self]` |
+
+自 v0.10.0 起，iOS 27+ 原生导航将完整唯一动作交给系统分组、优先级及溢出；经典和旧系统保留 SDK 宽度算法。图片渲染、多个确认动作及诊断语义见 [导航动作与自适应](Navigation-Actions.md)。
 
 ## 容器字段
 
@@ -211,7 +216,8 @@
 | `BoneViewController` | `backgroundView` / `activeBackgroundView` | 独立页面背景 / 当前实际背景；整体模式使用后者 |
 | `BoneViewController` | `screenConfiguration` | 最新生成的页面配置快照 |
 | `BoneViewController` | `usesUnifiedBackground` / `resolvedBarPresentation` | 是否启用整体背景 / 当前实际栏位模式，优先反映所属导航容器 |
-| `BoneViewController` | `visibleActionIDs` / `overflowActionIDs` | 当前可见 / 进入更多菜单的导航动作 ID |
+| `BoneViewController` | `visibleActionIDs` / `overflowActionIDs` | SDK 提交到栏位 / 预先放入菜单的动作 ID；v0.10.0 系统布局下前者为候选项，后者为空，不能推断实际可见性 |
+| `BoneViewController` | `usesSystemNavigationActionLayout`（v0.10.0+） | 是否处于 iOS 27+ 原生动作布局路径；不表示当前已竖排 |
 | 两种 SDK 栏位容器 | `backgroundView` / `unifiedBackgroundView` / `resolvedBarPresentation` | 独立栏位背景 / 此容器拥有的整体背景 / 解析后的栏位模式 |
 | `BoneNavigationController` | `classicNavigationBarView` | 当前经典导航栏视图，非对应模式时为 `nil` |
 | `BoneTabBarController` | `classicTabBarView` / `capsuleTabBarView` / `dockBarView` / `nativeTabAccessoryView` | 经典栏 / 旧系统 SDK 胶囊 / 原生 dock / 系统附加按钮槽位视图 |

@@ -2,7 +2,7 @@
 
 `ShellBarPresentation` 将栏位外观与字体、颜色、材质分开配置。SDK 默认 `.system`，Demo 默认 `.automatic`。
 
-适用于 v0.9.0 验证版；文字显示策略自 v0.9.0 提供，v0.8.0 不包含，运行与视觉验证见 [验证记录](Implementation-Status.md#090-标签文字显示策略与验证)。示例在 `@MainActor` 上使用，并需导入 UIKit / BoneShellKit；`HomeController`、`SettingsController` 由宿主提供。附件示例放在宿主控制器的方法中，由该控制器实现 `openProfile()`、`openComposer()`，使用弱引用回调。
+适用于 v0.10.0；文字显示策略自 v0.9.0 提供，导航图片 / 角色 / 轴向与系统动作布局见 [导航动作](Navigation-Actions.md)。运行与视觉验证见 [验证记录](Implementation-Status.md)。示例在 `@MainActor` 上使用，并需导入 UIKit / BoneShellKit；`HomeController`、`SettingsController` 由宿主提供。附件示例放在宿主控制器的方法中，由该控制器实现 `openProfile()`、`openComposer()`，使用弱引用回调。
 
 | 类型 | iOS 26 及以上 | iOS 26 以下 |
 | --- | --- | --- |
@@ -13,7 +13,7 @@
 
 显式模式不因系统版本改变其请求的外观。导航没有胶囊形态，因此胶囊请求在旧系统上回退为经典导航。
 
-表格描述模式解析与 renderer 选择。原生栏位的最终位置和轴向仍由 UIKit / 容器环境决定；当前视觉基线是紧凑 iPhone，不把新版系统判定等同于 iPad / Duo 全姿态验收。带附件的原生 dock 使用 SDK 底部布局，另有独立边界。
+表格描述模式解析与 renderer 选择。原生栏位的最终位置和轴向仍由 UIKit / 容器环境决定；已验证紧凑 iPhone 与 Duo 当前窗口的导航栏位，完整 iPad / Duo 姿态矩阵另行验收。带附件的原生 dock 使用 SDK 底部布局，另有独立边界。
 
 ```swift
 ShellBarPresentation.automatic.resolved(supportsNativeCapsule: true)  // .capsule

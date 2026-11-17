@@ -31,7 +31,16 @@ open class BoneViewController: UIViewController {
     private weak var displayedUnifiedBackgroundHost: ShellUnifiedBackgroundHost?
     private var isShellVisible = false
     public private(set) var screenConfiguration = ScreenConfiguration()
+    /// iOS 27+ 的原生导航使用系统分组、优先级与溢出，不预先按横向宽度裁剪。
+    public var usesSystemNavigationActionLayout: Bool {
+        if #available(iOS 27.0, *), navigationController != nil {
+            return resolvedBarPresentation != .classic
+        }
+        return false
+    }
+    /// SDK 直接提交到栏位的动作 ID；系统布局下是候选项，不代表实际可见性。
     public private(set) var visibleActionIDs: [String] = []
+    /// SDK 预先放入更多菜单的动作 ID；系统管理的溢出不包含在此数组中。
     public private(set) var overflowActionIDs: [String] = []
 
     private var hasBuiltContent = false
@@ -43,6 +52,15 @@ open class BoneViewController: UIViewController {
     private var originalBottomEdgeEffectHidden: Bool?
     private let bottomContentFade = ShellScrollBottomFade()
     private var subtitleTitleView: ShellSubtitleTitleView?
+
+    @MainActor private final class NavigationActionState {
+        var action: NavigationAction
+        let item = UIBarButtonItem()
+        var group: UIBarButtonItemGroup?
+        init(_ action: NavigationAction) { self.action = action }
+    }
+    private var navigationActionStates: [String: NavigationActionState] = [:]
+    private var appliedSystemActionLayout = false
 
     public init() { super.init(nibName: nil, bundle: nil) }
     public required init?(coder: NSCoder) { super.init(coder: coder) }
@@ -122,6 +140,10 @@ open class BoneViewController: UIViewController {
     open override func viewSafeAreaInsetsDidChange() {
         super.viewSafeAreaInsetsDidChange()
         guard isViewLoaded else { return }
+        if let navigation = navigationController as? BoneNavigationController,
+           navigation.resolvedBarPresentation == .classic {
+            navigation.refreshBarPresentation()
+        }
         updateNavigationActions()
         refreshContentLayoutForBars()
     }
@@ -137,8 +159,9 @@ open class BoneViewController: UIViewController {
                 || previous.legibilityWeight != traitCollection.legibilityWeight
                 || previous.layoutDirection != traitCollection.layoutDirection
                 || previous.displayScale != traitCollection.displayScale
-                || previous.horizontalSizeClass != traitCollection.horizontalSizeClass
-                || previous.verticalSizeClass != traitCollection.verticalSizeClass
+                || (!usesSystemNavigationActionLayout && (
+                    previous.horizontalSizeClass != traitCollection.horizontalSizeClass
+                    || previous.verticalSizeClass != traitCollection.verticalSizeClass))
                 || previous.userInterfaceIdiom != traitCollection.userInterfaceIdiom
         } ?? true
         if needsRestyling {
@@ -392,21 +415,42 @@ open class BoneViewController: UIViewController {
             ?? UIFont.preferredFont(forTextStyle: .caption1, compatibleWith: traitCollection)
         let buttonFont = style.buttons.resolvedFont(for: .body, traits: traitCollection)
             ?? UIFont.preferredFont(forTextStyle: .body, compatibleWith: traitCollection)
+        let systemLayout = usesSystemNavigationActionLayout
         let key = ActionLayoutKey(
             width: view.bounds.width,
             leftInset: view.safeAreaInsets.left,
             rightInset: view.safeAreaInsets.right,
             backTitle: backTitle,
-            textSize: titleFont.pointSize
+            textSize: titleFont.pointSize,
+            systemLayout: systemLayout
         )
+        // 原生布局只在声明或样式刷新时更新，尺寸变化由 UIKit 处理，保留菜单来源。
+        if systemLayout && lastActionLayoutKey?.systemLayout == true {
+            subtitleTitleView?.maximumWidth = max(44, (key.width - key.leftInset - key.rightInset) * 0.45)
+            return
+        }
         guard key != lastActionLayoutKey else { return }
         lastActionLayoutKey = key
         let allActions = ShellActionLayout.uniqueActions(
             configuration.leadingActions + configuration.trailingActions
         )
+        let activeIDs = Set(allActions.map(\.id))
+        navigationActionStates = navigationActionStates.filter { activeIDs.contains($0.key) }
+        for action in allActions { actionState(for: action).action = action }
         let leadingIDs = Set(configuration.leadingActions.map(\.id))
-        let leading = allActions.filter { leadingIDs.contains($0.id) }
-        let trailing = allActions.filter { !leadingIDs.contains($0.id) }
+        let leading = allActions.filter {
+            $0.role == .cancellation || ($0.role == .normal && leadingIDs.contains($0.id))
+        }
+        let trailing = allActions.filter { action in !leading.contains { $0.id == action.id } }
+        let material = ShellMaterials.currentResolution(for: configuration.material).resolved
+        if #available(iOS 27.0, *), systemLayout {
+            subtitleTitleView?.maximumWidth = max(44, (key.width - key.leftInset - key.rightInset) * 0.45)
+            applySystemNavigationActions(leading: leading, trailing: trailing, material: material)
+            visibleActionIDs = allActions.map(\.id)
+            overflowActionIDs = []
+            return
+        }
+        clearSystemNavigationActions()
 
         let usableWidth = max(0, key.width - key.leftInset - key.rightInset - 32)
         let titleWidth = max(
@@ -416,7 +460,7 @@ open class BoneViewController: UIViewController {
         let preferredTitleBudget = min(max(88, titleWidth), usableWidth * 0.45)
         // Shorten the title before displacing a primary trailing action. When other
         // actions overflow, reserve both its touch target and the menu's target.
-        let primaryWidth = trailing.filter { $0.priority > 0 }.map(navigationActionWidth).max()
+        let primaryWidth = trailing.filter { $0.priority > 0 || $0.role == .confirmation }.map(navigationActionWidth).max()
         let primaryReserve: CGFloat = primaryWidth.map { $0 + (allActions.count > 1 ? 44 : 0) } ?? 0
         let titleBudget = min(preferredTitleBudget, max(44, usableWidth - 24 - primaryReserve * 2))
         subtitleTitleView?.maximumWidth = titleBudget
@@ -439,7 +483,6 @@ open class BoneViewController: UIViewController {
         visibleActionIDs = allActions.filter { visible.contains($0.id) }.map(\.id)
         let overflow = allActions.filter { !visible.contains($0.id) }
         overflowActionIDs = overflow.map(\.id)
-        let material = ShellMaterials.currentResolution(for: configuration.material).resolved
         let leftItems = leading.filter { visible.contains($0.id) }.map {
             makeBarButton(for: $0, material: material)
         }
@@ -479,20 +522,39 @@ open class BoneViewController: UIViewController {
     private func makeMenuAction(_ action: NavigationAction) -> UIAction {
         let result = UIAction(
             title: action.title,
-            image: action.symbol.isEmpty ? nil : UIImage(systemName: action.symbol),
+            image: action.resolvedImage(traits: traitCollection),
             identifier: UIAction.Identifier("action.\(action.id)"),
             attributes: action.isEnabled ? [] : [.disabled]
-        ) { _ in
-            if action.isEnabled { action.handler() }
+        ) { [weak state = actionState(for: action)] _ in
+            guard let state = state, state.action.isEnabled else { return }
+            state.action.handler()
         }
         result.accessibilityIdentifier = "action.\(action.id)"
         return result
     }
 
     private func makeBarButton(for action: NavigationAction, material: ShellMaterial) -> UIBarButtonItem {
-        let item = UIBarButtonItem(primaryAction: makeMenuAction(action))
-        item.width = navigationActionWidth(action)
+        let state = actionState(for: action)
+        state.action = action
+        let item = state.item
+        // 菜单中的 UIAction 在旧系统上不可变；配置刷新时替换表示，保留 item 身份。
+        item.primaryAction = makeMenuAction(action)
+        item.title = action.title
+        item.image = action.resolvedImage(traits: traitCollection)
+        item.style = action.role == .confirmation ? .done : .plain
+        item.width = usesSystemNavigationActionLayout ? 0 : navigationActionWidth(action)
         item.isEnabled = action.isEnabled
+        if #available(iOS 16.0, *) { item.menuRepresentation = makeMenuAction(action) }
+        if #available(iOS 27.0, *) {
+            item.visibilityPriority = UIBarButtonItemVisibilityPriority(rawValue: action.priority)
+        }
+        if #available(iOS 27.1, *) {
+            switch action.axisBehavior {
+            case .automatic: item.axisBehavior = .automatic
+            case .horizontalOnly: item.axisBehavior = .horizontalOnly
+            case .verticalPreferred: item.axisBehavior = .verticalPreferred
+            }
+        }
         item.accessibilityLabel = action.title
         item.accessibilityIdentifier = "action.\(action.id)"
         configureSharedBackground(for: item, material: material)
@@ -500,10 +562,54 @@ open class BoneViewController: UIViewController {
     }
 
     private func navigationActionWidth(_ action: NavigationAction) -> CGFloat {
-        guard action.symbol.isEmpty else { return 44 }
+        guard action.resolvedImage(traits: traitCollection) == nil else { return 44 }
         let font = effectiveNavigationStyle.buttons.resolvedFont(for: .body, traits: traitCollection)
             ?? UIFont.preferredFont(forTextStyle: .body, compatibleWith: traitCollection)
         return max(44, ceil((action.title as NSString).size(withAttributes: [.font: font]).width) + 20)
+    }
+
+    private func actionState(for action: NavigationAction) -> NavigationActionState {
+        if let state = navigationActionStates[action.id] { return state }
+        let state = NavigationActionState(action)
+        navigationActionStates[action.id] = state
+        return state
+    }
+
+    @available(iOS 27.0, *)
+    private func applySystemNavigationActions(leading: [NavigationAction], trailing: [NavigationAction], material: ShellMaterial) {
+        func group(for action: NavigationAction) -> UIBarButtonItemGroup {
+            let item = makeBarButton(for: action, material: material)
+            let state = actionState(for: action)
+            if let group = state.group { return group }
+            let group = UIBarButtonItemGroup.fixedGroup(representativeItem: nil, items: [item])
+            group.alwaysAvailable = true
+            state.group = group
+            return group
+        }
+        let pinnedID = trailing.first { $0.role == .confirmation }?.id
+        let leadingGroups = leading.map(group)
+        let trailingGroups = trailing.filter { $0.id != pinnedID }.map(group)
+        let pinned = trailing.first { $0.id == pinnedID }.map(group)
+        if !appliedSystemActionLayout {
+            navigationItem.leftBarButtonItems = nil
+            navigationItem.rightBarButtonItems = nil
+        }
+        if navigationItem.leadingItemGroups != leadingGroups { navigationItem.leadingItemGroups = leadingGroups }
+        if navigationItem.trailingItemGroups != trailingGroups { navigationItem.trailingItemGroups = trailingGroups }
+        if navigationItem.pinnedTrailingGroup !== pinned { navigationItem.pinnedTrailingGroup = pinned }
+        appliedSystemActionLayout = true
+        (navigationController as? BoneNavigationController)?.refreshBarPresentation()
+    }
+
+    private func clearSystemNavigationActions() {
+        guard appliedSystemActionLayout else { return }
+        if #available(iOS 16.0, *) {
+            navigationItem.leadingItemGroups = []
+            navigationItem.trailingItemGroups = []
+            navigationItem.pinnedTrailingGroup = nil
+        }
+        for state in navigationActionStates.values { state.group = nil }
+        appliedSystemActionLayout = false
     }
 
     private func configureSharedBackground(for item: UIBarButtonItem, material: ShellMaterial) {
@@ -513,9 +619,8 @@ open class BoneViewController: UIViewController {
         for state: UIControl.State in [.normal, .highlighted, .focused] {
             item.setTitleTextAttributes(style.attributes(merging: [:], role: .body, traits: traitCollection), for: state)
         }
-        if let font = style.resolvedFont(for: .body, traits: traitCollection) {
-            item.setTitleTextAttributes([.font: font], for: .disabled)
-        }
+        let disabledAttributes = style.resolvedFont(for: .body, traits: traitCollection).map { [NSAttributedString.Key.font: $0] }
+        item.setTitleTextAttributes(disabledAttributes, for: .disabled)
     }
 
     @objc private func accessibilitySettingsChanged() {
@@ -530,6 +635,7 @@ open class BoneViewController: UIViewController {
         let rightInset: CGFloat
         let backTitle: String?
         let textSize: CGFloat
+        let systemLayout: Bool
     }
 }
 

@@ -40,7 +40,8 @@ final class BoneShellDemoUITests: XCTestCase {
         primary.tap()
         XCTAssertEqual(app.staticTexts["navigation.event"].label, "已触发 1 次：新增")
         for _ in 0..<5 { app.buttons["navigation.add-action"].tap() }
-        let overflow = app.buttons["shell.overflow"]
+        let predicate = NSPredicate(format: "identifier == %@ OR label IN %@", "shell.overflow", ["More", "更多", "More Actions", "更多操作"])
+        let overflow = app.buttons.matching(predicate).firstMatch
         XCTAssertTrue(overflow.waitForExistence(timeout: 5))
         overflow.tap()
         let help = app.buttons["帮助"]

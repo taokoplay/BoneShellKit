@@ -12,10 +12,11 @@ final class BarDemoIntegrationTests: XCTestCase {
         XCTAssertEqual(page.screenConfiguration.navigation.title, "导航栏")
         XCTAssertNotNil(page.screenConfiguration.navigation.subtitle)
         XCTAssertNotNil(page.screenConfiguration.navigation.style)
+        XCTAssertTrue(navigation.topViewController === page)
         // Text and icon actions live on both sides.
-        let trailing = navigation.topViewController?.navigationItem.rightBarButtonItems ?? []
-        XCTAssertFalse(trailing.isEmpty)
-        XCTAssertFalse((navigation.topViewController?.navigationItem.leftBarButtonItems ?? []).isEmpty)
+        let items = barButtonItems(in: page.navigationItem)
+        XCTAssertFalse(items.trailing.isEmpty)
+        XCTAssertFalse(items.leading.isEmpty)
         XCTAssertTrue(tabs.viewControllers?.count == 3)
     }
 
@@ -40,6 +41,150 @@ final class BarDemoIntegrationTests: XCTestCase {
         XCTAssertEqual(tabs.barPresentation, .system)
         page.setPresentationIndexForTesting(0)
         XCTAssertNil(navigation.barPresentation)
+    }
+
+    func testNavigationIconAndAxisPickersApplyConfigurationAndResolveImages() throws {
+        let (tabs, navigation, page) = navigationScene()
+        let icons = try XCTUnwrap(view(withIdentifier: "nav.icon", in: page.view) as? UISegmentedControl)
+        let axes = try XCTUnwrap(view(withIdentifier: "nav.axis", in: page.view) as? UISegmentedControl)
+        let status = try XCTUnwrap(view(withIdentifier: "nav.status", in: page.view) as? UILabel)
+        let source = try XCTUnwrap(UIImage(named: "BarStyle-Orbit", in: .main, compatibleWith: page.traitCollection))
+        let imageData = try XCTUnwrap(source.pngData())
+        let iconNames = ["符号", "本地图片", "UIImage"]
+        let axisNames = ["自动", "仅横向", "优先侧边"]
+        let behaviors: [ShellNavigationActionAxisBehavior] = [.automatic, .horizontalOnly, .verticalPreferred]
+        XCTAssertEqual(icons.numberOfSegments, 3)
+        XCTAssertEqual(axes.numberOfSegments, 3)
+        XCTAssertEqual(icons.selectedSegmentIndex, 0)
+        XCTAssertEqual(axes.selectedSegmentIndex, 0)
+
+        for index in 0..<3 {
+            XCTAssertEqual(icons.titleForSegment(at: index), iconNames[index])
+            XCTAssertEqual(axes.titleForSegment(at: index), axisNames[index])
+            icons.selectedSegmentIndex = index
+            icons.sendActions(for: .valueChanged)
+            let detail = try XCTUnwrap(page.screenConfiguration.navigation.trailingActions.first { $0.id == "nav.detail" })
+            let icon = try XCTUnwrap(detail.icon)
+            let resolved = try XCTUnwrap(actionImage(id: "nav.detail", in: page.navigationItem))
+            switch icon {
+            case .systemSymbol(let name):
+                XCTAssertEqual(index, 0)
+                XCTAssertEqual(name, "arrow.right")
+                XCTAssertTrue(resolved.isSymbolImage)
+            case .asset(let name, let bundle):
+                XCTAssertEqual(index, 1)
+                XCTAssertEqual(name, "BarStyle-Orbit")
+                XCTAssertEqual(bundle, .main)
+                XCTAssertEqual(try XCTUnwrap(resolved.pngData()), imageData)
+            case .image(let image):
+                XCTAssertEqual(index, 2)
+                XCTAssertEqual(image.renderingMode, .alwaysOriginal)
+                XCTAssertEqual(resolved.renderingMode, .alwaysOriginal)
+                XCTAssertEqual(try XCTUnwrap(resolved.pngData()), imageData)
+            }
+
+            axes.selectedSegmentIndex = index
+            axes.sendActions(for: .valueChanged)
+            let updated = try XCTUnwrap(page.screenConfiguration.navigation.trailingActions.first { $0.id == "nav.detail" })
+            XCTAssertEqual(updated.axisBehavior, behaviors[index])
+            XCTAssertTrue(status.text?.contains("图标：\(iconNames[index]) / 方向：\(axisNames[index])") == true)
+        }
+        XCTAssertTrue(tabs.selectedViewController === navigation)
+    }
+
+    func testNavigationResetRestoresIconAndAxisWithoutReplacingContentOrStack() throws {
+        let (_, navigation, page) = navigationScene()
+        navigation.setViewControllers([UIViewController(), page], animated: false)
+        let stack = navigation.viewControllers
+        let content = page.contentView
+        let rows = page.stack.arrangedSubviews
+        let icons = try XCTUnwrap(view(withIdentifier: "nav.icon", in: page.view) as? UISegmentedControl)
+        let axes = try XCTUnwrap(view(withIdentifier: "nav.axis", in: page.view) as? UISegmentedControl)
+        for (identifier, index) in [
+            ("nav.title-size", 3), ("nav.title-color", 2), ("nav.subtitle", 0), ("nav.large-title", 1),
+            ("nav.button-size", 3), ("nav.presentation", 2), ("nav.icon", 2), ("nav.axis", 2)
+        ] {
+            let picker = try XCTUnwrap(view(withIdentifier: identifier, in: page.view) as? UISegmentedControl)
+            picker.selectedSegmentIndex = index
+            picker.sendActions(for: .valueChanged)
+        }
+        page.note("重置前")
+        XCTAssertEqual(icons.selectedSegmentIndex, 2)
+        XCTAssertEqual(axes.selectedSegmentIndex, 2)
+        let reset = try XCTUnwrap(view(withIdentifier: "nav.reset", in: page.view) as? UIButton)
+        reset.sendActions(for: .touchUpInside)
+
+        XCTAssertNil(page.titleSize)
+        XCTAssertEqual(page.colorIndex, 0)
+        XCTAssertTrue(page.showsSubtitle)
+        XCTAssertFalse(page.usesLargeTitle)
+        XCTAssertNil(page.buttonSize)
+        XCTAssertEqual(page.presentationIndex, 0)
+        XCTAssertNil(navigation.barPresentation)
+        XCTAssertNil(page.message)
+        XCTAssertNil(page.screenConfiguration.navigation.style?.title.font)
+        XCTAssertEqual(icons.selectedSegmentIndex, 0)
+        XCTAssertEqual(axes.selectedSegmentIndex, 0)
+        let detail = try XCTUnwrap(page.screenConfiguration.navigation.trailingActions.first { $0.id == "nav.detail" })
+        XCTAssertEqual(detail.axisBehavior, .automatic)
+        guard case .systemSymbol(let name)? = detail.icon else {
+            return XCTFail("Reset must restore the original symbol")
+        }
+        XCTAssertEqual(name, "arrow.right")
+        let status = try XCTUnwrap(view(withIdentifier: "nav.status", in: page.view) as? UILabel)
+        XCTAssertTrue(status.text?.contains("图标：符号 / 方向：自动") == true)
+        XCTAssertTrue(page.contentView === content)
+        XCTAssertTrue(view(withIdentifier: "nav.icon", in: page.view) === icons)
+        XCTAssertTrue(view(withIdentifier: "nav.axis", in: page.view) === axes)
+        XCTAssertEqual(page.stack.arrangedSubviews.count, rows.count)
+        for (before, after) in zip(rows, page.stack.arrangedSubviews) { XCTAssertTrue(before === after) }
+        XCTAssertEqual(navigation.viewControllers.count, stack.count)
+        for (before, after) in zip(stack, navigation.viewControllers) { XCTAssertTrue(before === after) }
+        XCTAssertTrue(navigation.topViewController === page)
+    }
+
+    func testNavigationActionsUseConfirmationAndCancellationSemantics() throws {
+        let (_, navigation, page) = navigationScene()
+        let done = try XCTUnwrap(page.screenConfiguration.navigation.trailingActions.first { $0.id == "nav.text" })
+        let mark = try XCTUnwrap(page.screenConfiguration.navigation.leadingActions.first { $0.id == "nav.mark" })
+        let detail = try XCTUnwrap(page.screenConfiguration.navigation.trailingActions.first { $0.id == "nav.detail" })
+        XCTAssertEqual(done.role, .confirmation)
+        XCTAssertEqual(mark.role, .normal)
+        XCTAssertEqual(detail.role, .normal)
+        let doneItem = try XCTUnwrap(barButtonItems(in: page.navigationItem).trailing.first { $0.accessibilityIdentifier == "action.nav.text" })
+        XCTAssertEqual(doneItem.style, .done)
+        done.handler()
+        XCTAssertEqual(page.message, "已触发：完成")
+        mark.handler()
+        XCTAssertEqual(page.message, "已触发：标记")
+
+        detail.handler()
+        let form = try XCTUnwrap(navigation.topViewController as? FormDemoController)
+        form.loadViewIfNeeded()
+        XCTAssertEqual(form.pageTitle, "导航与输入")
+        XCTAssertFalse(form.screenConfiguration.navigation.leadingActions.contains { $0.id == "close" })
+        let save = try XCTUnwrap(form.screenConfiguration.navigation.trailingActions.first { $0.id == "save" })
+        XCTAssertEqual(save.role, .confirmation)
+        form.input.text = "保留保存行为"
+        save.handler()
+        let status = try XCTUnwrap(view(withIdentifier: "form.status", in: form.view) as? UILabel)
+        XCTAssertEqual(status.text, "已保存：保留保存行为")
+
+        let sheet = FormDemoController()
+        sheet.showsCloseButton = true
+        let (_, sheetNavigation) = containers(sheet)
+        let close = try XCTUnwrap(sheet.screenConfiguration.navigation.leadingActions.first { $0.id == "close" })
+        XCTAssertEqual(close.role, .cancellation)
+        XCTAssertEqual(sheet.screenConfiguration.navigation.trailingActions.first { $0.id == "save" }?.role, .confirmation)
+        let sheetItems = barButtonItems(in: sheet.navigationItem)
+        XCTAssertNotNil(sheetItems.leading.first { $0.accessibilityIdentifier == "action.close" })
+        let saveItem = try XCTUnwrap(sheetItems.trailing.first { $0.accessibilityIdentifier == "action.save" })
+        XCTAssertEqual(saveItem.style, .done)
+        XCTAssertTrue(sheetNavigation.topViewController === sheet)
+
+        let multipleActions = NavigationDemoController()
+        multipleActions.loadViewIfNeeded()
+        XCTAssertEqual(multipleActions.screenConfiguration.navigation.leadingActions.first { $0.id == "leading" }?.role, .normal)
     }
 
     // MARK: - Tab bar scene
@@ -187,6 +332,34 @@ final class BarDemoIntegrationTests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    private func barButtonItems(in item: UINavigationItem) -> (leading: [UIBarButtonItem], trailing: [UIBarButtonItem]) {
+        var leading = item.leftBarButtonItems ?? []
+        var trailing = item.rightBarButtonItems ?? []
+        if #available(iOS 16.0, *) {
+            leading += item.leadingItemGroups.flatMap(\.barButtonItems)
+            trailing += item.trailingItemGroups.flatMap(\.barButtonItems)
+            trailing += item.pinnedTrailingGroup?.barButtonItems ?? []
+        }
+        return (leading, trailing)
+    }
+
+    private func actionImage(id: String, in item: UINavigationItem) -> UIImage? {
+        let identifier = "action.\(id)"
+        func action(in menu: UIMenu) -> UIAction? {
+            for child in menu.children {
+                if let action = child as? UIAction, action.identifier.rawValue == identifier { return action }
+                if let submenu = child as? UIMenu, let match = action(in: submenu) { return match }
+            }
+            return nil
+        }
+        let items = barButtonItems(in: item)
+        for button in items.leading + items.trailing {
+            if button.accessibilityIdentifier == identifier { return button.image }
+            if let menu = button.menu, let match = action(in: menu) { return match.image }
+        }
+        return nil
+    }
 
     private func view(withIdentifier identifier: String, in root: UIView) -> UIView? {
         if root.accessibilityIdentifier == identifier { return root }

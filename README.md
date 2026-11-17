@@ -2,7 +2,9 @@
 
 UIKit 页面骨架 SDK。提供页面内容区域、原生容器封装、栏位模式与样式、标签栏附加动作，以及页面 / 导航 / 标签多媒体背景。
 
-最新发布版本为 **v0.9.1**，补充 SDK 方法与字段中文说明，并包含 v0.9.0 的 Tab 文字显示策略、整栏与单项覆盖。版本变化见 [更新记录](CHANGELOG.md)。
+最新版本为 **v0.10.0**，新增导航图片图标、取消 / 确认角色、轴向偏好，以及 iOS 27+ 原生分组与系统溢出。版本变化见 [更新记录](CHANGELOG.md)。
+
+[导航动作与自适应](Documentation/Navigation-Actions.md) 包含完整示例、兼容策略和支持边界；这些扩展自 v0.10.0 提供，v0.9.1 不包含。
 
 ## 构建与运行基线
 
@@ -12,9 +14,9 @@ UIKit 页面骨架 SDK。提供页面内容区域、原生容器封装、栏位�
 | Swift Package | tools version 5.9，Swift 5 语言模式，一个 `BoneShellKit` library 产品 |
 | 编译工具链 | 已验证 Xcode 27.1；源码使用 UIKit 26 / 27.1 API，需包含这些声明的编译 SDK，不能据部署目标推断旧 Xcode 可构建 |
 | 依赖 | Apple 系统框架，无第三方 Package 依赖 |
-| Demo | UIKit Universal App，0.9.0（Build 1），共享 Scheme `BoneShellDemo` |
+| Demo | UIKit Universal App，0.10.0（Build 1），共享 Scheme `BoneShellDemo` |
 
-最低部署目标与实际运行验证分开记录。当前功能回归运行于 iPhone 13 Pro / iOS 26.0 模拟器；旧系统、iPad / Duo 等矩阵的完成情况见 [实现与验证记录](Documentation/Implementation-Status.md)。
+最低部署目标与实际运行验证分开记录。导航动作已在 iPhone Duo / iOS 27.1 与 iPhone 16 Pro / iOS 18.6 模拟器执行相关回归；此前 iOS 26 的功能验证独立保留，完整系统 / 姿态矩阵见 [实现与验证记录](Documentation/Implementation-Status.md)。
 
 ## Swift Package 接入
 
@@ -24,13 +26,13 @@ UIKit 页面骨架 SDK。提供页面内容区域、原生容器封装、栏位�
 .package(path: "../BoneShellKit")
 ```
 
-远程接入已发布的 0.9.1 文档补充版本：
+远程接入 v0.10.0：
 
 ```swift
-.package(url: "https://github.com/taokoplay/BoneShellKit.git", exact: "0.9.1")
+.package(url: "https://github.com/taokoplay/BoneShellKit.git", exact: "0.10.0")
 ```
 
-按精确标签锁定所需能力：`v0.9.1` 补充方法与字段参考文档，功能源码与 `v0.9.0` 相同；`v0.9.0` 包含文字显示策略，`v0.8.0` 不包含；历史标签 `v0.6.0` 还不包含自动 / 胶囊模式与标签栏附加动作。分支接入的可用功能以远端实际修订为准，不能将默认分支等同于最新标签。
+按精确标签锁定所需能力：`v0.10.0` 包含导航图片、角色、轴向偏好及系统布局；`v0.9.1` 仅补充文档，功能源码与 `v0.9.0` 相同；`v0.9.0` 包含标签文字显示策略，`v0.8.0` 不包含。分支接入的可用功能以实际修订为准，不能将默认分支等同于发布标签。
 
 ## 最小接入
 
@@ -75,7 +77,7 @@ func makeRootController() -> BoneNavigationController {
 | 页面内容 | `BoneViewController` + `ScreenConfiguration`；默认 `.safeArea`，`avoidsKeyboard = false`；键盘避让需按页开启 |
 | 原生容器 | `BoneNavigationController`、`BoneTabBarController`、`BoneSplitViewController`；分栏的业务选择和数据由宿主管理 |
 | 栏位呈现 | `.automatic / .classic / .capsule / .system`；SDK 默认 `.system`，Demo 默认 `.automatic`；导航只有系统与经典两种外观 |
-| 导航操作 | SF Symbol 或文字、稳定 ID、整数优先级、禁用状态；SDK 测量可用宽度并通过 `UIMenu` 展示溢出操作 |
+| 导航操作 | 图片 / SF Symbol / 文字、稳定 ID、角色、整数优先级、禁用状态及轴向偏好；iOS 27+ 使用系统布局，经典与旧系统保留 SDK 宽度预算 |
 | 字体与图标 | 页面 / 容器样式、Dynamic Type、普通 / 选中图标、颜色 / 原图选中策略、按 ID 更新条目 |
 | 标签附加动作 | `tabBarAccessories`；经典栏内、兼容胶囊外侧、原生 dock，或显式系统模式的槽位 / 旧系统 tab item |
 | 浮动栏下滚动 | 注册主滚动视图后延伸到底边，保留业务 `contentInset`；默认底部 80 pt 渐隐，设为 0 可关闭 |
@@ -111,7 +113,7 @@ if var item = tabs.tabItemConfiguration(for: "home") {
 
 ## 运行 Demo 与测试
 
-打开 `Examples/BoneShellDemo/BoneShellDemo.xcodeproj`，选择共享 Scheme `BoneShellDemo`。Demo 通过本地相对路径引用 SDK，内置素材不需要网络或账号。底部有“示例 / 材质 / 关于”；导航栏和标签栏设置位于两个独立页面。v0.9.0 的标签页新增“始终显示 / 始终隐藏 / 仅选中 / 仅未选中”四段开关（`tabbar.labels`），状态显示“文字：…”并在恢复时回到 `.always`。完整入口见 [Demo 与测试说明](Documentation/Demo-Test-Plan.md)。
+打开 `Examples/BoneShellDemo/BoneShellDemo.xcodeproj`，选择共享 Scheme `BoneShellDemo`。Demo 通过本地相对路径引用 SDK，内置素材不需要网络或账号。底部有“示例 / 材质 / 关于”；“导航栏”页提供图标来源（`nav.icon`）、轴向偏好（`nav.axis`）及恢复默认，“导航与多按钮”页验证优先级和实际溢出。“标签栏”页保留文字四策略（`tabbar.labels`）。完整入口见 [Demo 与测试说明](Documentation/Demo-Test-Plan.md)。
 
 已包含生成后的 Xcode 工程。修改 `project.yml`，或增删 Demo / 测试源文件时，从仓库根目录重新生成：
 
@@ -147,6 +149,7 @@ Scheme 包含 `BoneShellDemoTests` 和 `BoneShellDemoUITests`；前者同时编�
 - [版本更新记录](CHANGELOG.md)
 - [SDK 当前范围与后续规划](Documentation/SDK-Plan.md)
 - [Demo 入口、自动化与待验收矩阵](Documentation/Demo-Test-Plan.md)
+- [导航动作与自适应栏位（v0.10.0+）](Documentation/Navigation-Actions.md)
 - [自动、经典、胶囊与系统栏位](Documentation/Bar-Presentation.md)
 - [字体、颜色、图标与运行时更新](Documentation/Bar-Styling.md)
 - [多媒体背景、缓存与播放生命周期](Documentation/Backgrounds.md)

@@ -110,9 +110,10 @@ open class BoneNavigationController: UINavigationController {
             let inset = classicNavigationInsets[id] ?? ClassicNavigationInset(page)
             classicNavigationInsets[id] = inset
             let headerBottom = bar.convert(bar.bounds, to: page.view).maxY - page.view.bounds.minY
-            let parentSafeTop = view.convert(CGPoint(x: view.bounds.minX,
-                y: view.bounds.minY + view.safeAreaInsets.top), to: page.view).y - page.view.bounds.minY
-            let desired: CGFloat = bar.isHidden ? 0 : max(0, headerBottom - max(0, parentSafeTop))
+            // 容器与页面的原生安全区可能不同；从页面实测值扣除本 SDK 的旧贡献。
+            // 保留宿主自己的 additionalSafeAreaInsets，避免遮挡或重复预留栏位高度。
+            let pageSafeTopWithoutContribution = page.view.safeAreaInsets.top - inset.contribution
+            let desired: CGFloat = bar.isHidden ? 0 : max(0, headerBottom - max(0, pageSafeTopWithoutContribution))
             if abs(desired - inset.contribution) > 0.1 {
                 var safe = page.additionalSafeAreaInsets
                 safe.top += desired - inset.contribution
@@ -132,7 +133,14 @@ open class BoneNavigationController: UINavigationController {
     }
 
     @available(iOS 27.1, *)
-    open override var childForPreferredVerticalBarBehavior: UIViewController? { topViewController }
+    open override var preferredVerticalBarBehavior: UIVerticalBarBehavior {
+        resolvedBarPresentation == .classic ? .disabled : .automatic
+    }
+
+    @available(iOS 27.1, *)
+    open override var childForPreferredVerticalBarBehavior: UIViewController? {
+        resolvedBarPresentation == .classic ? nil : topViewController
+    }
 
 
     internal var shellUnifiedBackgroundHost: ShellUnifiedBackgroundHost?
@@ -870,7 +878,14 @@ open class BoneTabBarController: UITabBarController {
     }
 
     @available(iOS 27.1, *)
-    open override var childForPreferredVerticalBarBehavior: UIViewController? { selectedViewController }
+    open override var preferredVerticalBarBehavior: UIVerticalBarBehavior {
+        resolvedBarPresentation == .classic ? .disabled : .automatic
+    }
+
+    @available(iOS 27.1, *)
+    open override var childForPreferredVerticalBarBehavior: UIViewController? {
+        resolvedBarPresentation == .classic ? nil : selectedViewController
+    }
 
 
     internal var shellUnifiedBackgroundHost: ShellUnifiedBackgroundHost?

@@ -1,6 +1,6 @@
 # SDK 方法说明
 
-适用于 **v0.9.0**。下面按类型列出 SDK 的业务接入方法、参数和用途；可设置的属性见 [字段中文说明](API-Reference.md)。使用时导入 `UIKit`、`BoneShellKit`，并在主线程 / `@MainActor` 调用。
+适用于 **v0.10.0**。导航图片、角色、轴向偏好及系统动作布局自 v0.10.0 提供，v0.9.1 不包含。下面按类型列出 SDK 的业务接入方法、参数和用途；可设置的属性见 [字段中文说明](API-Reference.md)。使用时导入 `UIKit`、`BoneShellKit`，并在主线程 / `@MainActor` 调用。
 
 ## 页面：BoneViewController
 
@@ -48,7 +48,8 @@
 | --- | --- |
 | `ScreenConfiguration()` | 创建页面默认配置，通常由 SDK 创建后传入页面配置方法 |
 | `NavigationConfiguration()` | 创建导航默认配置 |
-| `NavigationAction(id:title:symbol:priority:isEnabled:handler:)` | 创建导航动作；ID、标题、点击回调必填 |
+| `NavigationAction(id:title:symbol:priority:isEnabled:role:axisBehavior:handler:)` | 创建文字或 SF Symbol 动作；role / axisBehavior 自 v0.10.0 增加，有兼容默认值 |
+| `NavigationAction(id:title:icon:priority:isEnabled:role:axisBehavior:handler:)` | v0.10.0+ 图片动作；icon 参数必传，可为 nil，ID / 标题 / 点击回调必填；完整示例见 [导航动作](Navigation-Actions.md) |
 | `ShellTextStyle(font:color:scalesWithDynamicType:)` | 使用 UIFont 设置字体、文字颜色和动态字号 |
 | `ShellTextStyle(size:weight:color:scalesWithDynamicType:)` | 使用字号与字重创建系统字体样式，字号必须有限且大于 0 |
 | `ShellNavigationStyle(title:largeTitle:subtitle:buttons:)` | 创建导航栏各文字角色的样式 |

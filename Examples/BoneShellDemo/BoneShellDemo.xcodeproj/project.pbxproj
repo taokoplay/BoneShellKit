@@ -22,7 +22,9 @@
 		2B0016744FE335B5A48513F0 /* TabSelectedIconUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4355AA4DB68857FD4DD53241 /* TabSelectedIconUITests.swift */; };
 		31F1A306921682273B00B9EA /* Background-Drift.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 8124B4AC1CDB4B8DA61A9170 /* Background-Drift.mp4 */; };
 		32BD930E9F7FE9CE778A9788 /* BarNavigationDemo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 642BA4D0E2E5628586BAC482 /* BarNavigationDemo.swift */; };
+		396DEE3AFD33986DF18D0E85 /* NavigationActionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68F3F100661CE52F97C3FFB2 /* NavigationActionTests.swift */; };
 		4731D8B003CDF3342FA57BEE /* TabBarAccessoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEC557F27F0E179C0485486A /* TabBarAccessoryTests.swift */; };
+		50110EF30FBD889AFBCD8467 /* NavigationAdaptiveUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5197B7DC49C871609BDACD6A /* NavigationAdaptiveUITests.swift */; };
 		5C97D79EB56D9FB54C05A532 /* Background-Paper.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 24C7DA1C1CC233691F3B72C4 /* Background-Paper.jpg */; };
 		60DD7CC68CCC183F789D658D /* DemoScenes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42A2BE19A0D38B9F365C57C4 /* DemoScenes.swift */; };
 		64DC6F0C59FFB719008AE6EF /* DemoIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8C3B29C5615404626FFC707 /* DemoIntegrationTests.swift */; };
@@ -77,9 +79,11 @@
 		47ED3B7A036B43CF9D2A8367 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		482BE1656E2C23DE5297BADE /* TabSelectedIconTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabSelectedIconTests.swift; sourceTree = "<group>"; };
 		4BCDFF30D421B233025B55F2 /* BackgroundEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundEngineTests.swift; sourceTree = "<group>"; };
+		5197B7DC49C871609BDACD6A /* NavigationAdaptiveUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationAdaptiveUITests.swift; sourceTree = "<group>"; };
 		551B9D8C8CC789AFE41C5E35 /* TabLabelDisplayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabLabelDisplayTests.swift; sourceTree = "<group>"; };
 		642BA4D0E2E5628586BAC482 /* BarNavigationDemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarNavigationDemo.swift; sourceTree = "<group>"; };
 		65754720AE35FBD24081BE28 /* Background-Aurora.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = "Background-Aurora.html"; sourceTree = "<group>"; };
+		68F3F100661CE52F97C3FFB2 /* NavigationActionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationActionTests.swift; sourceTree = "<group>"; };
 		6C90E8DCF08559097B65353E /* BoneShellDemoUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoneShellDemoUITests.swift; sourceTree = "<group>"; };
 		703B1D693D2ADD57AE5F0877 /* BarPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarPresentationTests.swift; sourceTree = "<group>"; };
 		7519AE62274B5F82DBEBF76A /* Background-Orbit.gif */ = {isa = PBXFileReference; lastKnownFileType = image.gif; path = "Background-Orbit.gif"; sourceTree = "<group>"; };
@@ -124,6 +128,7 @@
 			children = (
 				EA087C819EF93C84400EA58D /* BackgroundUITests.swift */,
 				6C90E8DCF08559097B65353E /* BoneShellDemoUITests.swift */,
+				5197B7DC49C871609BDACD6A /* NavigationAdaptiveUITests.swift */,
 				FDE4997157F282E1F0EAACD1 /* NavigationBarUITests.swift */,
 				0A0216B1E75DE44DDE2DB2C7 /* TabBarUITests.swift */,
 				4355AA4DB68857FD4DD53241 /* TabSelectedIconUITests.swift */,
@@ -226,6 +231,7 @@
 				703B1D693D2ADD57AE5F0877 /* BarPresentationTests.swift */,
 				9A4F05739F33E546E153D76C /* BarStyleTests.swift */,
 				76FAEEACEB1BEAC023436F1D /* CapsuleBarTests.swift */,
+				68F3F100661CE52F97C3FFB2 /* NavigationActionTests.swift */,
 				89FD2286037B3B9BA1F63671 /* ShellRulesTests.swift */,
 				FEC557F27F0E179C0485486A /* TabBarAccessoryTests.swift */,
 				551B9D8C8CC789AFE41C5E35 /* TabLabelDisplayTests.swift */,
@@ -388,6 +394,7 @@
 				EFFADF649373F3EF50ACEAC3 /* BarStyleTests.swift in Sources */,
 				97C50E1387847494F87260C7 /* CapsuleBarTests.swift in Sources */,
 				64DC6F0C59FFB719008AE6EF /* DemoIntegrationTests.swift in Sources */,
+				396DEE3AFD33986DF18D0E85 /* NavigationActionTests.swift in Sources */,
 				B3FFE010B098F05C741522EB /* ShellRulesTests.swift in Sources */,
 				4731D8B003CDF3342FA57BEE /* TabBarAccessoryTests.swift in Sources */,
 				22F1A9486212FDCF9B5446BA /* TabLabelDisplayTests.swift in Sources */,
@@ -402,6 +409,7 @@
 			files = (
 				A06A9AD27A510E4A5B726A63 /* BackgroundUITests.swift in Sources */,
 				12A1D2260F31D1ED7D530387 /* BoneShellDemoUITests.swift in Sources */,
+				50110EF30FBD889AFBCD8467 /* NavigationAdaptiveUITests.swift in Sources */,
 				851ACD908D230ED2AECEE773 /* NavigationBarUITests.swift in Sources */,
 				18DFF180DFC58C1E0B2D52CF /* TabBarUITests.swift in Sources */,
 				2B0016744FE335B5A48513F0 /* TabSelectedIconUITests.swift in Sources */,
@@ -450,7 +458,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.9.0;
+				MARKETING_VERSION = 0.10.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.taokoplay.BoneShellDemo;
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
@@ -520,7 +528,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.9.0;
+				MARKETING_VERSION = 0.10.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.taokoplay.BoneShellDemo;
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
