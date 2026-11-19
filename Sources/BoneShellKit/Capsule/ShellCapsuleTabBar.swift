@@ -8,6 +8,9 @@ import UIKit
 @MainActor
 final class ShellCapsuleTabBar: UIView {
     var onSelect: ((Int) -> Void)?
+    var controllerIsVisible = false {
+        didSet { if oldValue != controllerIsVisible { updateIconVisibility() } }
+    }
 
     /// Height of the capsule itself, excluding `bottomGap` and the safe area.
     private(set) var contentHeight: CGFloat = 56
@@ -32,6 +35,7 @@ final class ShellCapsuleTabBar: UIView {
         let items: [UITabBarItem]
         let selectedIndex: Int
         let labelDisplayModes: [ShellTabLabelDisplayMode]
+        let customContents: [ObjectIdentifier: ShellTabBarCustomContent]
         let style: ShellTabBarStyle
         let material: ShellMaterial
         let showsMediaBackground: Bool
@@ -55,9 +59,10 @@ final class ShellCapsuleTabBar: UIView {
 
     func update(items: [UITabBarItem], selectedIndex: Int,
                 labelDisplayModes: [ShellTabLabelDisplayMode] = [], style: ShellTabBarStyle,
-                material: ShellMaterial, showsMediaBackground: Bool) {
+                material: ShellMaterial, showsMediaBackground: Bool,
+                customContents: [ObjectIdentifier: ShellTabBarCustomContent] = [:]) {
         model = Model(items: items, selectedIndex: selectedIndex, labelDisplayModes: labelDisplayModes,
-                      style: style, material: material, showsMediaBackground: showsMediaBackground)
+                      customContents: customContents, style: style, material: material, showsMediaBackground: showsMediaBackground)
         applyModel()
     }
 
@@ -78,7 +83,7 @@ final class ShellCapsuleTabBar: UIView {
         let hasLabels = model.items.enumerated().contains { index, item in
             let mode = model.labelDisplayModes.indices.contains(index)
                 ? model.labelDisplayModes[index] : style.labelDisplayMode
-            return mode != .never && item.title?.isEmpty == false
+            return model.customContents[ObjectIdentifier(item)] == nil && mode != .never && item.title?.isEmpty == false
         }
         let titleHeight = hasLabels ? 2 + max(normalFont.lineHeight, selectedFont.lineHeight) : 0
         let newHeight = max(Self.minimumContentHeight, ceil(25 + titleHeight + 16))
@@ -87,14 +92,11 @@ final class ShellCapsuleTabBar: UIView {
             invalidateIntrinsicContentSize()
             superview?.setNeedsLayout()
         }
-        while buttons.count > model.items.count { buttons.removeLast().removeFromSuperview() }
-        while buttons.count < model.items.count {
-            let index = buttons.count
+        buttons = ShellClassicTabButton.reconcile(buttons, with: model.items) {
             let button = ShellClassicTabButton(frame: .zero)
             button.showsSelectionPill = true
-            button.addAction(UIAction { [weak self] _ in self?.onSelect?(index) }, for: .touchUpInside)
-            buttons.append(button)
             addSubview(button)
+            return button
         }
         let pillColor = (tintColor ?? .systemBlue).withAlphaComponent(0.16)
         for (index, item) in model.items.enumerated() {
@@ -105,15 +107,38 @@ final class ShellCapsuleTabBar: UIView {
             let color = role.color ?? (selected ? (tintColor ?? .systemBlue) : .secondaryLabel)
             let iconColor = (selected ? style.selectedIconColor : style.normalIconColor)
                 ?? (selected ? (tintColor ?? .systemBlue) : .secondaryLabel)
-            buttons[index].selectionPillColor = pillColor
-            buttons[index].update(item: item, selected: selected,
-                                  font: selected ? selectedFont : normalFont,
-                                  color: color, iconColor: iconColor,
-                                  showsTitle: labelMode.isVisible(isSelected: selected))
+            let button = buttons[index]
+            button.onSelect = { [weak self] in self?.onSelect?(index) }
+            button.selectionPillColor = pillColor
+            button.update(item: item, selected: selected, font: selected ? selectedFont : normalFont,
+                          color: color, iconColor: iconColor,
+                          showsTitle: labelMode.isVisible(isSelected: selected),
+                          customContent: model.customContents[ObjectIdentifier(item)])
         }
         backdrop.update(material: model.material, showsMediaBackground: model.showsMediaBackground)
+        ShellCapsuleElevation.apply(to: layer, enabled: model.material != .systemGlass)
         accessibilityElements = buttons
+        updateIconVisibility()
         setNeedsLayout()
+    }
+
+    func contentMode(for item: UITabBarItem) -> ShellTabBarCustomContent.Mode? {
+        buttons.first { $0.itemIdentity == ObjectIdentifier(item) }?.resolvedContentMode
+    }
+
+    func discardItems() {
+        buttons.forEach { $0.unmount() }
+        buttons = []
+        model = nil
+        accessibilityElements = nil
+    }
+
+    override var isHidden: Bool {
+        didSet { if oldValue != isHidden { updateIconVisibility() } }
+    }
+
+    private func updateIconVisibility() {
+        buttons.forEach { $0.setContentHostVisible(controllerIsVisible && !isHidden) }
     }
 
     override var intrinsicContentSize: CGSize {

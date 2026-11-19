@@ -7,14 +7,15 @@ import UIKit
 /// renderer on older systems. Explicit system presentation uses UIKit's accessory slot
 /// on iOS 26 and later, or intercepted native tab items below iOS 26.
 public struct ShellTabBarAccessory {
-    public enum Position: Sendable {
+    public enum Position: Equatable, Sendable {
         case leading
         case trailing
     }
 
+
     public let id: String
-    /// Icon. `.systemSymbol` is rendered as a template and tinted with the tab bar style.
-    public var icon: ShellTabIcon
+    /// The standard glyph. A custom accessory does not need one.
+    public var icon: ShellTabIcon?
     /// Optional caption under the icon in self-drawn bars.
     public var title: String?
     public var position: Position
@@ -22,15 +23,35 @@ public struct ShellTabBarAccessory {
     public var accessibilityLabel: String?
     public var handler: () -> Void
 
-    /// Cheap identity used to skip redundant bar rebuilds.
-    var signature: String {
-        let iconKey: String
-        switch icon {
-        case .systemSymbol(let name): iconKey = "symbol:\(name)"
-        case .asset(let name, let bundle): iconKey = "asset:\(bundle.bundleURL.absoluteString):\(name)"
-        case .image(let image): iconKey = "image:\(UInt(bitPattern: ObjectIdentifier(image).hashValue))"
+    /// Replaces all visual content of the action. The SDK still handles the tap.
+    public var customContent: ShellTabBarCustomContent?
+
+    struct Signature: Equatable {
+        enum Icon: Equatable {
+            case symbol(String)
+            case asset(String, URL)
+            case image(ObjectIdentifier)
         }
-        return "\(id)|\(position == .leading ? "L" : "R")|\(title ?? "")|\(isEnabled)|\(accessibilityLabel ?? "")|\(iconKey)"
+
+        let id: String
+        let icon: Icon?
+        let position: Position
+        let title: String?
+        let isEnabled: Bool
+        let accessibilityLabel: String?
+        let contentRevision: Int?
+    }
+
+    var signature: Signature {
+        let iconKey: Signature.Icon?
+        switch icon {
+        case .systemSymbol(let name)?: iconKey = .symbol(name)
+        case .asset(let name, let bundle)?: iconKey = .asset(name, bundle.bundleURL)
+        case .image(let image)?: iconKey = .image(ObjectIdentifier(image))
+        case nil: iconKey = nil
+        }
+        return Signature(id: id, icon: iconKey, position: position, title: title,
+                         isEnabled: isEnabled, accessibilityLabel: accessibilityLabel, contentRevision: customContent?.revision)
     }
 
     public init(
@@ -50,6 +71,16 @@ public struct ShellTabBarAccessory {
         self.accessibilityLabel = accessibilityLabel
         self.handler = handler
     }
+
+    public init(id: String, customContent: ShellTabBarCustomContent, position: Position, isEnabled: Bool = true,
+                accessibilityLabel: String, handler: @escaping () -> Void) {
+        self.id = id
+        self.customContent = customContent
+        self.position = position
+        self.isEnabled = isEnabled
+        self.accessibilityLabel = accessibilityLabel
+        self.handler = handler
+    }
 }
 
 /// Renderer-facing accessory resolved for the current traits.
@@ -61,14 +92,16 @@ struct ShellBarAccessoryItem {
     let isEnabled: Bool
     let accessibilityLabel: String?
     let handler: () -> Void
+    let customContent: ShellTabBarCustomContent?
 
     init(_ accessory: ShellTabBarAccessory, traits: UITraitCollection) {
         id = accessory.id
         title = accessory.title
-        image = accessory.icon.resolve(traits: traits)
+        image = accessory.customContent == nil ? accessory.icon?.resolve(traits: traits) : nil
         isEnabled = accessory.isEnabled
         accessibilityLabel = accessory.accessibilityLabel
         handler = accessory.handler
+        customContent = accessory.customContent
     }
 }
 
@@ -81,9 +114,8 @@ enum ShellTabBarAccessoryHosting {
     static var slotOverride: Bool?
 
     static var supportsSystemSlot: Bool {
-        if let override = slotOverride { return override }
-        if #available(iOS 26.0, *) { return true }
-        return false
+        guard #available(iOS 26.0, *) else { return false }
+        return slotOverride ?? true
     }
 }
 
@@ -99,10 +131,12 @@ final class ShellTabAccessoryButton: UIButton {
     private var material: ShellMaterial = .systemDefault
 
     private let iconView = UIImageView()
+    private var customHost: ShellTabBarCustomContentHost?
     private let captionLabel = UILabel()
-    private var item: ShellBarAccessoryItem?
+    private(set) var accessoryID: String?
+    private var handler: (() -> Void)?
+    private var usesBarSurface = false
     private var showsCaption = false
-    private var compact = false
     /// Classic bar items stack icon over caption; the native slot lays them side by side.
     private var captionBelow = false
     private var castsCompatibilityShadow = false
@@ -137,10 +171,10 @@ final class ShellTabAccessoryButton: UIButton {
         captionLabel.numberOfLines = 1
         captionLabel.adjustsFontForContentSizeCategory = true
         addSubview(backdrop)
-        for view in [iconView, captionLabel] as [UIView] {
-            view.isUserInteractionEnabled = false
-            addSubview(view)
-        }
+        iconView.isUserInteractionEnabled = false
+        addSubview(iconView)
+        captionLabel.isUserInteractionEnabled = false
+        addSubview(captionLabel)
         addTarget(self, action: #selector(trigger), for: .touchUpInside)
     }
 
@@ -150,11 +184,26 @@ final class ShellTabAccessoryButton: UIButton {
     /// `compact` forces the icon-only circle even when a title exists.
     func update(item: ShellBarAccessoryItem, tint: UIColor, font: UIFont, compact: Bool,
                 material: ShellMaterial = .systemDefault, captionBelow: Bool = false) {
-        self.item = item
-        self.compact = compact
+        accessoryID = item.id
+        handler = item.handler
+        if let content = item.customContent {
+            let host = customHost ?? ShellTabBarCustomContentHost()
+            if customHost == nil {
+                addSubview(host)
+                customHost = host
+            }
+            host.update(content, owner: item.id)
+        } else if let host = customHost {
+            host.unmount()
+            host.removeFromSuperview()
+            customHost = nil
+        }
         self.captionBelow = captionBelow
         self.material = material
-        showsCaption = !compact && (item.title?.isEmpty == false)
+        showsCaption = customHost == nil && !compact && (item.title?.isEmpty == false)
+        backdrop.isHidden = usesBarSurface || customHost != nil
+        iconView.isHidden = customHost != nil
+        captionLabel.isHidden = !showsCaption
         let image = item.image
         iconView.image = image.map { $0.renderingMode == .alwaysOriginal ? $0 : $0.withRenderingMode(.alwaysTemplate) }
         iconView.tintColor = tint
@@ -162,12 +211,53 @@ final class ShellTabAccessoryButton: UIButton {
         captionLabel.font = font
         captionLabel.textColor = tint
         isEnabled = item.isEnabled
-        alpha = item.isEnabled ? 1 : 0.4
+        updateButtonAlpha()
         accessibilityLabel = item.accessibilityLabel ?? item.title ?? "附加操作"
         accessibilityTraits = item.isEnabled ? .button : [.button, .notEnabled]
         accessibilityIdentifier = item.id
+        refreshContentVisibility()
         refreshBackdrop()
         setNeedsLayout()
+    }
+
+    var controllerIsVisible = false {
+        didSet { if oldValue != controllerIsVisible { refreshContentVisibility() } }
+    }
+    var resolvedContentMode: ShellTabBarCustomContent.Mode { customHost?.mode ?? .standard }
+
+    /// Match by ID rather than array index so moving or adding a sibling cannot
+    /// accidentally move its running animation to a different action.
+    static func reconcile(_ previous: [ShellTabAccessoryButton], with items: [ShellBarAccessoryItem]) -> [ShellTabAccessoryButton] {
+        var available = previous
+        let buttons = items.map { item in
+            guard let index = available.firstIndex(where: { $0.accessoryID == item.id }) else {
+                return ShellTabAccessoryButton(frame: .zero)
+            }
+            return available.remove(at: index)
+        }
+        for button in available { button.unmount() }
+        return buttons
+    }
+
+    func unmount() {
+        customHost?.unmount()
+        handler = nil
+        accessoryID = nil
+        removeFromSuperview()
+    }
+
+    func refreshContentVisibility() {
+        customHost?.updateState(isSelected: false, isEnabled: isEnabled, isHighlighted: isHighlighted,
+                                hostIsVisible: controllerIsVisible)
+    }
+
+    override var isHidden: Bool {
+        didSet { if oldValue != isHidden { refreshContentVisibility() } }
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        refreshContentVisibility()
     }
 
     /// Width this button wants when the bar decides its geometry.
@@ -188,7 +278,8 @@ final class ShellTabAccessoryButton: UIButton {
 
     /// Inside a full-width bar the button borrows the bar's surface instead of drawing one.
     func useBarSurface(_ usesBarSurface: Bool) {
-        backdrop.isHidden = usesBarSurface
+        self.usesBarSurface = usesBarSurface
+        backdrop.isHidden = usesBarSurface || customHost != nil
         if usesBarSurface {
             castsCompatibilityShadow = false
             layer.shadowOpacity = 0
@@ -198,8 +289,8 @@ final class ShellTabAccessoryButton: UIButton {
 
     /// Mirrors the bar's own elevation so accessories sit at the same depth.
     func applyShadow(_ enabled: Bool) {
-        castsCompatibilityShadow = enabled
-        ShellCapsuleElevation.apply(to: layer, enabled: enabled)
+        castsCompatibilityShadow = enabled && customHost == nil
+        ShellCapsuleElevation.apply(to: layer, enabled: castsCompatibilityShadow)
         setNeedsLayout()
     }
 
@@ -209,12 +300,18 @@ final class ShellTabAccessoryButton: UIButton {
     var hasOwnBackdrop: Bool { !backdrop.isHidden }
 
     @objc private func trigger() {
-        guard let item = item, item.isEnabled else { return }
-        item.handler()
+        guard isEnabled else { return }
+        handler?()
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        if let customHost {
+            clipsToBounds = false
+            customHost.frame = bounds
+            customHost.layoutIfNeeded()
+            return
+        }
         backdrop.frame = bounds
         layer.cornerRadius = bounds.height / 2
         layer.cornerCurve = .continuous
@@ -229,45 +326,57 @@ final class ShellTabAccessoryButton: UIButton {
         backdrop.layer.cornerRadius = bounds.height / 2
         backdrop.layer.cornerCurve = .continuous
         layer.shadowPath = UIBezierPath(roundedRect: bounds, cornerRadius: bounds.height / 2).cgPath
-        if compact || !showsCaption {
-            let iconSide = Self.barIconSide
-            iconView.frame = CGRect(x: bounds.midX - iconSide / 2, y: bounds.midY - iconSide / 2,
-                                    width: iconSide, height: iconSide)
+        if !showsCaption {
             captionLabel.frame = .zero
-            return
-        }
-        if captionBelow {
-            // Mirror the tab item metrics: glyph on top, caption centred underneath.
-            let titleHeight = min(ceil(captionLabel.font.lineHeight), max(0, bounds.height))
+            layoutIcon(in: centeredSquare(in: bounds), standardCenterY: bounds.midY, standardSide: Self.barIconSide)
+        } else if captionBelow {
+            // Keep the classic caption baseline independent of content sizing.
+            let titleHeight = min(ceil(captionLabel.font.lineHeight), bounds.height)
             let total = Self.barIconSide + 2 + titleHeight
             let top = bounds.minY + max(0, (bounds.height - total) / 2)
-            iconView.frame = CGRect(x: bounds.midX - Self.barIconSide / 2, y: top,
-                                    width: Self.barIconSide, height: Self.barIconSide)
+            let captionY = min(top + Self.barIconSide + 2, bounds.maxY - titleHeight)
             captionLabel.textAlignment = .center
-            captionLabel.frame = CGRect(x: bounds.minX, y: iconView.frame.maxY + 2,
-                                        width: bounds.width, height: titleHeight)
-            return
-        }
-        let iconSide = Self.iconSide
-        if showsCaption {
-            let captionWidth = min(ceil(captionLabel.intrinsicContentSize.width),
-                                   max(0, bounds.width - iconSide - Self.contentGap - Self.horizontalPadding * 2))
-            let contentWidth = iconSide + Self.contentGap + captionWidth
-            let start = bounds.midX - contentWidth / 2
-            iconView.frame = CGRect(x: start, y: bounds.midY - iconSide / 2, width: iconSide, height: iconSide)
-            captionLabel.textAlignment = .left
-            captionLabel.frame = CGRect(x: iconView.frame.maxX + Self.contentGap,
-                                        y: bounds.midY - captionLabel.font.lineHeight / 2,
-                                        width: captionWidth, height: ceil(captionLabel.font.lineHeight))
+            captionLabel.frame = CGRect(x: bounds.minX, y: captionY, width: bounds.width, height: titleHeight)
+            let iconArea = CGRect(x: bounds.minX, y: bounds.minY, width: bounds.width,
+                                  height: max(0, captionY - bounds.minY - 2))
+            layoutIcon(in: centeredSquare(in: iconArea), standardCenterY: top + Self.barIconSide / 2,
+                       standardSide: Self.barIconSide)
         } else {
-            iconView.frame = CGRect(x: bounds.midX - iconSide / 2, y: bounds.midY - iconSide / 2,
-                                    width: iconSide, height: iconSide)
-            captionLabel.frame = .zero
+            let iconSide = Self.iconSide
+            let titleWidth = min(ceil(captionLabel.intrinsicContentSize.width),
+                                 max(0, bounds.width - iconSide - Self.contentGap - Self.horizontalPadding * 2))
+            let start = bounds.midX - (iconSide + Self.contentGap + titleWidth) / 2
+            let area = CGRect(x: start, y: bounds.midY - iconSide / 2, width: iconSide, height: iconSide)
+                .intersection(bounds)
+            layoutIcon(in: area.isNull ? .zero : area, standardCenterY: bounds.midY, standardSide: iconSide)
+            captionLabel.textAlignment = .left
+            captionLabel.frame = CGRect(x: start + iconSide + Self.contentGap,
+                                        y: bounds.midY - captionLabel.font.lineHeight / 2,
+                                        width: titleWidth, height: ceil(captionLabel.font.lineHeight))
         }
+        refreshContentVisibility()
+    }
+
+    private func centeredSquare(in area: CGRect) -> CGRect {
+        let side = min(area.width, area.height)
+        return CGRect(x: area.midX - side / 2, y: area.midY - side / 2, width: side, height: side)
+    }
+
+    private func layoutIcon(in area: CGRect, standardCenterY: CGFloat, standardSide: CGFloat) {
+        let side = min(standardSide, area.width, area.height)
+        let y = min(max(area.minY, standardCenterY - side / 2), area.maxY - side)
+        iconView.frame = CGRect(x: area.midX - side / 2, y: y, width: side, height: side)
+    }
+
+    private func updateButtonAlpha() {
+        alpha = customHost != nil ? 1 : (isEnabled ? (isHighlighted ? 0.5 : 1) : 0.4)
     }
 
     override var isHighlighted: Bool {
-        didSet { alpha = isEnabled ? (isHighlighted ? 0.5 : 1) : 0.4 }
+        didSet {
+            updateButtonAlpha()
+            refreshContentVisibility()
+        }
     }
 
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {

@@ -100,6 +100,8 @@ public struct ShellTabItemConfiguration {
     public var selectedIconMode: ShellTabSelectedIconMode
     /// Nil inherits the current tab-bar style. The title remains available to accessibility.
     public var labelDisplayMode: ShellTabLabelDisplayMode?
+    /// Replaces the entire visual item; title is still used for accessibility and overflow.
+    public var customContent: ShellTabBarCustomContent?
 
     public init(title: String, icon: ShellTabIcon? = nil, selectedIcon: ShellTabIcon? = nil, selectedIconMode: ShellTabSelectedIconMode = .automatic, labelDisplayMode: ShellTabLabelDisplayMode? = nil) {
         self.title = title
@@ -107,6 +109,11 @@ public struct ShellTabItemConfiguration {
         self.selectedIcon = selectedIcon
         self.selectedIconMode = selectedIconMode
         self.labelDisplayMode = labelDisplayMode
+    }
+
+    public init(title: String, customContent: ShellTabBarCustomContent) {
+        self.init(title: title)
+        self.customContent = customContent
     }
 }
 

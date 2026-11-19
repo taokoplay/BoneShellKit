@@ -36,6 +36,12 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.rootViewController = tabs
         self.window = window
         window.makeKeyAndVisible()
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-open-navbutton-demo"),
+           let navigation = tabs.selectedViewController as? BoneNavigationController {
+            navigation.pushViewController(NavigationBarDemoController(), animated: false)
+        }
+        #endif
     }
 
     /// Test flags select a presentation without spoofing OS capabilities.
@@ -46,12 +52,12 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         return .automatic
     }
 
-    /// `-tabs-accessory leading|trailing|both` opens straight onto a dock row, so the
-    /// capsule-plus-circle arrangement can be inspected without touching the pickers.
+    /// `-tabs-accessory leading|trailing|both|dynamic` opens with the requested accessory.
     private static func accessories(from arguments: [String]) -> [ShellTabBarAccessory] {
         guard let flag = arguments.firstIndex(of: "-tabs-accessory"),
               arguments.indices.contains(flag + 1) else { return [] }
         let mode = arguments[flag + 1]
+        if mode == "dynamic" { return [TabBarDemoController.makeAnimatedAccessory { }] }
         var items: [ShellTabBarAccessory] = []
         if mode == "leading" || mode == "both" {
             items.append(ShellTabBarAccessory(id: "demo.accessory.leading",

@@ -1,6 +1,6 @@
 # Demo 入口与测试规划
 
-当前 SDK / Demo 基线：**v0.10.0 / 0.10.0（Build 1）**。导航动作自适应自 v0.10.0 提供，标签文字显示策略自 v0.9.0 提供。本文件区分实际入口、现有自动化和后续验收目标；D01–D15、T01–T37 是规划追踪 ID，不是页面数或 XCTest 通过数量。功能回归、发布构建与历史结果分别见 [验证记录](Implementation-Status.md)。
+当前 SDK / Demo 基线：**v0.11.0 / 0.11.0（Build 1）**。NavButton、导航标题视图和标签栏整项自定义视图在 v0.11.0 提供，导航动作自适应保留自 v0.10.0，标签文字显示策略自 v0.9.0 提供。本文件区分实际入口、现有自动化和后续验收目标；D01–D15、T01–T37 是规划追踪 ID，不是页面数或 XCTest 通过数量。功能回归、发布构建与历史结果分别见 [验证记录](Implementation-Status.md)。
 
 ## 1. 实际工程与入口
 
@@ -55,18 +55,18 @@
 | D09 | 多窗口 | 每 Scene 建根容器、媒体预算分组已有；同时运行多个 Scene 的隔离专项未执行 |
 | D10 | 既有页面 adapter | 未实现通用 adapter；复用已有 UIKit 控制器不等于 adapter 完成 |
 | D11 | 多媒体背景 | 独立 / 整体、缓存、预算、切页已有；APNG 独立素材和远程端到端未验收 |
-| D12 | 导航栏设置 | 已独立成页，集中导航文字、按钮及模式 |
+| D12 | 导航栏设置 | 集中导航文字、按钮及模式；支持自定义标题并点击顶部标题切换来源 |
 | D13 | 栏位类型 | 合并在 D12 / D15 的设置内，四种 SDK 模式已有 |
-| D14 | 标签附加动作 | 合并在 D15，各栏位模式及系统槽位 / 旧 tab item 承载已有 |
+| D14 | 标签附加动作 | 合并在 D15；「动态」用自定义纯图标视图，切换「胶囊 / 经典 / 系统」对照承载与回退 |
 | D15 | 标签栏设置 | 已独立成页，集中样式、图标、模式、附件及背景 |
 
 ## 4. 正式测试接线与范围
 
 | 层级 | 源码 / 目标 | 当前覆盖 |
 | --- | --- | --- |
-| SDK 单元 | `Tests/BoneShellKitTests/`，10 份测试源；Package test target `BoneShellKitTests` | 配置 / 材质解析、动作去重与优先级、图片 / 角色 / 轴向、原生分组与身份、回调更新 / 释放、样式、安全区、标签、缓存 / 预算及整体画布 |
+| SDK 单元 | `Tests/BoneShellKitTests/`；Package test target `BoneShellKitTests` | 配置 / 材质、导航动作、标题及 NavButton、样式与安全区、标签栏自定义视图、背景缓存与预算 |
 | Demo 集成 | `Examples/BoneShellDemo/Tests/`，3 份测试源 | 公开 API 接入真实容器、设置生效、输入与内容身份、背景与条目保留 |
-| Demo UI | `Examples/BoneShellDemo/UITests/`，6 份测试源 | 背景、基础导航 / 表单 / sheet / 材质、导航设置、图片 / 系统溢出 / 输入保留、标签设置与附加动作、选中图标 |
+| Demo UI | `Examples/BoneShellDemo/UITests/` | 背景、导航设置、NavButton 实际横栏 / 侧栏、菜单与输入保留、标签设置与附加动作、选中图标 |
 | 视觉 / 设备 | 实际截图、真机运行、后续 Instruments | 裁切、重叠、原生玻璃、位置 / 间距 / 投影、姿态、辅助设置与性能 |
 
 Demo 的 `BoneShellDemoTests` 同时编译上述 SDK 和 Demo 集成源；`BoneShellDemoUITests` 编译 UI 源，共享 Scheme 已包含这两个目标。现有测试不依赖独立的 `.xctestplan` 文件；`DemoSmoke.xctestplan`、`DemoRegression.xctestplan` 尚未创建。
@@ -77,6 +77,10 @@ Demo 的 `BoneShellDemoTests` 同时编译上述 SDK 和 Demo 集成源；`BoneS
 - 全部 UI：`-only-testing:BoneShellDemoUITests`
 - 标签栏 UI：`-only-testing:BoneShellDemoUITests/TabBarUITests`
 - 单用例：`-only-testing:BoneShellDemoUITests/TabBarUITests/testCapsuleAccessoriesMakeASingleDockRow`
+- 动态附件：`-only-testing:BoneShellDemoTests/AnimatedTabAccessoryTests` 与 `-only-testing:BoneShellDemoUITests/TabBarUITests/testAnimatedAccessoryTapsAndKeepsItsTabInCapsuleAndSystem`；UI 附件包含整屏与两张实际动画相位，不以动画键存在代替出帧验证。
+- 整项自定义视图：`-only-testing:BoneShellDemoTests/TabIconContentTests` 与 `-only-testing:BoneShellDemoUITests/TabBarUITests/testCustomTabViewsRemainSelectableWithAnAccessory`；对照完整槽位、选中态、外侧动作及显式切回原生标准图文。
+- 自定义导航标题：`NavigationTitleViewTests` 验证同实例切换、推入返回和窄栏间距；`NavigationBarUITests` 的 `testCustomTitleMenuInClassicNavigation` 与 `testCustomTitleMenuInSystemNavigation` 分别验证菜单选择和文字恢复。
+- 自定义导航动作：`NavButtonAppearanceTests`、`NavButtonLayoutTests` 检查整项内容、三种背景、按维拟合、禁用 / 卸载、组内净距与 RTL；`NavButtonUITests` 在真实栏位点击，保留屏幕与按钮截图。Duo 的横栏、侧栏覆盖、侧栏继承分别验收；菜单里能找到按钮不算侧栏通过。入口：**示例 → 导航栏 → NavButton**。
 
 文件数量、测试方法数量和历史执行通过数量分别统计。能力注入可检查旧版分支，不能替代真实旧版 runtime；测试中的条件 skip 必须按实际结果记录。
 

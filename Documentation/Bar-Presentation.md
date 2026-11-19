@@ -2,16 +2,16 @@
 
 `ShellBarPresentation` 将栏位外观与字体、颜色、材质分开配置。SDK 默认 `.system`，Demo 默认 `.automatic`。
 
-适用于 v0.10.0；文字显示策略自 v0.9.0 提供，导航图片 / 角色 / 轴向与系统动作布局见 [导航动作](Navigation-Actions.md)。运行与视觉验证见 [验证记录](Implementation-Status.md)。示例在 `@MainActor` 上使用，并需导入 UIKit / BoneShellKit；`HomeController`、`SettingsController` 由宿主提供。附件示例放在宿主控制器的方法中，由该控制器实现 `openProfile()`、`openComposer()`，使用弱引用回调。
+已发布行为以 v0.11.0 为基线；NavButton、导航标题视图和标签栏整项自定义 `UIView` 从 v0.11.0 提供。导航动作见 [导航动作](Navigation-Actions.md)，运行结果见 [验证记录](Implementation-Status.md)。示例需要 UIKit / BoneShellKit，在 `@MainActor` 上使用。
 
 | 类型 | iOS 26 及以上 | iOS 26 以下 |
 | --- | --- | --- |
 | `.automatic` | 胶囊标签栏、系统导航 | 经典标签栏与导航 |
 | `.classic` | 经典标签栏与导航 | 经典标签栏与导航 |
-| `.capsule` | 原生胶囊标签栏、系统导航 | SDK 胶囊标签栏、经典导航 |
-| `.system` | UIKit 原生栏位 | UIKit 原生栏位 |
+| `.capsule` | 标准标签使用原生胶囊；有自定义标签时使用 SDK 胶囊 | SDK 胶囊标签栏、经典导航 |
+| `.system` | 标准标签使用 UIKit；有自定义标签时使用 SDK 胶囊 | 标准标签使用 UIKit；需要自定义槽位时使用 SDK 经典栏 |
 
-显式模式不因系统版本改变其请求的外观。导航没有胶囊形态，因此胶囊请求在旧系统上回退为经典导航。
+上述自定义槽位选择只影响标签栏。导航没有胶囊形态，胶囊请求在旧系统上仍由经典导航承载。
 
 表格描述模式解析与 renderer 选择。原生栏位的最终位置和轴向仍由 UIKit / 容器环境决定；已验证紧凑 iPhone 与 Duo 当前窗口的导航栏位，完整 iPad / Duo 姿态矩阵另行验收。带附件的原生 dock 使用 SDK 底部布局，另有独立边界。
 
@@ -50,6 +50,26 @@ override func configureScreen(_ screen: inout ScreenConfiguration) {
 
 页面的 `BoneViewController.resolvedBarPresentation` 优先反映所在导航容器；需要判断标签栏时应读取标签容器自己的结果，结合 `dockBarView` 等诊断入口区分原生 dock。
 
+## 普通标签的自定义视图
+
+标准模式继续使用图标或图标加文字。自定义模式提供完整的 `UIView`：视图使用整个标签槽位，宿主可自己画图标、文字、角标、背景和选中效果。SDK 不添加默认内容，也不要求配置备用图片。`title` 仍用于无障碍和「更多」列表，不会作为文字额外显示。
+
+```swift
+@MainActor
+func installCustomTab(on tabs: BoneTabBarController, id: String, makeView: @escaping @MainActor () -> UIView) {
+    guard let item = tabs.tabItemConfiguration(for: id) else { return }
+    tabs.updateTabItem(id: id, configuration: .init(title: item.title,
+                                                     customContent: ShellTabBarCustomContent(makeView: makeView)))
+}
+```
+
+- 创建时可用 `ShellTab(id:item:root:)`。标准项与自定义项可在同一栏混用。显式传回标准配置才恢复默认图文。
+- SDK 负责槽位边界、触控、标签选中与无障碍。自定义视图是展示层，子控件不会抢占标签点击。实现 `ShellTabBarContentUpdating` 可接收 `isSelected`、`isHighlighted`、`isEnabled` 和 `isVisible`。Scene 与「减少动态效果」仍由宿主处理。
+- 工厂须返回新的、未挂载的 `UIView`。在同一承载内按条目与 `revision` 复用；改 `revision` 可更换视图，卸载时停止。`tabItemContentMode(for:)` 可区分 `.standard`、`.customView`、`.unavailable`。仅在「更多」里的条目没有独立槽位，其视图不会创建或变成静态图标。
+- UIKit 的原生标签项无法挂完整视图。设置可见自定义标签时，SDK 用自己的经典栏或胶囊完整承载；即使请求 `.system`，也不会自动降级成静态图标。清除自定义项后恢复请求的渲染方式。SDK 自绘标签栏不继承原生滚动收起或侧栏布局。
+
+Demo：**示例 → 标签栏 → 标签图标 → 自定义标签视图**。
+
 ## 标签栏附加按钮
 
 `ShellTabBarAccessory` 在标签栏两侧增加动作按钮，按钮不参与标签选中。
@@ -75,9 +95,27 @@ tabs.tabBarAccessories = [
 
 请为每个附件提供稳定且唯一的 `id`。替换同 ID 的 `handler` 会使用最新回调，外观相同的列表无需重建触控对象；移除列表后释放相应业务回调并恢复目的地与栏位布局。旧系统原生 tab item 路径会转发宿主 delegate 的 `shouldSelect`、`didSelect` 和转场动画。
 
-当前没有附件溢出菜单或任意自定义 View 槽。视觉验收采用三个目的地、每侧最多一个按钮的组合；更多附件和极窄空间应由宿主控制数量并单独验收。
+当前没有附件溢出菜单。视觉验收建议采用三个目的地、每侧最多一个按钮；更多附件和极窄空间需单独验收。
 
 诊断入口包括 `classicTabBarView`、`capsuleTabBarView`、`dockBarView` 和 `nativeTabAccessoryView`；`leadingAccessoryButtons` / `trailingAccessoryButtons` 对应兼容渲染器管理的按钮。
+
+### 自定义附加按钮
+
+附加动作也可使用完整 `UIView`。标准附件仍使用 `icon:` 构造器；自定义构造器不收图标。玻璃底或背景若需要，由宿主视图绘制。
+
+```swift
+@MainActor
+func installAssistant(on tabs: BoneTabBarController, makeView: @escaping @MainActor () -> UIView,
+                      openAssistant: @escaping () -> Void) {
+    let assistant = ShellTabBarAccessory(id: "home.assistant",
+        customContent: ShellTabBarCustomContent(makeView: makeView),
+        position: .trailing, accessibilityLabel: "AI 助理", handler: openAssistant)
+    tabs.barPresentation = .capsule
+    tabs.tabBarAccessories = [assistant]
+}
+```
+
+`.capsule` 把动作放在胶囊外侧，`.classic` 放在栏内两端。iOS 26+ 的 `.system` 可通过 `UITabAccessory` 挂载；旧系统的原生 tab item 无法挂视图，改用 SDK 经典栏承载，不用静态图标替代。通过 `tabBarAccessoryContentMode(for:)` 查询承载状态。使用 `ShellTabBarContentUpdating` 时，动作项的 `isSelected` 恒为 `false`。Demo：**示例 → 标签栏 → 胶囊 → 动态**。
 
 ## 胶囊布局与安全区
 

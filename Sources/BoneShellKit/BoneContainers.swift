@@ -73,7 +73,7 @@ open class BoneNavigationController: UINavigationController {
                 showsBack: viewControllers.count > 1 && item?.hidesBackButton != true,
                 leadingItems: item?.leftBarButtonItems ?? [], trailingItems: item?.rightBarButtonItems ?? [],
                 style: configuration?.style ?? navigationStyle, material: configuration?.material ?? .automatic,
-                showsMediaBackground: media)
+                showsMediaBackground: media, customTitleView: page?.customTitleForClassicBar())
             layoutClassicNavigationBar()
         } else {
             if let alpha = originalNavigationBarAlpha {
@@ -82,9 +82,12 @@ open class BoneNavigationController: UINavigationController {
                 originalNavigationBarAlpha = nil
             }
             classicNavigationBar?.isHidden = true
+            classicNavigationBar?.clearCustomTitleView()
+            classicNavigationBar?.detachCustomActions()
             classicNavigationBar?.removeFromSuperview()
             for inset in classicNavigationInsets.values { inset.restore() }
             classicNavigationInsets.removeAll()
+            ShellBarBackgroundHost.topScreen(in: topViewController)?.installNativeCustomTitle()
         }
         if #available(iOS 27.1, *) { setNeedsUpdateOfVerticalBarConfiguration() }
     }
@@ -314,9 +317,13 @@ public struct ShellTab {
     public init(id: String, title: String, icon: ShellTabIcon, selectedIcon: ShellTabIcon? = nil,
                 selectedIconMode: ShellTabSelectedIconMode = .automatic,
                 labelDisplayMode: ShellTabLabelDisplayMode? = nil, root: UIViewController) {
+        self.init(id: id, item: ShellTabItemConfiguration(title: title, icon: icon, selectedIcon: selectedIcon,
+                                                        selectedIconMode: selectedIconMode, labelDisplayMode: labelDisplayMode), root: root)
+    }
+
+    public init(id: String, item: ShellTabItemConfiguration, root: UIViewController) {
         self.id = id
-        self.item = ShellTabItemConfiguration(title: title, icon: icon, selectedIcon: selectedIcon,
-                                             selectedIconMode: selectedIconMode, labelDisplayMode: labelDisplayMode)
+        self.item = item
         self.root = root
     }
 }
@@ -331,24 +338,24 @@ open class BoneTabBarController: UITabBarController {
             }
         }
     }
-    /// The tab bar appearance this container shows after resolving `.automatic`.
+    /// The resolved presentation, including an SDK bar when UIKit cannot host a custom slot.
     public var resolvedBarPresentation: ShellBarPresentation {
-        (ShellBarBackgroundHost.topScreen(in: selectedViewController)?.screenConfiguration.barPresentation
-            ?? barPresentation).resolved(supportsNativeCapsule: ShellBarPresentation.supportsNativeCapsule)
+        let nativeCapsule = ShellBarPresentation.supportsNativeCapsule
+        let presentation = (ShellBarBackgroundHost.topScreen(in: selectedViewController)?.screenConfiguration.barPresentation
+            ?? barPresentation).resolved(supportsNativeCapsule: nativeCapsule)
+        guard presentation == .system else { return presentation }
+        let needsCustomAccessoryHost = !ShellTabBarAccessoryHosting.supportsSystemSlot
+            && tabBarAccessories.contains { $0.customContent != nil }
+        if hasCustomTabItems || needsCustomAccessoryHost { return nativeCapsule ? .capsule : .classic }
+        return presentation
     }
-    /// Which renderer currently draws the tab bar.
-    ///
-    /// A capsule on iOS 26+ normally stays native. With accessories it switches to the dock:
-    /// a real `UITabBar` inside an SDK row, which is the only way to hang a button outside
-    /// the system capsule (UIKit reserves that spot for `UISearchTab`).
+
     var tabBarRendering: ShellBarRendering {
-        let base = ShellBarRendering.tabBar(resolvedBarPresentation,
-                                            supportsNativeCapsule: ShellBarPresentation.supportsNativeCapsule)
-        if base == .native, resolvedBarPresentation == .capsule,
-           ShellBarPresentation.supportsNativeCapsule, !tabBarAccessories.isEmpty {
-            return .dock
-        }
-        return base
+        let presentation = resolvedBarPresentation
+        let base = ShellBarRendering.tabBar(presentation, supportsNativeCapsule: ShellBarPresentation.supportsNativeCapsule)
+        guard base == .native, presentation == .capsule else { return base }
+        if hasCustomTabItems { return .capsule }
+        return tabBarAccessories.isEmpty ? .native : .dock
     }
     /// Floating surfaces overlay the primary scroll viewport; their safe-area contribution
     /// becomes scrollable padding instead of an opaque strip below a clipped viewport.
@@ -365,7 +372,7 @@ open class BoneTabBarController: UITabBarController {
     }
 
     public var classicTabBarView: UIView? { resolvedBarPresentation == .classic ? classicTabBar : nil }
-    /// The self-drawn capsule, present only when the system has no native capsule.
+    /// The SDK-rendered capsule, used for compatibility and live destination icons.
     public var capsuleTabBarView: UIView? { tabBarRendering == .capsule ? capsuleTabBar : nil }
     /// The dock row, present when capsule presentation hosts accessories on iOS 26+.
     public var dockBarView: UIView? { tabBarRendering == .dock ? dockBar : nil }
@@ -391,6 +398,25 @@ open class BoneTabBarController: UITabBarController {
         item.accessibilityIdentifier = "tab.more"
         return item
     }()
+
+    private var selfDrawnItems: [UITabBarItem] {
+        let items = (viewControllers ?? []).filter { accessoryControllers[$0] == nil }.compactMap(\.tabBarItem)
+        return items.count > 5 ? Array(items.prefix(4)) + [selfDrawnMoreItem] : items
+    }
+
+    private var hasCustomTabItems: Bool {
+        tabRecords.values.contains { $0.configuration.customContent != nil }
+            && !tabCustomContents(for: selfDrawnItems).isEmpty
+    }
+
+    private func tabCustomContents(for items: [UITabBarItem]) -> [ObjectIdentifier: ShellTabBarCustomContent] {
+        let visible = Set(items.map(ObjectIdentifier.init))
+        return tabRecords.values.reduce(into: [:]) { result, record in
+            guard let content = record.configuration.customContent, let item = record.controller?.tabBarItem else { return }
+            let identity = ObjectIdentifier(item)
+            if visible.contains(identity) { result[identity] = content }
+        }
+    }
 
     internal func refreshBarPresentation() {
         guard isViewLoaded, !updatingBarPresentation else { return }
@@ -446,6 +472,12 @@ open class BoneTabBarController: UITabBarController {
         for (kind, bar) in bars where kind != rendering {
             bar?.isHidden = true
             bar?.removeFromSuperview()
+            switch kind {
+            case .dock: dockBar?.discardAccessories()
+            case .classic: classicTabBar?.discardItems()
+            case .capsule: capsuleTabBar?.discardItems()
+            case .native: break
+            }
         }
     }
 
@@ -455,9 +487,8 @@ open class BoneTabBarController: UITabBarController {
         let page = ShellBarBackgroundHost.topScreen(in: selectedViewController)
         let background = page?.screenConfiguration.tabBarBackground ?? backgroundConfiguration
         let media = page?.usesUnifiedBackground == true || (background.map { !$0.source.isEmpty } ?? false)
-        let allItems = viewControllers?.compactMap(\.tabBarItem) ?? []
-        let items = allItems.count > 5 ? Array(allItems.prefix(4)) + [selfDrawnMoreItem] : allItems
-        let selection = allItems.count > 5 ? min(selectedIndex, 4) : selectedIndex
+        let items = selfDrawnItems
+        let selection = (viewControllers?.count ?? 0) > 5 ? min(selectedIndex, 4) : selectedIndex
         let style = currentTabBarStyle
         let labelModes = tabLabelModes(for: items, style: style)
         switch tabBarRendering {
@@ -481,6 +512,7 @@ open class BoneTabBarController: UITabBarController {
             if bar.tabBar.scrollEdgeAppearance != tabBar.scrollEdgeAppearance {
                 bar.tabBar.scrollEdgeAppearance = tabBar.scrollEdgeAppearance
             }
+            bar.controllerIsVisible = shellIsVisible
             bar.update(items: items, selected: selection,
                        leading: accessoryItems(.leading), trailing: accessoryItems(.trailing),
                        labelDisplayModes: labelModes, style: style)
@@ -495,8 +527,9 @@ open class BoneTabBarController: UITabBarController {
             }
             guard let bar = classicTabBar else { return }
             bar.tintColor = tabBar.tintColor
+            bar.controllerIsVisible = shellIsVisible
             bar.update(items: items, selectedIndex: selection, labelDisplayModes: labelModes, style: style,
-                       material: .systemDefault, showsMediaBackground: media)
+                       material: .systemDefault, showsMediaBackground: media, customContents: tabCustomContents(for: items))
             if bar.superview !== view { view.addSubview(bar) }
         case .capsule:
             syncAccessoryButtons()
@@ -508,8 +541,9 @@ open class BoneTabBarController: UITabBarController {
             }
             guard let bar = capsuleTabBar else { return }
             bar.tintColor = tabBar.tintColor
+            bar.controllerIsVisible = shellIsVisible
             bar.update(items: items, selectedIndex: selection, labelDisplayModes: labelModes, style: style,
-                       material: .automatic, showsMediaBackground: media)
+                       material: capsuleMaterial, showsMediaBackground: media, customContents: tabCustomContents(for: items))
             if bar.superview !== view { view.addSubview(bar) }
         case .native:
             return
@@ -615,11 +649,11 @@ open class BoneTabBarController: UITabBarController {
             clearSystemAccessorySlot()
             return
         }
-        let row: UIStackView
-        if let existing = nativeTabAccessoryView as? UIStackView {
+        let row: ShellSystemTabAccessoryRow
+        if let existing = nativeTabAccessoryView as? ShellSystemTabAccessoryRow {
             row = existing
         } else {
-            row = UIStackView()
+            row = ShellSystemTabAccessoryRow()
             row.axis = .horizontal
             row.spacing = 8
             row.distribution = .fillEqually
@@ -627,29 +661,24 @@ open class BoneTabBarController: UITabBarController {
             row.isLayoutMarginsRelativeArrangement = true
             row.layoutMargins = UIEdgeInsets(top: 0, left: 12, bottom: 0, right: 12)
             row.accessibilityIdentifier = "shell.tabs.accessories"
+            row.observeAccessoryEnvironment()
             nativeTabAccessoryView = row
         }
         let style = currentTabBarStyle
         let tint = style.normal.color ?? (tabBar.tintColor ?? .systemBlue)
         let font = style.normal.resolvedFont(for: .caption2, traits: traitCollection)
             ?? UIFont.preferredFont(forTextStyle: .caption2, compatibleWith: traitCollection)
-        for view in row.arrangedSubviews {
-            row.removeArrangedSubview(view)
-            view.removeFromSuperview()
+        row.controllerIsVisible = shellIsVisible
+        row.update(items: accessoryItems().map { $0.1 }, tint: tint, font: font)
+        if systemBottomAccessory?.contentView !== row {
+            row.frame = CGRect(x: 0, y: 0, width: max(160, view.bounds.width - 24), height: 50)
+            systemBottomAccessory = UITabAccessory(contentView: row)
         }
-        for (_, item) in accessoryItems() {
-            let button = ShellTabAccessoryButton(frame: .zero)
-            button.update(item: item, tint: tint, font: font, compact: true, material: .automatic)
-            button.heightAnchor.constraint(equalToConstant: 44).isActive = true
-            row.addArrangedSubview(button)
-        }
-        row.frame = CGRect(x: 0, y: 0, width: max(160, view.bounds.width - 24), height: 50)
-        row.layoutIfNeeded()
-        systemBottomAccessory = UITabAccessory(contentView: row)
     }
 
     private func clearSystemAccessorySlot() {
         if #available(iOS 26.0, *) {
+            (nativeTabAccessoryView as? ShellSystemTabAccessoryRow)?.discardAccessories()
             if systemBottomAccessory != nil { systemBottomAccessory = nil }
         }
         nativeTabAccessoryView?.removeFromSuperview()
@@ -682,9 +711,9 @@ open class BoneTabBarController: UITabBarController {
 
     private func makeAccessoryController(_ accessory: ShellTabBarAccessory) -> UIViewController {
         let controller = UIViewController()
-        let item = ShellBarAccessoryItem(accessory, traits: traitCollection)
+        let image = accessory.icon?.resolve(traits: traitCollection)
         let tabItem = UITabBarItem(title: accessory.title,
-                                   image: item.image?.withRenderingMode(.alwaysTemplate),
+                                   image: image.map { $0.renderingMode == .alwaysOriginal ? $0 : $0.withRenderingMode(.alwaysTemplate) },
                                    selectedImage: nil)
         tabItem.accessibilityIdentifier = accessory.id
         tabItem.accessibilityLabel = accessory.accessibilityLabel ?? accessory.title
@@ -774,6 +803,10 @@ open class BoneTabBarController: UITabBarController {
         }
     }
 
+    private var capsuleMaterial: ShellMaterial {
+        ShellBarPresentation.supportsNativeCapsule ? .systemGlass : .automatic
+    }
+
     private func syncAccessoryButtons() {
         let items = accessoryItems()
         let style = currentTabBarStyle
@@ -784,29 +817,29 @@ open class BoneTabBarController: UITabBarController {
             : (style.normal.color ?? (tabBar.tintColor ?? .systemBlue))
         let font = style.normal.resolvedFont(for: .caption2, traits: traitCollection)
             ?? UIFont.preferredFont(forTextStyle: .caption2, compatibleWith: traitCollection)
-        while accessoryButtons.count > items.count { accessoryButtons.removeLast().removeFromSuperview() }
-        while accessoryButtons.count < items.count {
-            let button = ShellTabAccessoryButton(frame: .zero)
-            accessoryButtons.append(button)
-            view.addSubview(button)
-        }
+        accessoryButtons = ShellTabAccessoryButton.reconcile(accessoryButtons, with: items.map { $0.1 })
         // Same material and elevation as the bar being drawn, so the row reads as one control.
-        let material: ShellMaterial = rendering == .capsule ? .automatic : .systemDefault
+        let material: ShellMaterial = rendering == .capsule ? capsuleMaterial : .systemDefault
         // Beside a floating capsule only the glyph fits; inside the classic bar a caption does.
         let compact = rendering == .capsule
         let captionBelow = rendering == .classic
-        for (index, entry) in items.enumerated() where index < accessoryButtons.count {
-            accessoryButtons[index].update(item: entry.1, tint: tint, font: font, compact: compact,
-                                           material: material, captionBelow: captionBelow)
+        for (button, entry) in zip(accessoryButtons, items) {
+            button.controllerIsVisible = shellIsVisible
+            button.update(item: entry.1, tint: tint, font: font, compact: compact,
+                          material: material, captionBelow: captionBelow)
             // The compatibility capsule and its circles share one elevation profile.
-            accessoryButtons[index].applyShadow(rendering == .capsule)
+            button.applyShadow(rendering == .capsule && material != .systemGlass)
+            if button.superview !== view {
+                button.isHidden = true // The first layout will place and reveal it.
+                view.addSubview(button)
+            }
         }
         leadingAccessoryButtons = items.indices.compactMap { items[$0].0 == .leading ? accessoryButtons[$0] : nil }
         trailingAccessoryButtons = items.indices.compactMap { items[$0].0 == .trailing ? accessoryButtons[$0] : nil }
     }
 
     private func removeAccessoryButtons() {
-        accessoryButtons.forEach { $0.removeFromSuperview() }
+        accessoryButtons.forEach { $0.unmount() }
         accessoryButtons.removeAll()
         leadingAccessoryButtons = []
         trailingAccessoryButtons = []
@@ -918,6 +951,24 @@ open class BoneTabBarController: UITabBarController {
     /// Native capsule docks and compatibility renderers host their own controls. Explicit
     /// system presentation uses intercepted tab items below iOS 26 and a system slot on 26+.
     public var supportsTabBarAccessories: Bool { true }
+
+    /// The content resolved by the current host, even if its bar is temporarily hidden.
+    /// Returns nil when the accessory does not have a mounted representation yet.
+    public func tabBarAccessoryContentMode(for id: String) -> ShellTabBarCustomContent.Mode? {
+        guard isViewLoaded else { return nil }
+        switch tabBarRendering {
+        case .dock:
+            return dockBar?.contentMode(for: id)
+        case .classic, .capsule:
+            return accessoryButtons.first { $0.accessoryID == id }?.resolvedContentMode
+        case .native:
+            if #available(iOS 26.0, *), let row = nativeTabAccessoryView as? ShellSystemTabAccessoryRow {
+                return row.buttons.first { $0.accessoryID == id }?.resolvedContentMode
+            }
+            return accessoryControllers.values.contains(id) ? .standard : nil
+        }
+    }
+
     /// The system-hosted accessory view, present only for native bars using the slot.
     public private(set) var nativeTabAccessoryView: UIView?
     @available(iOS 26.0, *)
@@ -959,6 +1010,18 @@ open class BoneTabBarController: UITabBarController {
         guard let record = tabRecords[id], let controller = record.controller,
               viewControllers?.contains(where: { $0 === controller }) == true else { return nil }
         return record.configuration
+    }
+
+    /// The destination's actual layout mode. An overflow-only custom item has no live slot.
+    public func tabItemContentMode(for id: String) -> ShellTabBarCustomContent.Mode? {
+        guard isViewLoaded, let configuration = tabItemConfiguration(for: id),
+              let item = tabRecords[id]?.controller?.tabBarItem else { return nil }
+        guard configuration.customContent != nil else { return .standard }
+        switch tabBarRendering {
+        case .classic: return classicTabBar?.contentMode(for: item) ?? .unavailable
+        case .capsule: return capsuleTabBar?.contentMode(for: item) ?? .unavailable
+        case .native, .dock: return .unavailable
+        }
     }
 
     /// Updates the existing native item without rebuilding its controller or navigation stack.
@@ -1040,10 +1103,15 @@ open class BoneTabBarController: UITabBarController {
     }
 
     private func applyTabItem(_ configuration: ShellTabItemConfiguration, to item: UITabBarItem, style: ShellTabBarStyle? = nil) {
+        item.title = configuration.title
+        if configuration.customContent != nil {
+            item.image = nil
+            item.selectedImage = nil
+            return
+        }
         let style = style ?? currentTabBarStyle
         let normal = configuration.icon?.resolve(traits: traitCollection)
         let selected = configuration.selectedIcon?.resolve(traits: traitCollection)
-        item.title = configuration.title
         let hasIconColors = style.normalIconColor != nil || style.selectedIconColor != nil
         item.image = hasIconColors ? coloredIcon(normal, color: style.normalIconColor ?? tabBar.unselectedItemTintColor) : normal
         switch configuration.selectedIconMode {
@@ -1128,6 +1196,13 @@ open class BoneTabBarController: UITabBarController {
     open override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         shellIsVisible = false
+        classicTabBar?.controllerIsVisible = false
+        capsuleTabBar?.controllerIsVisible = false
+        for button in accessoryButtons { button.controllerIsVisible = false }
+        dockBar?.controllerIsVisible = false
+        if #available(iOS 26.0, *) {
+            (nativeTabAccessoryView as? ShellSystemTabAccessoryRow)?.controllerIsVisible = false
+        }
         backgroundView?.setPlaybackActive(false)
         shellUnifiedBackgroundHost?.pause()
     }

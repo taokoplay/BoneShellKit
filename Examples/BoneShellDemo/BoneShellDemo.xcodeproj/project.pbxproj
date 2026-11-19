@@ -16,13 +16,16 @@
 		12A1D2260F31D1ED7D530387 /* BoneShellDemoUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C90E8DCF08559097B65353E /* BoneShellDemoUITests.swift */; };
 		18DFF180DFC58C1E0B2D52CF /* TabBarUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A0216B1E75DE44DDE2DB2C7 /* TabBarUITests.swift */; };
 		1A07048E1E233D8D53109942 /* BarStyle-Orbit@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = F0881810D524E0AD7CB476FA /* BarStyle-Orbit@2x.png */; };
+		1B1DBEF7A71B1986E6A20734 /* NavigationTitleViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2C2D3303FC1B4B21921C26D /* NavigationTitleViewTests.swift */; };
 		1E9102498880F129A838FAD7 /* DemoComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A18526A8380B22D505F04CA /* DemoComponents.swift */; };
+		1F531BDDC35C1C62F10C653E /* TabIconContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3474E6C3193394FA737C504 /* TabIconContentTests.swift */; };
 		22F1A9486212FDCF9B5446BA /* TabLabelDisplayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 551B9D8C8CC789AFE41C5E35 /* TabLabelDisplayTests.swift */; };
 		283881E66C9E7DDD087F6214 /* Background-Orbit.gif in Resources */ = {isa = PBXBuildFile; fileRef = 7519AE62274B5F82DBEBF76A /* Background-Orbit.gif */; };
 		2B0016744FE335B5A48513F0 /* TabSelectedIconUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4355AA4DB68857FD4DD53241 /* TabSelectedIconUITests.swift */; };
 		31F1A306921682273B00B9EA /* Background-Drift.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = 8124B4AC1CDB4B8DA61A9170 /* Background-Drift.mp4 */; };
 		32BD930E9F7FE9CE778A9788 /* BarNavigationDemo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 642BA4D0E2E5628586BAC482 /* BarNavigationDemo.swift */; };
 		396DEE3AFD33986DF18D0E85 /* NavigationActionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68F3F100661CE52F97C3FFB2 /* NavigationActionTests.swift */; };
+		3EE8217F74C4084FCCD0B4AC /* NavButtonAppearanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 272E41B19983B25DBD4C0962 /* NavButtonAppearanceTests.swift */; };
 		4731D8B003CDF3342FA57BEE /* TabBarAccessoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEC557F27F0E179C0485486A /* TabBarAccessoryTests.swift */; };
 		50110EF30FBD889AFBCD8467 /* NavigationAdaptiveUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5197B7DC49C871609BDACD6A /* NavigationAdaptiveUITests.swift */; };
 		5C97D79EB56D9FB54C05A532 /* Background-Paper.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 24C7DA1C1CC233691F3B72C4 /* Background-Paper.jpg */; };
@@ -34,14 +37,17 @@
 		90F83AEA9D8AB91ED665322A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 29E0AB318D7497C12B251AEF /* Assets.xcassets */; };
 		92B161FCF62E59BCB1CD6320 /* UnifiedBackgroundTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29BDB4BEE062C602D22DB68B /* UnifiedBackgroundTests.swift */; };
 		966DF300A44F824DCD02573B /* BarStyle-Orbit-Selected@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 982167BA92940EC7DEC5C6D6 /* BarStyle-Orbit-Selected@2x.png */; };
+		96F81632F25F982EF14D84DE /* NavButtonUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24794D6F98C66FC9F1CE800B /* NavButtonUITests.swift */; };
 		97C50E1387847494F87260C7 /* CapsuleBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76FAEEACEB1BEAC023436F1D /* CapsuleBarTests.swift */; };
 		99C7F1F33C062089E34D580E /* BackgroundDemo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13669912465ED80D32CEF2CE /* BackgroundDemo.swift */; };
 		9C932FB0A440F9C73151BACE /* BarTabDemo.swift in Sources */ = {isa = PBXBuildFile; fileRef = A611DED34420465B251A9841 /* BarTabDemo.swift */; };
 		9E49C6B3C4658114888D1443 /* SplitDemo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21255EA65B5C695FAAAD9D5E /* SplitDemo.swift */; };
 		A06A9AD27A510E4A5B726A63 /* BackgroundUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA087C819EF93C84400EA58D /* BackgroundUITests.swift */; };
+		AE00F965BA5CE147CEF447CE /* AnimatedTabAccessoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37D46C067A1CC0A84E9C1128 /* AnimatedTabAccessoryTests.swift */; };
 		B3FFE010B098F05C741522EB /* ShellRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89FD2286037B3B9BA1F63671 /* ShellRulesTests.swift */; };
 		C24028FCF9EB95A9DCE5FF32 /* Background-Aurora.html in Resources */ = {isa = PBXBuildFile; fileRef = 65754720AE35FBD24081BE28 /* Background-Aurora.html */; };
 		D3E6CCCCCDDFAFDBB9389DD0 /* BarPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 703B1D693D2ADD57AE5F0877 /* BarPresentationTests.swift */; };
+		D931CA95C520551A8CD96C70 /* NavButtonLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1219029571543A043101F157 /* NavButtonLayoutTests.swift */; };
 		EFFADF649373F3EF50ACEAC3 /* BarStyleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A4F05739F33E546E153D76C /* BarStyleTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -66,13 +72,17 @@
 		026F771005982F962A44383F /* BarDemoIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarDemoIntegrationTests.swift; sourceTree = "<group>"; };
 		0A0216B1E75DE44DDE2DB2C7 /* TabBarUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarUITests.swift; sourceTree = "<group>"; };
 		0BAD8537442AA9568AF547E1 /* BoneShellDemoUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = BoneShellDemoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		1219029571543A043101F157 /* NavButtonLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavButtonLayoutTests.swift; sourceTree = "<group>"; };
 		13669912465ED80D32CEF2CE /* BackgroundDemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundDemo.swift; sourceTree = "<group>"; };
 		1F5E90C3E78A63D99C00DEE3 /* BackgroundIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundIntegrationTests.swift; sourceTree = "<group>"; };
 		21255EA65B5C695FAAAD9D5E /* SplitDemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitDemo.swift; sourceTree = "<group>"; };
+		24794D6F98C66FC9F1CE800B /* NavButtonUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavButtonUITests.swift; sourceTree = "<group>"; };
 		24C7DA1C1CC233691F3B72C4 /* Background-Paper.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "Background-Paper.jpg"; sourceTree = "<group>"; };
+		272E41B19983B25DBD4C0962 /* NavButtonAppearanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavButtonAppearanceTests.swift; sourceTree = "<group>"; };
 		29BDB4BEE062C602D22DB68B /* UnifiedBackgroundTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedBackgroundTests.swift; sourceTree = "<group>"; };
 		29E0AB318D7497C12B251AEF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2B6E7C6C7480BB8030229659 /* BoneShellDemoTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = BoneShellDemoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		37D46C067A1CC0A84E9C1128 /* AnimatedTabAccessoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedTabAccessoryTests.swift; sourceTree = "<group>"; };
 		42A2BE19A0D38B9F365C57C4 /* DemoScenes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoScenes.swift; sourceTree = "<group>"; };
 		4355AA4DB68857FD4DD53241 /* TabSelectedIconUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabSelectedIconUITests.swift; sourceTree = "<group>"; };
 		4728964913A03FBA3CB25216 /* BoneShellKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = BoneShellKit; path = ../..; sourceTree = SOURCE_ROOT; };
@@ -99,6 +109,8 @@
 		DAF21C1B81534AD383C310EF /* MaterialDemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialDemo.swift; sourceTree = "<group>"; };
 		EA087C819EF93C84400EA58D /* BackgroundUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundUITests.swift; sourceTree = "<group>"; };
 		F0881810D524E0AD7CB476FA /* BarStyle-Orbit@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "BarStyle-Orbit@2x.png"; sourceTree = "<group>"; };
+		F2C2D3303FC1B4B21921C26D /* NavigationTitleViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationTitleViewTests.swift; sourceTree = "<group>"; };
+		F3474E6C3193394FA737C504 /* TabIconContentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabIconContentTests.swift; sourceTree = "<group>"; };
 		FDE4997157F282E1F0EAACD1 /* NavigationBarUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationBarUITests.swift; sourceTree = "<group>"; };
 		FEC557F27F0E179C0485486A /* TabBarAccessoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarAccessoryTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -128,6 +140,7 @@
 			children = (
 				EA087C819EF93C84400EA58D /* BackgroundUITests.swift */,
 				6C90E8DCF08559097B65353E /* BoneShellDemoUITests.swift */,
+				24794D6F98C66FC9F1CE800B /* NavButtonUITests.swift */,
 				5197B7DC49C871609BDACD6A /* NavigationAdaptiveUITests.swift */,
 				FDE4997157F282E1F0EAACD1 /* NavigationBarUITests.swift */,
 				0A0216B1E75DE44DDE2DB2C7 /* TabBarUITests.swift */,
@@ -227,13 +240,18 @@
 		E85504A36F5B4F620729C0F0 /* BoneShellKitTests */ = {
 			isa = PBXGroup;
 			children = (
+				37D46C067A1CC0A84E9C1128 /* AnimatedTabAccessoryTests.swift */,
 				4BCDFF30D421B233025B55F2 /* BackgroundEngineTests.swift */,
 				703B1D693D2ADD57AE5F0877 /* BarPresentationTests.swift */,
 				9A4F05739F33E546E153D76C /* BarStyleTests.swift */,
 				76FAEEACEB1BEAC023436F1D /* CapsuleBarTests.swift */,
+				272E41B19983B25DBD4C0962 /* NavButtonAppearanceTests.swift */,
+				1219029571543A043101F157 /* NavButtonLayoutTests.swift */,
 				68F3F100661CE52F97C3FFB2 /* NavigationActionTests.swift */,
+				F2C2D3303FC1B4B21921C26D /* NavigationTitleViewTests.swift */,
 				89FD2286037B3B9BA1F63671 /* ShellRulesTests.swift */,
 				FEC557F27F0E179C0485486A /* TabBarAccessoryTests.swift */,
+				F3474E6C3193394FA737C504 /* TabIconContentTests.swift */,
 				551B9D8C8CC789AFE41C5E35 /* TabLabelDisplayTests.swift */,
 				482BE1656E2C23DE5297BADE /* TabSelectedIconTests.swift */,
 				29BDB4BEE062C602D22DB68B /* UnifiedBackgroundTests.swift */,
@@ -387,6 +405,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AE00F965BA5CE147CEF447CE /* AnimatedTabAccessoryTests.swift in Sources */,
 				7A9D589ED30DEE7FB12B162D /* BackgroundEngineTests.swift in Sources */,
 				7C0597BB8FE54891E96B8C34 /* BackgroundIntegrationTests.swift in Sources */,
 				1084B3F7BB4A1DCA446463C4 /* BarDemoIntegrationTests.swift in Sources */,
@@ -394,9 +413,13 @@
 				EFFADF649373F3EF50ACEAC3 /* BarStyleTests.swift in Sources */,
 				97C50E1387847494F87260C7 /* CapsuleBarTests.swift in Sources */,
 				64DC6F0C59FFB719008AE6EF /* DemoIntegrationTests.swift in Sources */,
+				3EE8217F74C4084FCCD0B4AC /* NavButtonAppearanceTests.swift in Sources */,
+				D931CA95C520551A8CD96C70 /* NavButtonLayoutTests.swift in Sources */,
 				396DEE3AFD33986DF18D0E85 /* NavigationActionTests.swift in Sources */,
+				1B1DBEF7A71B1986E6A20734 /* NavigationTitleViewTests.swift in Sources */,
 				B3FFE010B098F05C741522EB /* ShellRulesTests.swift in Sources */,
 				4731D8B003CDF3342FA57BEE /* TabBarAccessoryTests.swift in Sources */,
+				1F531BDDC35C1C62F10C653E /* TabIconContentTests.swift in Sources */,
 				22F1A9486212FDCF9B5446BA /* TabLabelDisplayTests.swift in Sources */,
 				0B1742CB8311C9FA45745E49 /* TabSelectedIconTests.swift in Sources */,
 				92B161FCF62E59BCB1CD6320 /* UnifiedBackgroundTests.swift in Sources */,
@@ -409,6 +432,7 @@
 			files = (
 				A06A9AD27A510E4A5B726A63 /* BackgroundUITests.swift in Sources */,
 				12A1D2260F31D1ED7D530387 /* BoneShellDemoUITests.swift in Sources */,
+				96F81632F25F982EF14D84DE /* NavButtonUITests.swift in Sources */,
 				50110EF30FBD889AFBCD8467 /* NavigationAdaptiveUITests.swift in Sources */,
 				851ACD908D230ED2AECEE773 /* NavigationBarUITests.swift in Sources */,
 				18DFF180DFC58C1E0B2D52CF /* TabBarUITests.swift in Sources */,
@@ -458,7 +482,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.10.0;
+				MARKETING_VERSION = 0.11.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.taokoplay.BoneShellDemo;
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
@@ -528,7 +552,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.10.0;
+				MARKETING_VERSION = 0.11.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.taokoplay.BoneShellDemo;
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;

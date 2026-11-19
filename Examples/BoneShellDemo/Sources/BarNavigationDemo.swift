@@ -13,6 +13,56 @@ final class NavigationBarDemoController: DemoStackController {
     private(set) var iconIndex = 0
     private(set) var axisIndex = 0
     private(set) var message: String?
+    private var showsCustomTitle = false
+    private var selectedTitle = "全部来源"
+
+    private struct NavButtonSettings {
+        var mode = 0
+        var size = 2
+        var effect = 1
+        var vertical = 0
+        var groupWidth = 0
+        var order = 0
+        var spacing = 0
+
+        static func initial(_ arguments: [String]) -> Self {
+            var settings = Self()
+            if arguments.contains("-navbutton") { settings.mode = 1 }
+            if arguments.contains("-navbutton-vertical-capsule") {
+                settings.mode = 1
+                settings.vertical = 1
+            }
+            if arguments.contains("-navbutton-overflow") {
+                settings.mode = 1
+                settings.groupWidth = 2
+                settings.spacing = 3
+            }
+            #if DEBUG
+            func option(_ key: String) -> String? {
+                guard let index = arguments.firstIndex(of: key), arguments.indices.contains(index + 1) else { return nil }
+                return arguments[index + 1]
+            }
+            if let effect = option("-navbutton-effect"), let index = ["none", "blur", "liquidGlass"].firstIndex(of: effect) {
+                settings.effect = index
+            }
+            if let gap = option("-navbutton-gap"), let index = ["0", "8", "16"].firstIndex(of: gap) {
+                settings.groupWidth = 1
+                settings.spacing = index + 1
+            }
+            if arguments.contains("-navbutton-reversed") { settings.order = 1 }
+            #endif
+            return settings
+        }
+    }
+
+    private var navButtons = NavButtonSettings.initial(ProcessInfo.processInfo.arguments)
+    private var navButtonTapCount = 0
+
+    // A stable QA opt-out for this page. UIKit still supplies and positions the real bars.
+    @available(iOS 27.1, *)
+    override var preferredVerticalBarBehavior: UIVerticalBarBehavior {
+        ProcessInfo.processInfo.arguments.contains("-navbutton-horizontal-bar") ? .disabled : super.preferredVerticalBarBehavior
+    }
 
     private let sizes: [CGFloat] = [16, 20, 24]
     private let buttonSizes: [CGFloat] = [15, 17, 19]
@@ -30,6 +80,47 @@ final class NavigationBarDemoController: DemoStackController {
     private let presentationPicker = UISegmentedControl(items: ["跟随标签", "系统", "经典"])
     private let iconPicker = UISegmentedControl(items: ["符号", "本地图片", "UIImage"])
     private let axisPicker = UISegmentedControl(items: ["自动", "仅横向", "优先侧边"])
+    private let customTitlePicker = UISegmentedControl(items: ["文字", "自定义"])
+    private let navModePicker = UISegmentedControl(items: ["标准", "NavButton"])
+    private let navSizePicker = UISegmentedControl(items: ["拟合", "56 × 44", "72 × 44"])
+    private let navEffectPicker = UISegmentedControl(items: ["无", "模糊", "液态玻璃"])
+    private let navVerticalPicker = UISegmentedControl(items: ["沿用横栏", "44 × 72"])
+    private let navGroupWidthPicker = UISegmentedControl(items: ["不显示", "44 pt", "400 pt"])
+    private let navOrderPicker = UISegmentedControl(items: ["标记在前", "分享在前"])
+    private let navSpacingPicker = UISegmentedControl(items: ["独立", "0 pt", "8 pt", "16 pt"])
+    private var navButtonPickers: [(UISegmentedControl, String, WritableKeyPath<NavButtonSettings, Int>)] {
+        [(navModePicker, "mode", \.mode), (navSizePicker, "size", \.size),
+         (navEffectPicker, "effect", \.effect), (navVerticalPicker, "vertical", \.vertical),
+         (navGroupWidthPicker, "group-width", \.groupWidth), (navOrderPicker, "order", \.order),
+         (navSpacingPicker, "spacing", \.spacing)]
+    }
+
+    private lazy var titleButton: UIButton = {
+        var configuration = UIButton.Configuration.plain()
+        configuration.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 6, bottom: 0, trailing: 6)
+        configuration.title = selectedTitle
+        configuration.titleLineBreakMode = .byTruncatingTail
+        configuration.image = UIImage(systemName: "chevron.down", withConfiguration: UIImage.SymbolConfiguration(pointSize: 10, weight: .semibold))
+        configuration.imagePlacement = .trailing
+        configuration.imagePadding = 5
+        configuration.baseForegroundColor = .label
+        let button = UIButton(configuration: configuration)
+        button.accessibilityIdentifier = "nav.custom-title-button"
+        button.accessibilityLabel = selectedTitle
+        button.showsMenuAsPrimaryAction = true
+        button.menu = UIMenu(children: [UIDeferredMenuElement.uncached { [weak self] completion in
+            guard let self else { completion([]); return }
+            completion(["全部来源", "本地来源", "订阅来源"].map { option in
+                UIAction(title: option, state: option == self.selectedTitle ? .on : .off) { [weak self] _ in
+                    guard let self else { return }
+                    self.selectedTitle = option
+                    self.updateTitleButton()
+                    self.updateStatus()
+                }
+            })
+        }])
+        return button
+    }()
     private let status = DemoStyle.label("", style: .footnote, color: .secondaryLabel)
 
     private var color: UIColor? { [nil, UIColor.systemBlue, UIColor.systemOrange][colorIndex] }
@@ -38,11 +129,13 @@ final class NavigationBarDemoController: DemoStackController {
         func text(_ size: CGFloat?, weight: UIFont.Weight) -> ShellTextStyle {
             ShellTextStyle(font: size.map { .systemFont(ofSize: $0, weight: weight) }, color: color)
         }
+        var buttonText = text(buttonSize, weight: .semibold)
+        if navButtons.mode == 1, buttonText.color == nil { buttonText.color = .label }
         return ShellNavigationStyle(
             title: text(titleSize, weight: .semibold),
             largeTitle: text(titleSize.map { $0 + 10 }, weight: .bold),
             subtitle: text(titleSize.map { max(11, $0 - 6) }, weight: .regular),
-            buttons: text(buttonSize ?? titleSize, weight: .semibold)
+            buttons: buttonText
         )
     }
 
@@ -68,7 +161,15 @@ final class NavigationBarDemoController: DemoStackController {
         screen.navigation.title = "导航栏"
         screen.navigation.subtitle = showsSubtitle ? "标题、按钮与形态" : nil
         screen.navigation.usesLargeTitle = usesLargeTitle
+        if showsCustomTitle { screen.navigation.titleView = titleButton }
         screen.navigation.style = style
+        if navButtons.mode == 1 {
+            screen.navigation.navButtonLayout = navButtons.spacing == 0 ? .individual
+                : .grouped(spacing: [0, 8, 16][navButtons.spacing - 1])
+            screen.navigation.leadingActions = []
+            screen.navigation.trailingActions = customActions()
+            return
+        }
         screen.navigation.trailingActions = [
             NavigationAction(id: "nav.text", title: "完成", priority: 30, role: .confirmation) { [weak self] in
                 self?.note("完成")
@@ -85,6 +186,37 @@ final class NavigationBarDemoController: DemoStackController {
         ]
     }
 
+    private func customActions() -> [NavigationAction] {
+        func normalStyle(width: CGFloat?, iconSize: CGSize? = nil) -> ShellNavButton.Style {
+            .init(size: width.map { .preferred(CGSize(width: $0, height: 44)) } ?? .fitting,
+                  iconSize: iconSize, contentInsets: .init(top: 0, leading: 4, bottom: 0, trailing: 4),
+                  effect: [.none, .blur, .liquidGlass][navButtons.effect])
+        }
+        let widths: [CGFloat?] = [nil, 56, 72]
+        let vertical: ShellNavButton.Style? = navButtons.vertical == 0 ? nil
+            : .init(size: .preferred(CGSize(width: 44, height: 72)), icon: .systemSymbol("checkmark"), contentInsets: .zero)
+        let done = NavigationAction(id: "nav.text", title: "完成",
+                                    navButton: .init(normal: normalStyle(width: widths[navButtons.size]), vertical: vertical),
+                                    priority: 30, role: .confirmation) { [weak self] in self?.recordNavButton("完成") }
+        guard navButtons.groupWidth != 0 else { return [done] }
+
+        // Only the two ordinary actions form a group; the confirmation keeps its own slot.
+        let icons = ShellNavButton(normal: normalStyle(width: navButtons.groupWidth == 1 ? 44 : 400,
+                                                       iconSize: CGSize(width: 20, height: 20)))
+        var actions = [("nav.mark", "标记", "bookmark"), ("nav.share", "分享", "square.and.arrow.up")].map { id, title, symbol in
+            NavigationAction(id: id, title: title, navButton: icons, icon: .systemSymbol(symbol), priority: 10) { [weak self] in
+                self?.recordNavButton(title)
+            }
+        }
+        if navButtons.order == 1 { actions.reverse() }
+        return actions + [done]
+    }
+
+    private func recordNavButton(_ title: String) {
+        navButtonTapCount += 1
+        note(title)
+    }
+
     override func buildDemo() {
         intro("导航栏的全部设置", "标题字号与颜色、副标题、大标题、按钮图标与方向，以及导航栏形态，都在这一页。")
         status.accessibilityIdentifier = "nav.status"
@@ -92,6 +224,13 @@ final class NavigationBarDemoController: DemoStackController {
         button("恢复系统导航外观", symbol: "arrow.counterclockwise", id: "nav.reset") { [weak self] in
             self?.reset()
         }
+
+        bind(customTitlePicker, id: "nav.title-view") { [weak self] index in
+            guard let self else { return }
+            self.showsCustomTitle = index == 1
+            self.apply()
+        }
+        card([DemoStyle.label("标题内容", style: .headline), customTitlePicker])
 
         bind(sizePicker, id: "nav.title-size") { [weak self] index in
             guard let self = self else { return }
@@ -151,6 +290,20 @@ final class NavigationBarDemoController: DemoStackController {
         button("打开输入详情", symbol: "arrow.right.circle", id: "nav.detail") { [weak self] in
             self?.openDetail()
         }
+        for (picker, id, key) in navButtonPickers {
+            bind(picker, id: "navbutton.\(id)") { [weak self] index in
+                guard let self else { return }
+                self.navButtons[keyPath: key] = index
+                self.apply()
+            }
+        }
+        card([DemoStyle.label("导航按钮", style: .headline), navModePicker,
+              DemoStyle.label("完成 · 横栏尺寸（pt）", style: .subheadline), navSizePicker,
+              DemoStyle.label("完成 · 侧栏尺寸（pt）", style: .subheadline), navVerticalPicker,
+              DemoStyle.label("按钮背景", style: .subheadline), navEffectPicker])
+        card([DemoStyle.label("标记与分享 · 单项宽度", style: .headline), navGroupWidthPicker,
+              DemoStyle.label("动作顺序", style: .subheadline), navOrderPicker,
+              DemoStyle.label("组内净距", style: .subheadline), navSpacingPicker])
         syncPickers()
         updateStatus()
     }
@@ -163,6 +316,7 @@ final class NavigationBarDemoController: DemoStackController {
 
     /// Rebuilds the page configuration after any change.
     func apply() {
+        if showsCustomTitle { updateTitleButton() }
         (navigationController as? BoneNavigationController)?.barPresentation = presentation
         refreshScreenConfiguration()
         syncPickers()
@@ -178,6 +332,10 @@ final class NavigationBarDemoController: DemoStackController {
         presentationIndex = 0
         iconIndex = 0
         axisIndex = 0
+        showsCustomTitle = false
+        selectedTitle = "全部来源"
+        navButtons = NavButtonSettings()
+        navButtonTapCount = 0
         message = nil
         apply()
     }
@@ -208,6 +366,12 @@ final class NavigationBarDemoController: DemoStackController {
         updateStatus()
     }
 
+    private func updateTitleButton() {
+        guard titleButton.configuration?.title != selectedTitle else { return }
+        titleButton.configuration?.title = selectedTitle
+        titleButton.accessibilityLabel = selectedTitle
+    }
+
     private func syncPickers() {
         sizePicker.selectedSegmentIndex = titleSize.flatMap { sizes.firstIndex(of: $0) }.map { $0 + 1 } ?? 0
         colorPicker.selectedSegmentIndex = colorIndex
@@ -217,16 +381,25 @@ final class NavigationBarDemoController: DemoStackController {
         presentationPicker.selectedSegmentIndex = presentationIndex
         iconPicker.selectedSegmentIndex = iconIndex
         axisPicker.selectedSegmentIndex = axisIndex
+        customTitlePicker.selectedSegmentIndex = showsCustomTitle ? 1 : 0
+        for (picker, _, key) in navButtonPickers { picker.selectedSegmentIndex = navButtons[keyPath: key] }
+        let custom = navButtons.mode == 1
+        for picker in [navSizePicker, navVerticalPicker, navEffectPicker, navGroupWidthPicker] { picker.isEnabled = custom }
+        for picker in [navOrderPicker, navSpacingPicker] { picker.isEnabled = custom && navButtons.groupWidth != 0 }
+        iconPicker.isEnabled = !custom
+        axisPicker.isEnabled = !custom
     }
 
     private func updateStatus() {
         guard isViewLoaded else { return }
         let size = titleSize.map { "\(Int($0)) pt" } ?? "系统"
-        let buttons = buttonSize.map { "\(Int($0)) pt" } ?? "跟随标题"
+        let buttons = buttonSize.map { "\(Int($0)) pt" } ?? "系统"
         let subtitle = showsSubtitle ? "开" : "关"
         let large = usesLargeTitle ? "开" : "关"
         let text = "标题：\(size) / \(colorNames[colorIndex])\n按钮：\(buttons)\n图标：\(iconNames[iconIndex]) / 方向：\(axisNames[axisIndex])\n副标题：\(subtitle) / 大标题：\(large)\n形态：\(presentationNames[presentationIndex])"
-        let full = message.map { text + "\n" + $0 } ?? text
+        let titleMode = showsCustomTitle ? "\n自定义标题：\(selectedTitle)" : ""
+        let count = navButtons.mode == 1 ? "\nNavButton 点击：\(navButtonTapCount) 次" : ""
+        let full = text + titleMode + count + (message.map { "\n" + $0 } ?? "")
         if status.text != full { status.text = full }
     }
 }

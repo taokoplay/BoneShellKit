@@ -31,6 +31,61 @@ final class BarDemoIntegrationTests: XCTestCase {
         XCTAssertNil(page.screenConfiguration.navigation.style?.title.font)
     }
 
+    func testNavButtonControlsConfigureRealActionsAndResetToStandard() throws {
+        let (tabs, _, page) = navigationScene()
+        defer { withExtendedLifetime(tabs) {} }
+        func select(_ key: String, _ index: Int) throws {
+            let picker = try XCTUnwrap(view(withIdentifier: "navbutton.\(key)", in: page.view) as? UISegmentedControl)
+            picker.selectedSegmentIndex = index
+            picker.sendActions(for: .valueChanged)
+        }
+        try select("mode", 1)
+        try select("size", 1)
+        try select("vertical", 1)
+        try select("group-width", 1)
+        try select("order", 1)
+        for (index, gap) in [0, 8, 16].enumerated() {
+            try select("spacing", index + 1)
+            XCTAssertEqual(page.screenConfiguration.navigation.navButtonLayout, .grouped(spacing: CGFloat(gap)))
+        }
+        for (index, effect) in [ShellNavButton.Effect.none, .blur, .liquidGlass].enumerated() {
+            try select("effect", index)
+            let actions = page.screenConfiguration.navigation.trailingActions
+            XCTAssertEqual(actions.map(\.id), ["nav.share", "nav.mark", "nav.text"])
+            let button = try XCTUnwrap(actions.last?.navButton)
+            XCTAssertEqual(button.normal.effect, effect)
+            XCTAssertEqual(button.normal.size, .preferred(CGSize(width: 56, height: 44)))
+            XCTAssertEqual(button.vertical?.size, .preferred(CGSize(width: 44, height: 72)))
+        }
+        page.reset()
+        XCTAssertEqual(page.screenConfiguration.navigation.navButtonLayout, .individual)
+        XCTAssertTrue(page.screenConfiguration.navigation.trailingActions.allSatisfy { $0.navButton == nil })
+    }
+
+    func testNavigationTitleAndButtonSizesAreIndependent() throws {
+        let (_, _, page) = navigationScene()
+        let titlePicker = try XCTUnwrap(view(withIdentifier: "nav.title-size", in: page.view) as? UISegmentedControl)
+        let buttonPicker = try XCTUnwrap(view(withIdentifier: "nav.button-size", in: page.view) as? UISegmentedControl)
+        let steps: [(UISegmentedControl, Int, CGFloat, CGFloat?)] = [
+            (titlePicker, 3, 24, nil),
+            (buttonPicker, 1, 24, 15),
+            (titlePicker, 1, 16, 15),
+            (buttonPicker, 0, 16, nil)
+        ]
+        for (picker, segment, titleSize, buttonSize) in steps {
+            picker.selectedSegmentIndex = segment
+            picker.sendActions(for: .valueChanged)
+            let style = try XCTUnwrap(page.screenConfiguration.navigation.style)
+            XCTAssertEqual(style.title.font?.pointSize, titleSize)
+            XCTAssertEqual(style.buttons.font?.pointSize, buttonSize)
+            let item = try XCTUnwrap(barButtonItems(in: page.navigationItem).trailing.first {
+                $0.accessibilityIdentifier == "action.nav.text"
+            })
+            let appliedFont = item.titleTextAttributes(for: .normal)?[.font] as? UIFont
+            XCTAssertEqual(appliedFont, style.buttons.resolvedFont(for: .body, traits: page.traitCollection))
+        }
+    }
+
     func testNavigationPresentationOnlyAffectsNavigation() {
         let (tabs, navigation, page) = navigationScene()
         page.loadViewIfNeeded()

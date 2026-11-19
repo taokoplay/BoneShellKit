@@ -117,6 +117,81 @@ final class TabBarUITests: XCTestCase {
         XCTAssertEqual(app.tabBars.count, 1)
     }
 
+    func testCustomTabViewsRemainSelectableWithAnAccessory() {
+        choose("tabbar.presentation", "胶囊")
+        let toggle = app.switches["tabbar.animated-icons"]
+        reveal(toggle)
+        toggle.tap()
+        waitForStatus(["普通标签：自定义视图"])
+        XCTAssertTrue(app.otherElements["shell.capsule.tabs"].exists)
+        assertTabAccessibilityAndSelection("tab.examples")
+
+        choose("tabbar.accessories", "动态")
+        let accessory = app.buttons["accessory.pulse"]
+        XCTAssertTrue(accessory.waitForExistence(timeout: 5))
+        XCTAssertFalse(accessory.frame.intersects(app.buttons["tab.about"].frame))
+        keepScreenshot("Full custom tabs and separate custom action")
+
+        app.buttons["tab.about"].tap()
+        XCTAssertTrue(app.staticTexts["about.backgrounds"].waitForExistence(timeout: 5))
+        assertTabAccessibilityAndSelection("tab.about")
+        keepScreenshot("Full custom tab after selecting About")
+        app.buttons["tab.examples"].tap()
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        waitForStatus(["普通标签：自定义视图"])
+
+        choose("tabbar.accessories", "无")
+        choose("tabbar.presentation", "系统")
+        waitForStatus(["普通标签：自定义视图", "形态：系统"])
+        XCTAssertTrue(app.otherElements["shell.capsule.tabs"].exists || app.otherElements["shell.classic.tabs"].exists)
+        reveal(toggle, upward: true)
+        toggle.tap()
+        waitForStatus(["普通标签：标准图标", "形态：系统 → 系统"])
+        XCTAssertFalse(app.otherElements["shell.capsule.tabs"].exists)
+        assertTabAccessibilityAndSelection("tab.examples")
+        keepScreenshot("Native tabs after explicitly selecting standard icons")
+    }
+
+    func testAnimatedAccessoryTapsAndKeepsItsTabInCapsuleAndSystem() throws {
+        choose("tabbar.presentation", "胶囊")
+        choose("tabbar.accessories", "动态")
+        let icon = app.buttons["accessory.pulse"]
+        XCTAssertTrue(icon.waitForExistence(timeout: 5))
+        XCTAssertEqual(icon.label, "动态入口")
+        XCTAssertGreaterThanOrEqual(icon.frame.height, 44)
+        XCTAssertEqual(icon.frame.width, icon.frame.height, accuracy: 1)
+        XCTAssertFalse(icon.frame.intersects(app.buttons["tab.about"].frame))
+        let firstPhase = icon.screenshot()
+        let timeout = Date().addingTimeInterval(3)
+        var secondPhase = firstPhase
+        while secondPhase.pngRepresentation == firstPhase.pngRepresentation && Date() < timeout {
+            Thread.sleep(forTimeInterval: 0.24)
+            secondPhase = icon.screenshot()
+        }
+        XCTAssertNotEqual(firstPhase.pngRepresentation, secondPhase.pngRepresentation, "Visible animation must change rendered pixels")
+        for (index, frame) in [firstPhase, secondPhase].enumerated() {
+            let attachment = XCTAttachment(screenshot: frame)
+            attachment.name = "Dynamic icon phase \(index + 1)"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+        }
+        keepScreenshot("Dynamic capsule accessory")
+        icon.tap()
+        waitForStatus(["已触发：动态入口"])
+        XCTAssertTrue(app.buttons["tab.examples"].isSelected)
+
+        choose("tabbar.presentation", "系统")
+        waitForStatus(["形态：系统", "附加按钮：动态"])
+        XCTAssertTrue(icon.waitForExistence(timeout: 5))
+        XCTAssertTrue(icon.isHittable)
+        keepScreenshot("Dynamic accessory explicit system presentation")
+        icon.tap()
+        XCTAssertTrue(app.buttons["tab.examples"].isSelected)
+        choose("tabbar.accessories", "无")
+        XCTAssertFalse(icon.exists)
+        keepScreenshot("Dynamic accessory removed")
+    }
+
     func testCapsuleListScrollsUnderGlassWithoutABottomStrip() {
         reveal(app.segmentedControls["tabbar.presentation"])
         app.segmentedControls["tabbar.presentation"].buttons["胶囊"].tap()

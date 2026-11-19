@@ -26,6 +26,8 @@ public struct NavigationAction {
     public var isEnabled: Bool
     /// 非 nil 时覆盖 symbol；图片不可用时回退为文字。
     public var icon: ShellNavigationIcon?
+    /// 可选的整项外观。未提供时保留系统或经典导航原有按钮。
+    public var navButton: ShellNavButton? = nil
     public var role: ShellNavigationActionRole
     public var axisBehavior: ShellNavigationActionAxisBehavior
     public var handler: () -> Void
@@ -66,6 +68,22 @@ public struct NavigationAction {
         self.icon = icon
     }
 
+    public init(
+        id: String,
+        title: String,
+        navButton: ShellNavButton,
+        icon: ShellNavigationIcon? = nil,
+        priority: Int = 0,
+        isEnabled: Bool = true,
+        role: ShellNavigationActionRole = .normal,
+        axisBehavior: ShellNavigationActionAxisBehavior = .verticalPreferred,
+        handler: @escaping () -> Void
+    ) {
+        self.init(id: id, title: title, icon: icon, priority: priority, isEnabled: isEnabled,
+                  role: role, axisBehavior: axisBehavior, handler: handler)
+        self.navButton = navButton
+    }
+
     func resolvedImage(traits: UITraitCollection) -> UIImage? {
         if let icon = icon { return icon.resolve(traits: traits) }
         return symbol.isEmpty ? nil : UIImage(systemName: symbol)
@@ -76,9 +94,14 @@ public struct NavigationAction {
 public struct NavigationConfiguration {
     public var title: String = ""
     public var subtitle: String? = nil
+    /// Replaces the inline title area. Return the same unattached UIKit view for this page
+    /// on subsequent configuration refreshes. The title string remains available for Back.
+    public var titleView: UIView? = nil
     public var usesLargeTitle: Bool = false
     public var leadingActions: [NavigationAction] = []
     public var trailingActions: [NavigationAction] = []
+    /// `.grouped` 只控制相容自定义按钮的组内净距，返回和固定确认动作保持独立。
+    public var navButtonLayout: ShellNavButtonLayout = .individual
     public var material: ShellMaterial = .automatic
     public var background: ShellBackgroundConfiguration? = nil
     /// Nil inherits the navigation container style; an empty style requests system defaults.

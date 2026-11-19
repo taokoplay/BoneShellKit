@@ -22,9 +22,10 @@ final class ShellClassicNavigationBar: UIView {
     private let backdrop = ShellClassicBackdrop(separatorAtTop: false)
     private let titleLabel = UILabel()
     private let subtitleLabel = UILabel()
+    private var customTitleView: ShellNavigationTitleHost?
     private let backButton = UIButton(type: .system)
-    private var leadingButtons: [ShellClassicActionButton] = []
-    private var trailingButtons: [ShellClassicActionButton] = []
+    private var leadingButtons: [UIView] = []
+    private var trailingButtons: [UIView] = []
     private var model: Model?
     private var titleFont = UIFont.preferredFont(forTextStyle: .headline)
     private var largeTitleFont = UIFont.preferredFont(forTextStyle: .largeTitle)
@@ -44,12 +45,24 @@ final class ShellClassicNavigationBar: UIView {
     func update(title: String, subtitle: String?, largeTitle: Bool, showsBack: Bool,
                 leadingItems: [UIBarButtonItem], trailingItems: [UIBarButtonItem],
                 style: ShellNavigationStyle, material: ShellMaterial,
-                showsMediaBackground: Bool) {
+                showsMediaBackground: Bool, customTitleView: ShellNavigationTitleHost? = nil) {
+        if self.customTitleView !== customTitleView {
+            self.customTitleView?.removeFromSuperview()
+            self.customTitleView = customTitleView
+            if let customTitleView { addSubview(customTitleView) }
+        }
         model = Model(title: title, subtitle: subtitle, largeTitle: largeTitle,
                       showsBack: showsBack, leadingItems: leadingItems,
                       trailingItems: trailingItems, style: style, material: material,
                       showsMediaBackground: showsMediaBackground)
         applyModel()
+    }
+
+    func clearCustomTitleView() {
+        guard let customTitleView else { return }
+        customTitleView.removeFromSuperview()
+        self.customTitleView = nil
+        accessibilityElements = nil
     }
 
     private func configureView() {
@@ -91,22 +104,27 @@ final class ShellClassicNavigationBar: UIView {
             ?? UIFont.preferredFont(forTextStyle: .caption1, compatibleWith: traitCollection)
         subtitleLabel.textColor = style.subtitle.color ?? .secondaryLabel
         titleLabel.text = model.title
-        titleLabel.isHidden = model.title.isEmpty
+        titleLabel.isHidden = customTitleView != nil || model.title.isEmpty
         subtitleLabel.text = model.subtitle
-        subtitleLabel.isHidden = model.subtitle?.isEmpty != false
+        subtitleLabel.isHidden = customTitleView != nil || model.subtitle?.isEmpty != false
         backButton.isHidden = !model.showsBack
         let buttonFont = style.buttons.resolvedFont(for: .body, traits: traitCollection)
             ?? UIFont.preferredFont(forTextStyle: .body, compatibleWith: traitCollection)
         let buttonColor = style.buttons.color ?? tintColor ?? .systemBlue
         backButton.tintColor = buttonColor
+        let previous = leadingButtons + trailingButtons
         leadingButtons = configuredButtons(for: model.leadingItems, reusing: leadingButtons,
                                            font: buttonFont, color: buttonColor)
         trailingButtons = configuredButtons(for: model.trailingItems, reusing: trailingButtons,
                                             font: buttonFont, color: buttonColor)
+        for old in previous where old.superview === self && !leadingButtons.contains(old) && !trailingButtons.contains(old) {
+            old.removeFromSuperview()
+        }
         backdrop.update(material: model.material, showsMediaBackground: model.showsMediaBackground)
         var elements: [Any] = []
         if model.showsBack { elements.append(backButton) }
         elements.append(contentsOf: leadingButtons)
+        if let customTitleView { elements.append(customTitleView) }
         if !titleLabel.isHidden { elements.append(titleLabel) }
         if !subtitleLabel.isHidden { elements.append(subtitleLabel) }
         elements.append(contentsOf: trailingButtons.reversed())
@@ -114,20 +132,33 @@ final class ShellClassicNavigationBar: UIView {
         setNeedsLayout()
     }
 
-    private func configuredButtons(for items: [UIBarButtonItem],
-                                   reusing existing: [ShellClassicActionButton],
-                                   font: UIFont, color: UIColor) -> [ShellClassicActionButton] {
-        for button in existing.dropFirst(items.count) { button.removeFromSuperview() }
-        var buttons = Array(existing.prefix(items.count))
-        while buttons.count < items.count {
-            let button = ShellClassicActionButton(frame: .zero)
-            addSubview(button)
-            buttons.append(button)
-        }
-        for (button, item) in zip(buttons, items) {
+    private func configuredButtons(for items: [UIBarButtonItem], reusing existing: [UIView],
+                                   font: UIFont, color: UIColor) -> [UIView] {
+        var standard = existing.compactMap { $0 as? ShellClassicActionButton }.makeIterator()
+        return items.map { item -> UIView in
+            if let slot = (item as? ShellNavigationBarItem)?.classicSlot {
+                if slot.superview !== self { addSubview(slot) }
+                return slot
+            }
+            let button = standard.next() ?? ShellClassicActionButton(frame: .zero)
+            if button.superview !== self { addSubview(button) }
             button.update(item: item, font: font, color: color)
+            return button
         }
-        return buttons
+    }
+
+    private func actionWidth(_ view: UIView) -> CGFloat {
+        (view as? ShellClassicActionButton)?.preferredWidth ?? view.intrinsicContentSize.width
+    }
+
+    func detachCustomActions() {
+        let custom = (leadingButtons + trailingButtons).compactMap { $0 as? ShellNavButtonCluster }
+        guard !custom.isEmpty else { return }
+        for slot in custom where slot.superview === self { slot.removeFromSuperview() }
+        leadingButtons.removeAll { $0 is ShellNavButtonCluster }
+        trailingButtons.removeAll { $0 is ShellNavButtonCluster }
+        model = nil
+        accessibilityElements = nil
     }
 
     override func layoutSubviews() {
@@ -149,15 +180,27 @@ final class ShellClassicNavigationBar: UIView {
             leading += 44
         }
         for button in leadingButtons {
-            button.frame = frame(at: leading, width: button.preferredWidth)
-            leading += button.preferredWidth
+            let size = actionWidth(button)
+            button.frame = frame(at: leading, width: size)
+            leading += size
         }
         var trailing = width - 8
         for button in trailingButtons {
-            trailing -= button.preferredWidth
-            button.frame = frame(at: trailing, width: button.preferredWidth)
+            let size = actionWidth(button)
+            trailing -= size
+            button.frame = frame(at: trailing, width: size)
         }
-        if model.largeTitle && usableHeight > 68 {
+        if let customTitleView {
+            let start = min(width, leading + 4)
+            let end = max(start, trailing - 4)
+            let titleWidth = min(end - start, customTitleView.preferredWidth)
+            let titleHeight = min(usableHeight, 44)
+            let center = min(max(width / 2, start + titleWidth / 2), end - titleWidth / 2)
+            var titleFrame = frame(at: center - titleWidth / 2, width: titleWidth)
+            titleFrame.origin.y += (44 - titleHeight) / 2
+            titleFrame.size.height = titleHeight
+            customTitleView.frame = titleFrame
+        } else if model.largeTitle && usableHeight > 68 {
             titleLabel.font = largeTitleFont
             titleLabel.textColor = largeTitleColor
             titleLabel.textAlignment = isRTL ? .right : .left
@@ -210,6 +253,9 @@ final class ShellClassicNavigationBar: UIView {
 @MainActor
 final class ShellClassicTabBar: UIView {
     var onSelect: ((Int) -> Void)?
+    var controllerIsVisible = false {
+        didSet { if oldValue != controllerIsVisible { updateIconVisibility() } }
+    }
     private(set) var contentHeight: CGFloat = 49
     /// Horizontal space kept free at each end, for accessory buttons drawn inside the bar.
     var itemInsets: (leading: CGFloat, trailing: CGFloat) = (0, 0) {
@@ -226,6 +272,7 @@ final class ShellClassicTabBar: UIView {
         let items: [UITabBarItem]
         let selectedIndex: Int
         let labelDisplayModes: [ShellTabLabelDisplayMode]
+        let customContents: [ObjectIdentifier: ShellTabBarCustomContent]
         let style: ShellTabBarStyle
         let material: ShellMaterial
         let showsMediaBackground: Bool
@@ -250,9 +297,10 @@ final class ShellClassicTabBar: UIView {
 
     func update(items: [UITabBarItem], selectedIndex: Int,
                 labelDisplayModes: [ShellTabLabelDisplayMode] = [], style: ShellTabBarStyle,
-                material: ShellMaterial, showsMediaBackground: Bool) {
+                material: ShellMaterial, showsMediaBackground: Bool,
+                customContents: [ObjectIdentifier: ShellTabBarCustomContent] = [:]) {
         model = Model(items: items, selectedIndex: selectedIndex, labelDisplayModes: labelDisplayModes,
-                      style: style, material: material, showsMediaBackground: showsMediaBackground)
+                      customContents: customContents, style: style, material: material, showsMediaBackground: showsMediaBackground)
         applyModel()
     }
 
@@ -272,7 +320,7 @@ final class ShellClassicTabBar: UIView {
         let hasLabels = model.items.enumerated().contains { index, item in
             let mode = model.labelDisplayModes.indices.contains(index)
                 ? model.labelDisplayModes[index] : style.labelDisplayMode
-            return mode != .never && item.title?.isEmpty == false
+            return model.customContents[ObjectIdentifier(item)] == nil && mode != .never && item.title?.isEmpty == false
         }
         let titleHeight = hasLabels ? max(normalFont.lineHeight, selectedFont.lineHeight) : 0
         let newHeight = max(49, ceil(25 + titleHeight + 8))
@@ -281,13 +329,10 @@ final class ShellClassicTabBar: UIView {
             invalidateIntrinsicContentSize()
             superview?.setNeedsLayout()
         }
-        while buttons.count > model.items.count { buttons.removeLast().removeFromSuperview() }
-        while buttons.count < model.items.count {
-            let index = buttons.count
+        buttons = ShellClassicTabButton.reconcile(buttons, with: model.items) {
             let button = ShellClassicTabButton(frame: .zero)
-            button.addAction(UIAction { [weak self] _ in self?.onSelect?(index) }, for: .touchUpInside)
-            buttons.append(button)
             addSubview(button)
+            return button
         }
         for (index, item) in model.items.enumerated() {
             let selected = index == model.selectedIndex
@@ -297,14 +342,36 @@ final class ShellClassicTabBar: UIView {
             let color = role.color ?? (selected ? (tintColor ?? .systemBlue) : .secondaryLabel)
             let iconColor = (selected ? style.selectedIconColor : style.normalIconColor)
                 ?? (selected ? (tintColor ?? .systemBlue) : .secondaryLabel)
-            buttons[index].update(item: item, selected: selected,
-                                  font: selected ? selectedFont : normalFont,
-                                  color: color, iconColor: iconColor,
-                                  showsTitle: labelMode.isVisible(isSelected: selected))
+            let button = buttons[index]
+            button.onSelect = { [weak self] in self?.onSelect?(index) }
+            button.update(item: item, selected: selected, font: selected ? selectedFont : normalFont,
+                          color: color, iconColor: iconColor,
+                          showsTitle: labelMode.isVisible(isSelected: selected),
+                          customContent: model.customContents[ObjectIdentifier(item)])
         }
         backdrop.update(material: model.material, showsMediaBackground: model.showsMediaBackground)
         accessibilityElements = buttons
+        updateIconVisibility()
         setNeedsLayout()
+    }
+
+    func contentMode(for item: UITabBarItem) -> ShellTabBarCustomContent.Mode? {
+        buttons.first { $0.itemIdentity == ObjectIdentifier(item) }?.resolvedContentMode
+    }
+
+    func discardItems() {
+        buttons.forEach { $0.unmount() }
+        buttons = []
+        model = nil
+        accessibilityElements = nil
+    }
+
+    override var isHidden: Bool {
+        didSet { if oldValue != isHidden { updateIconVisibility() } }
+    }
+
+    private func updateIconVisibility() {
+        buttons.forEach { $0.setContentHostVisible(controllerIsVisible && !isHidden) }
     }
 
     override var intrinsicContentSize: CGSize {
@@ -423,6 +490,11 @@ final class ShellClassicTabButton: UIButton {
     private let iconView = UIImageView()
     private let textLabel = UILabel()
     private let badgeLabel = UILabel()
+    private var customHost: ShellTabBarCustomContentHost?
+    private var contentHostVisible = false
+    private(set) var itemIdentity: ObjectIdentifier?
+    var onSelect: (() -> Void)?
+    var resolvedContentMode: ShellTabBarCustomContent.Mode { customHost?.mode ?? .standard }
     private var showsCaption = true
 
     override init(frame: CGRect) {
@@ -458,25 +530,48 @@ final class ShellClassicTabButton: UIButton {
             view.isUserInteractionEnabled = false
             addSubview(view)
         }
+        addAction(UIAction { [weak self] _ in self?.onSelect?() }, for: .touchUpInside)
     }
 
     func update(item: UITabBarItem, selected: Bool, font: UIFont, color: UIColor, iconColor: UIColor,
-                showsTitle: Bool = true) {
-        let image = selected ? (item.selectedImage ?? item.image) : item.image
-        iconView.image = image.map { $0.renderingMode == .alwaysOriginal ? $0 : $0.withRenderingMode(.alwaysTemplate) }
-        iconView.tintColor = iconColor
-        textLabel.text = item.title
-        showsCaption = showsTitle && item.title?.isEmpty == false
-        textLabel.isHidden = !showsCaption
-        textLabel.font = font
-        textLabel.textColor = color
-        badgeLabel.font = UIFontMetrics(forTextStyle: .caption2)
-            .scaledFont(for: .systemFont(ofSize: 10, weight: .semibold), compatibleWith: traitCollection)
-        badgeLabel.text = item.badgeValue
-        badgeLabel.isHidden = item.badgeValue == nil
+                showsTitle: Bool = true, customContent: ShellTabBarCustomContent? = nil) {
+        let identity = ObjectIdentifier(item)
+        itemIdentity = identity
+        if let customContent {
+            let host = customHost ?? ShellTabBarCustomContentHost()
+            if customHost == nil { addSubview(host); customHost = host }
+            host.update(customContent, owner: identity)
+        } else if let host = customHost {
+            host.unmount()
+            host.removeFromSuperview()
+            customHost = nil
+        }
+        if customHost != nil {
+            showsCaption = false
+            iconView.image = nil
+            iconView.isHidden = true
+            textLabel.text = nil
+            textLabel.isHidden = true
+            badgeLabel.text = nil
+            badgeLabel.isHidden = true
+        } else {
+            let image = selected ? (item.selectedImage ?? item.image) : item.image
+            iconView.image = image.map { $0.renderingMode == .alwaysOriginal ? $0 : $0.withRenderingMode(.alwaysTemplate) }
+            iconView.isHidden = false
+            iconView.tintColor = iconColor
+            textLabel.text = item.title
+            showsCaption = showsTitle && item.title?.isEmpty == false
+            textLabel.isHidden = !showsCaption
+            textLabel.font = font
+            textLabel.textColor = color
+            badgeLabel.font = UIFontMetrics(forTextStyle: .caption2)
+                .scaledFont(for: .systemFont(ofSize: 10, weight: .semibold), compatibleWith: traitCollection)
+            badgeLabel.text = item.badgeValue
+            badgeLabel.isHidden = item.badgeValue == nil
+        }
         isSelected = selected
         isEnabled = item.isEnabled
-        alpha = item.isEnabled ? 1 : 0.45
+        updateRefreshAppearance()
         accessibilityIdentifier = item.accessibilityIdentifier
         accessibilityLabel = item.accessibilityLabel ?? item.title
         accessibilityHint = item.accessibilityHint
@@ -485,18 +580,54 @@ final class ShellClassicTabButton: UIButton {
         if selected { traits.insert(.selected) }
         if !item.isEnabled { traits.insert(.notEnabled) }
         accessibilityTraits = traits
+        updateContentState()
         setNeedsLayout()
         updatePill()
     }
 
+    static func reconcile(_ previous: [ShellClassicTabButton], with items: [UITabBarItem],
+                          makeButton: () -> ShellClassicTabButton) -> [ShellClassicTabButton] {
+        var remaining = previous
+        let buttons = items.map { item in
+            guard let index = remaining.firstIndex(where: { $0.itemIdentity == ObjectIdentifier(item) }) else {
+                return makeButton()
+            }
+            return remaining.remove(at: index)
+        }
+        remaining.forEach { $0.unmount() }
+        return buttons
+    }
+
+    func unmount() {
+        customHost?.unmount()
+        onSelect = nil
+        removeFromSuperview()
+    }
+
+    func setContentHostVisible(_ visible: Bool) {
+        contentHostVisible = visible
+        updateContentState()
+    }
+
+    private func updateContentState() {
+        customHost?.updateState(isSelected: isSelected, isEnabled: isEnabled, isHighlighted: isHighlighted,
+                                hostIsVisible: contentHostVisible)
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
+        if let customHost {
+            customHost.frame = bounds
+            customHost.layoutIfNeeded()
+            return
+        }
         let titleHeight = showsCaption ? min(textLabel.font.lineHeight, bounds.height) : 0
         let totalHeight = 25 + (showsCaption ? 2 + titleHeight : 0)
         let top = bounds.minY + max(0, (bounds.height - totalHeight) / 2)
-        iconView.frame = CGRect(x: bounds.midX - 12.5, y: top, width: 25, height: 25)
+        let standard = CGRect(x: bounds.midX - 12.5, y: top, width: 25, height: 25)
+        iconView.frame = standard
         textLabel.frame = showsCaption
-            ? CGRect(x: bounds.minX + 4, y: iconView.frame.maxY + 2,
+            ? CGRect(x: bounds.minX + 4, y: standard.maxY + 2,
                      width: max(0, bounds.width - 8), height: titleHeight) : .zero
         if !badgeLabel.isHidden {
             let empty = badgeLabel.text?.isEmpty != false
@@ -518,12 +649,19 @@ final class ShellClassicTabButton: UIButton {
 
     private func updatePill() {
         pillView.backgroundColor = selectionPillColor
-        pillView.isHidden = !showsSelectionPill || !isSelected
+        pillView.isHidden = customHost != nil || !showsSelectionPill || !isSelected
         setNeedsLayout()
     }
 
+    private func updateRefreshAppearance() {
+        alpha = customHost != nil ? 1 : (isEnabled ? (isHighlighted ? 0.5 : 1) : 0.45)
+    }
+
     override var isHighlighted: Bool {
-        didSet { alpha = isEnabled ? (isHighlighted ? 0.5 : 1) : 0.45 }
+        didSet {
+            updateRefreshAppearance()
+            updateContentState()
+        }
     }
 }
 

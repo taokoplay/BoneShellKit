@@ -6,6 +6,12 @@ final class ShellNativeDockBar: UIView {
     var onSelect: ((Int) -> Void)?
     var onGeometryChange: (() -> Void)?
 
+    var controllerIsVisible = false {
+        didSet {
+            guard oldValue != controllerIsVisible else { return }
+            for button in leadingButtons + trailingButtons { button.controllerIsVisible = controllerIsVisible }
+        }
+    }
     private(set) var rowHeight: CGFloat = 56
     /// Transparent padding below UIKit's visible platter, measured after native layout.
     private(set) var nativeBottomPadding: CGFloat?
@@ -122,20 +128,15 @@ final class ShellNativeDockBar: UIView {
         let font = style.normal.resolvedFont(for: .caption2, traits: traitCollection)
             ?? UIFont.preferredFont(forTextStyle: .caption2, compatibleWith: traitCollection)
         if accessoriesChanged {
-            for view in row.arrangedSubviews {
-                row.removeArrangedSubview(view)
-                view.removeFromSuperview()
-            }
-            leadingButtons = leading.map { makeButton($0, tint: tint, font: font) }
-            trailingButtons = trailing.map { makeButton($0, tint: tint, font: font) }
-            for button in leadingButtons { row.addArrangedSubview(circle(button)) }
-            row.addArrangedSubview(tabHost)
-            for button in trailingButtons { row.addArrangedSubview(circle(button)) }
+            let buttons = ShellTabAccessoryButton.reconcile(leadingButtons + trailingButtons, with: leading + trailing)
+            leadingButtons = Array(buttons.prefix(leading.count))
+            trailingButtons = Array(buttons.dropFirst(leading.count))
+            row.shellArrange(leadingButtons.map(circle) + [tabHost] + trailingButtons.map(circle))
             accessibilityElements = leadingButtons + [tabBar] + trailingButtons
-        } else {
-            for (button, item) in zip(leadingButtons + trailingButtons, leading + trailing) {
-                button.update(item: item, tint: tint, font: font, compact: true, material: .systemGlass)
-            }
+        }
+        for (button, item) in zip(leadingButtons + trailingButtons, leading + trailing) {
+            button.controllerIsVisible = controllerIsVisible
+            button.update(item: item, tint: tint, font: font, compact: true, material: .systemGlass)
         }
         tabHost.setNeedsLayout()
         setNeedsLayout()
@@ -177,16 +178,28 @@ final class ShellNativeDockBar: UIView {
         }
     }
 
-    private func makeButton(_ item: ShellBarAccessoryItem, tint: UIColor,
-                            font: UIFont) -> ShellTabAccessoryButton {
-        let button = ShellTabAccessoryButton(frame: .zero)
-        button.update(item: item, tint: tint, font: font, compact: true, material: .systemGlass)
-        button.applyShadow(false)
-        // ShellTabAccessoryButton already invokes the item's handler once.
-        return button
+    func contentMode(for id: String) -> ShellTabBarCustomContent.Mode? {
+        (leadingButtons + trailingButtons).first { $0.accessoryID == id }?.resolvedContentMode
+    }
+
+    func discardAccessories() {
+        guard !leadingButtons.isEmpty || !trailingButtons.isEmpty else { return }
+        for button in leadingButtons + trailingButtons { button.unmount() }
+        leadingButtons = []
+        trailingButtons = []
+        row.shellArrange([tabHost])
+        accessibilityElements = [tabBar]
+    }
+
+    override var isHidden: Bool {
+        didSet {
+            guard oldValue != isHidden else { return }
+            for button in leadingButtons + trailingButtons { button.refreshContentVisibility() }
+        }
     }
 
     private func circle(_ button: ShellTabAccessoryButton) -> UIView {
+        if let holder = button.superview, holder.superview === row { return holder }
         let holder = UIView()
         button.translatesAutoresizingMaskIntoConstraints = false
         holder.addSubview(button)

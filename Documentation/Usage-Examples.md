@@ -1,6 +1,6 @@
 # SDK 方法说明
 
-适用于 **v0.10.0**。导航图片、角色、轴向偏好及系统动作布局自 v0.10.0 提供，v0.9.1 不包含。下面按类型列出 SDK 的业务接入方法、参数和用途；可设置的属性见 [字段中文说明](API-Reference.md)。使用时导入 `UIKit`、`BoneShellKit`，并在主线程 / `@MainActor` 调用。
+适用于 **v0.11.0**。导航动作、NavButton、Duo 侧栏样式、按钮材质、标题视图和标签栏整项自定义视图均包含在当前接口范围。下面按类型列出 SDK 的业务接入方法、参数和用途；可设置的属性见 [字段中文说明](API-Reference.md)。使用时导入 `UIKit`、`BoneShellKit`，并在主线程 / `@MainActor` 调用。
 
 ## 页面：BoneViewController
 
@@ -50,16 +50,21 @@
 | `NavigationConfiguration()` | 创建导航默认配置 |
 | `NavigationAction(id:title:symbol:priority:isEnabled:role:axisBehavior:handler:)` | 创建文字或 SF Symbol 动作；role / axisBehavior 自 v0.10.0 增加，有兼容默认值 |
 | `NavigationAction(id:title:icon:priority:isEnabled:role:axisBehavior:handler:)` | v0.10.0+ 图片动作；icon 参数必传，可为 nil，ID / 标题 / 点击回调必填；完整示例见 [导航动作](Navigation-Actions.md) |
+| `NavigationAction(id:title:navButton:icon:priority:isEnabled:role:axisBehavior:handler:)` | v0.11.0+ 创建可按横栏 / 侧栏分别呈现的 NavButton；可省略 icon 让普通样式显示文字，再在 `vertical` 样式中指定勾号 |
 | `ShellTextStyle(font:color:scalesWithDynamicType:)` | 使用 UIFont 设置字体、文字颜色和动态字号 |
 | `ShellTextStyle(size:weight:color:scalesWithDynamicType:)` | 使用字号与字重创建系统字体样式，字号必须有限且大于 0 |
 | `ShellNavigationStyle(title:largeTitle:subtitle:buttons:)` | 创建导航栏各文字角色的样式 |
 | `ShellTabBarStyle(normal:selected:normalIconColor:selectedIconColor:labelDisplayMode:)` | 创建标签栏普通态、选中态及文字显示样式 |
 | `ShellTab(id:title:symbol:selectedIconMode:labelDisplayMode:root:)` | 使用 SF Symbol 创建标签；ID、标题、图标名称和 root 必填 |
 | `ShellTab(id:title:icon:selectedIcon:selectedIconMode:labelDisplayMode:root:)` | 使用图标配置创建标签，可设置独立选中图；ID、标题、普通图标和 root 必填 |
+| `ShellTab(id:item:root:)` | 从完整条目配置创建标签 |
 | `ShellTabItemConfiguration(title:icon:selectedIcon:selectedIconMode:labelDisplayMode:)` | 创建用于更新标签的完整展示配置，标题必填 |
 | `ShellTabBarAccessory(id:icon:title:position:isEnabled:accessibilityLabel:handler:)` | 创建标签栏附加按钮；ID、图标、位置和点击回调必填 |
 | `ShellBackgroundConfiguration(source:poster:overlayColor:fallbackColor:contentMode:transitionDuration:)` | 创建背景配置，媒体来源必填 |
 | `ShellMaterialResolution(requested:resolved:reason:)` | 创建材质结果描述；该初始化器本身不检测系统能力 |
+
+自定义标签使用 `ShellTabItemConfiguration(title:customContent:)`；自定义动作使用 `ShellTabBarAccessory(id:customContent:position:isEnabled:accessibilityLabel:handler:)`。两者都接收完整 `UIView`，不要求备用图标。参见[自定义标签](Bar-Presentation.md#普通标签的自定义视图)与[自定义附加按钮](Bar-Presentation.md#自定义附加按钮)。
+
 
 ## 背景视图：ShellBackgroundView
 

@@ -52,11 +52,21 @@ open class BoneViewController: UIViewController {
     private var originalBottomEdgeEffectHidden: Bool?
     private let bottomContentFade = ShellScrollBottomFade()
     private var subtitleTitleView: ShellSubtitleTitleView?
+    private var customNavigationTitle: ShellNavigationTitleHost?
 
     @MainActor private final class NavigationActionState {
         var action: NavigationAction
-        let item = UIBarButtonItem()
+        let item = ShellNavigationBarItem()
+        var button: ShellNavButtonHost?
+        var cluster: ShellNavButtonCluster?
         var group: UIBarButtonItemGroup?
+        var lastNavButtonInvocation: CFTimeInterval = 0
+        func invokeNavButton() {
+            let now = CACurrentMediaTime()
+            guard now - lastNavButtonInvocation > 0.5 else { return }
+            lastNavButtonInvocation = now
+            action.handler()
+        }
         init(_ action: NavigationAction) { self.action = action }
     }
     private var navigationActionStates: [String: NavigationActionState] = [:]
@@ -371,10 +381,30 @@ open class BoneViewController: UIViewController {
         let configuration = screenConfiguration.navigation
         let style = effectiveNavigationStyle
         navigationItem.title = configuration.title
-        navigationItem.largeTitleDisplayMode = configuration.usesLargeTitle ? .always : .never
+        if customNavigationTitle?.content !== configuration.titleView {
+            if let previous = customNavigationTitle {
+                if navigationItem.titleView === previous { navigationItem.titleView = nil }
+                if previous.content.superview === previous { previous.content.removeFromSuperview() }
+            }
+            customNavigationTitle = nil
+            if let view = configuration.titleView, view.superview == nil, view.window == nil {
+                customNavigationTitle = ShellNavigationTitleHost(content: view)
+            }
+        }
+        let usesLargeTitle = customNavigationTitle == nil && configuration.usesLargeTitle
+        navigationItem.largeTitleDisplayMode = usesLargeTitle ? .always : .never
         navigationItem.leftItemsSupplementBackButton = true
-        if configuration.usesLargeTitle { navigationController?.navigationBar.prefersLargeTitles = true }
-        if #available(iOS 26.0, *) {
+        if usesLargeTitle { navigationController?.navigationBar.prefersLargeTitles = true }
+        if let customNavigationTitle {
+            customNavigationTitle.updatePreferredWidth()
+            subtitleTitleView = nil
+            if #available(iOS 26.0, *) { navigationItem.subtitle = nil }
+            if (navigationController as? BoneNavigationController)?.resolvedBarPresentation == .classic {
+                _ = customTitleForClassicBar()
+            } else {
+                installNativeCustomTitle()
+            }
+        } else if #available(iOS 26.0, *) {
             navigationItem.titleView = nil
             subtitleTitleView = nil
             navigationItem.subtitle = configuration.subtitle
@@ -403,6 +433,18 @@ open class BoneViewController: UIViewController {
         if let navigation = navigationController as? BoneNavigationController, navigation.topViewController === self {
             navigation.applyShellButtonTint(style.buttons.color)
         }
+    }
+
+    internal func customTitleForClassicBar() -> ShellNavigationTitleHost? {
+        guard let host = customNavigationTitle else { return nil }
+        if navigationItem.titleView === host { navigationItem.titleView = nil }
+        return host
+    }
+
+    internal func installNativeCustomTitle() {
+        guard let host = customNavigationTitle, !(host.superview is ShellClassicNavigationBar),
+              navigationItem.titleView !== host else { return }
+        navigationItem.titleView = host
     }
 
     private func updateNavigationActions() {
@@ -435,6 +477,12 @@ open class BoneViewController: UIViewController {
             configuration.leadingActions + configuration.trailingActions
         )
         let activeIDs = Set(allActions.map(\.id))
+        for (id, state) in navigationActionStates where !activeIDs.contains(id) {
+            state.button?.unmount()
+            state.button?.removeFromSuperview()
+            state.item.customView = nil
+            state.item.classicSlot = nil
+        }
         navigationActionStates = navigationActionStates.filter { activeIDs.contains($0.key) }
         for action in allActions { actionState(for: action).action = action }
         let leadingIDs = Set(configuration.leadingActions.map(\.id))
@@ -442,10 +490,14 @@ open class BoneViewController: UIViewController {
             $0.role == .cancellation || ($0.role == .normal && leadingIDs.contains($0.id))
         }
         let trailing = allActions.filter { action in !leading.contains { $0.id == action.id } }
+        let leadingRuns = ShellNavButtonRun.collect(leading, layout: configuration.navButtonLayout)
+        let trailingRuns = ShellNavButtonRun.collect(trailing, layout: configuration.navButtonLayout)
+        prepareNavButtons(leadingRuns + trailingRuns, layout: configuration.navButtonLayout)
         let material = ShellMaterials.currentResolution(for: configuration.material).resolved
         if #available(iOS 27.0, *), systemLayout {
+            customNavigationTitle?.maximumWidth = UIView.layoutFittingExpandedSize.width
             subtitleTitleView?.maximumWidth = max(44, (key.width - key.leftInset - key.rightInset) * 0.45)
-            applySystemNavigationActions(leading: leading, trailing: trailing, material: material)
+            applySystemNavigationActions(leading: leadingRuns, trailing: trailingRuns, material: material)
             visibleActionIDs = allActions.map(\.id)
             overflowActionIDs = []
             return
@@ -453,42 +505,42 @@ open class BoneViewController: UIViewController {
         clearSystemNavigationActions()
 
         let usableWidth = max(0, key.width - key.leftInset - key.rightInset - 32)
-        let titleWidth = max(
+        let titleWidth = customNavigationTitle?.preferredWidth ?? max(
             (configuration.title as NSString).size(withAttributes: [.font: titleFont]).width,
             ((configuration.subtitle ?? "") as NSString).size(withAttributes: [.font: subtitleFont]).width
         )
         let preferredTitleBudget = min(max(88, titleWidth), usableWidth * 0.45)
         // Shorten the title before displacing a primary trailing action. When other
         // actions overflow, reserve both its touch target and the menu's target.
-        let primaryWidth = trailing.filter { $0.priority > 0 || $0.role == .confirmation }.map(navigationActionWidth).max()
+        let primaryWidth = trailingRuns.map(\.first).filter { $0.priority > 0 || $0.role == .confirmation }.map(navigationActionWidth).max()
         let primaryReserve: CGFloat = primaryWidth.map { $0 + (allActions.count > 1 ? 44 : 0) } ?? 0
         let titleBudget = min(preferredTitleBudget, max(44, usableWidth - 24 - primaryReserve * 2))
         subtitleTitleView?.maximumWidth = titleBudget
+        customNavigationTitle?.maximumWidth = max(44, titleBudget)
         let sideBudget = max(0, (usableWidth - titleBudget - 24) / 2)
         let backWidth = backTitle.map {
             min(128, max(44, ($0 as NSString).size(
                 withAttributes: [.font: buttonFont]
             ).width + 28))
         } ?? 0
-        // Measure text items with the actual font; icons keep native 44-point targets.
-        let leadingVisible = ShellActionLayout.visibleIDs(actions: leading,
-            availableWidth: max(0, sideBudget - backWidth), width: navigationActionWidth)
-        var trailingVisible = ShellActionLayout.visibleIDs(actions: trailing,
-            availableWidth: sideBudget, width: navigationActionWidth)
-        if leadingVisible.count + trailingVisible.count < allActions.count {
-            trailingVisible = ShellActionLayout.visibleIDs(actions: trailing,
-                availableWidth: max(0, sideBudget - 44), width: navigationActionWidth)
+        // A run occupies one slot including its measured gaps; never split it when pruning.
+        let leftHeads = leadingRuns.map(\.first), rightHeads = trailingRuns.map(\.first)
+        let leadingVisible = Set(ShellActionLayout.visibleIDs(actions: leftHeads,
+            availableWidth: max(0, sideBudget - backWidth), width: navigationActionWidth))
+        var trailingVisible = Set(ShellActionLayout.visibleIDs(actions: rightHeads,
+            availableWidth: sideBudget, width: navigationActionWidth))
+        if leadingVisible.count + trailingVisible.count < leadingRuns.count + trailingRuns.count {
+            trailingVisible = Set(ShellActionLayout.visibleIDs(actions: rightHeads,
+                availableWidth: max(0, sideBudget - 44), width: navigationActionWidth))
         }
-        let visible = Set(leadingVisible + trailingVisible)
+        let leftRuns = leadingRuns.filter { leadingVisible.contains($0.first.id) }
+        let rightRuns = trailingRuns.filter { trailingVisible.contains($0.first.id) }
+        let visible = Set((leftRuns + rightRuns).flatMap { $0.actions.map(\.id) })
         visibleActionIDs = allActions.filter { visible.contains($0.id) }.map(\.id)
         let overflow = allActions.filter { !visible.contains($0.id) }
         overflowActionIDs = overflow.map(\.id)
-        let leftItems = leading.filter { visible.contains($0.id) }.map {
-            makeBarButton(for: $0, material: material)
-        }
-        var rightItems = trailing.filter { visible.contains($0.id) }.map {
-            makeBarButton(for: $0, material: material)
-        }
+        let leftItems = leftRuns.map { makeBarButton(for: $0, material: material) }
+        var rightItems = rightRuns.map { makeBarButton(for: $0, material: material) }
         if !overflow.isEmpty {
             let menu = UIMenu(children: overflow.map(makeMenuAction))
             let item = UIBarButtonItem(image: UIImage(systemName: "ellipsis.circle"), menu: menu)
@@ -533,18 +585,70 @@ open class BoneViewController: UIViewController {
         return result
     }
 
-    private func makeBarButton(for action: NavigationAction, material: ShellMaterial) -> UIBarButtonItem {
+    private func prepareNavButtons(_ runs: [ShellNavButtonRun], layout: ShellNavButtonLayout) {
+        let heads = Set(runs.compactMap { $0.first.navButton == nil ? nil : $0.first.id })
+        for (id, state) in navigationActionStates {
+            if state.action.navButton == nil, let old = state.button {
+                old.unmount()
+                old.removeFromSuperview()
+                state.button = nil
+            }
+            if !heads.contains(id), state.cluster != nil {
+                state.item.customView = nil
+                state.item.classicSlot = nil
+                state.cluster = nil
+            }
+        }
+        let spacing: CGFloat
+        switch layout { case .individual: spacing = 0; case .grouped(let gap): spacing = gap }
+        let textStyle = effectiveNavigationStyle.buttons
+        let classic = resolvedBarPresentation == .classic
+        for run in runs where run.first.navButton != nil {
+            let head = actionState(for: run.first)
+            let cluster = head.cluster ?? ShellNavButtonCluster()
+            cluster.navigationBar = navigationController?.navigationBar
+            head.cluster = cluster
+            if classic, head.item.customView === cluster { head.item.customView = nil }
+            if !classic, cluster.superview is ShellClassicNavigationBar { cluster.removeFromSuperview() }
+            head.item.classicSlot = classic ? cluster : nil
+            let buttons = run.actions.map { action -> ShellNavButtonHost in
+                let state = actionState(for: action)
+                let button = state.button ?? ShellNavButtonHost(frame: .zero)
+                state.button = button
+                button.update(action: action, textStyle: textStyle) { [weak state] in
+                    guard let state, state.action.isEnabled else { return }
+                    if state.action.navButton != nil { state.invokeNavButton() } else { state.action.handler() }
+                }
+                return button
+            }
+            cluster.update(buttons: buttons, spacing: spacing,
+                           tracksNativePlacement: usesSystemNavigationActionLayout && run.first.axisBehavior != .horizontalOnly)
+            cluster.isUserInteractionEnabled = true
+            }
+    }
+
+    private func makeBarButton(for run: ShellNavButtonRun, material: ShellMaterial) -> UIBarButtonItem {
+        let action = run.first
         let state = actionState(for: action)
         state.action = action
         let item = state.item
         // 菜单中的 UIAction 在旧系统上不可变；配置刷新时替换表示，保留 item 身份。
-        item.primaryAction = makeMenuAction(action)
+        item.primaryAction = run.others.isEmpty ? makeMenuAction(action) : nil
         item.title = action.title
         item.image = action.resolvedImage(traits: traitCollection)
         item.style = action.role == .confirmation ? .done : .plain
         item.width = usesSystemNavigationActionLayout ? 0 : navigationActionWidth(action)
-        item.isEnabled = action.isEnabled
-        if #available(iOS 16.0, *) { item.menuRepresentation = makeMenuAction(action) }
+        item.isEnabled = run.others.isEmpty ? action.isEnabled : run.actions.contains { $0.isEnabled }
+        if #available(iOS 27.0, *) {
+            item.menuRepresentation = run.others.isEmpty ? makeMenuAction(action)
+                : UIMenu(options: .displayInline, children: run.actions.map(makeMenuAction))
+        } else if !run.others.isEmpty, #available(iOS 16.0, *) {
+            item.menuRepresentation = UIMenu(options: .displayInline, children: run.actions.map(makeMenuAction))
+        } else if action.navButton == nil, #available(iOS 16.0, *) {
+            item.menuRepresentation = makeMenuAction(action)
+        } else if #available(iOS 16.0, *) {
+            item.menuRepresentation = nil
+        }
         if #available(iOS 27.0, *) {
             item.visibilityPriority = UIBarButtonItemVisibilityPriority(rawValue: action.priority)
         }
@@ -558,10 +662,22 @@ open class BoneViewController: UIViewController {
         item.accessibilityLabel = action.title
         item.accessibilityIdentifier = "action.\(action.id)"
         configureSharedBackground(for: item, material: material)
+        if let cluster = state.cluster {
+            if resolvedBarPresentation != .classic {
+                if run.others.isEmpty, !usesSystemNavigationActionLayout, let button = cluster.buttons.first {
+                    button.removeFromSuperview()
+                    item.customView = button
+                } else if item.customView !== cluster {
+                    item.customView = cluster
+                }
+            }
+            if #available(iOS 26.0, *) { item.hidesSharedBackground = true }
+        }
         return item
     }
 
     private func navigationActionWidth(_ action: NavigationAction) -> CGFloat {
+        if let cluster = navigationActionStates[action.id]?.cluster { return cluster.intrinsicContentSize.width }
         guard action.resolvedImage(traits: traitCollection) == nil else { return 44 }
         let font = effectiveNavigationStyle.buttons.resolvedFont(for: .body, traits: traitCollection)
             ?? UIFont.preferredFont(forTextStyle: .body, compatibleWith: traitCollection)
@@ -576,20 +692,20 @@ open class BoneViewController: UIViewController {
     }
 
     @available(iOS 27.0, *)
-    private func applySystemNavigationActions(leading: [NavigationAction], trailing: [NavigationAction], material: ShellMaterial) {
-        func group(for action: NavigationAction) -> UIBarButtonItemGroup {
-            let item = makeBarButton(for: action, material: material)
-            let state = actionState(for: action)
+    private func applySystemNavigationActions(leading: [ShellNavButtonRun], trailing: [ShellNavButtonRun], material: ShellMaterial) {
+        func group(for run: ShellNavButtonRun) -> UIBarButtonItemGroup {
+            let item = makeBarButton(for: run, material: material)
+            let state = actionState(for: run.first)
             if let group = state.group { return group }
             let group = UIBarButtonItemGroup.fixedGroup(representativeItem: nil, items: [item])
             group.alwaysAvailable = true
             state.group = group
             return group
         }
-        let pinnedID = trailing.first { $0.role == .confirmation }?.id
+        let pinnedID = trailing.first { $0.first.role == .confirmation }?.first.id
         let leadingGroups = leading.map(group)
-        let trailingGroups = trailing.filter { $0.id != pinnedID }.map(group)
-        let pinned = trailing.first { $0.id == pinnedID }.map(group)
+        let trailingGroups = trailing.filter { $0.first.id != pinnedID }.map(group)
+        let pinned = trailing.first { $0.first.id == pinnedID }.map(group)
         if !appliedSystemActionLayout {
             navigationItem.leftBarButtonItems = nil
             navigationItem.rightBarButtonItems = nil

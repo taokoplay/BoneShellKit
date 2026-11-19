@@ -2,6 +2,19 @@
 
 已发布版本按 Git 标签记录。接入方式见 [README](README.md)，实际执行范围见 [验证记录](Documentation/Implementation-Status.md)。
 
+## 未发布
+
+后续版本变更待补充。
+
+## 0.11.0
+
+发布标签：[v0.11.0](https://github.com/taokoplay/BoneShellKit/tree/v0.11.0)。
+
+- `NavigationAction(navButton:)` 支持按钮尺寸、按钮级材质、完整自定义 `UIView`、横栏与 Duo 侧栏分轴样式，以及相邻按钮组内净距。
+- `Style.icon` 支持轴向独立图标。普通样式可以显示文字，侧栏样式可以显示勾号或其他系统图标。
+- `NavigationConfiguration.titleView` 支持原生及经典导航的完整可交互 `UIView` 标题。
+- 普通标签与附加动作支持完整 `UIView`，统一使用 `ShellTabBarCustomContent`。
+- Demo、API 参考、导航接入说明和验证记录同步到 v0.11.0。最低部署目标保持 iOS 15。
 ## 0.10.0
 
 发布标签：[v0.10.0](https://github.com/taokoplay/BoneShellKit/tree/v0.10.0)。

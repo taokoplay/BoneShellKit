@@ -1,6 +1,6 @@
 # SDK 当前范围与后续规划
 
-本文以 **v0.10.0 / Demo 0.10.0（Build 1）** 为当前接口范围。导航图片、角色、轴向偏好及系统动作布局自 v0.10.0 提供；标签文字显示策略自 v0.9.0 提供。接入从 [README](../README.md) 开始，已执行范围见 [验证记录](Implementation-Status.md)。完整设计设想保留在 [归档草案](Archive/Design-Draft.md)，其中的拟定类型不属于当前公开 API。
+本文以 **v0.11.0 / Demo 0.11.0（Build 1）** 为当前接口范围。NavButton、导航标题视图和标签栏整项自定义视图自 v0.11.0 提供；导航图片、角色、轴向偏好及系统动作布局自 v0.10.0 提供；标签文字显示策略自 v0.9.0 提供。接入从 [README](../README.md) 开始，已执行范围见 [验证记录](Implementation-Status.md)。完整设计设想保留在 [归档草案](Archive/Design-Draft.md)，其中的拟定类型不属于当前公开 API。
 
 导航动作的完整用法及兼容边界见 [导航动作与自适应](Navigation-Actions.md)。
 
@@ -32,8 +32,8 @@ BoneShellKit 是一个 UIKit 优先的 Swift Package，提供单一 `BoneShellKi
 | `ScreenConfiguration` / `NavigationConfiguration` | 页面内容边界、键盘避让、栏位覆盖、导航标题 / 操作 / 样式 / 背景、标签样式与背景 |
 | `BoneNavigationController` | 原生导航栈、容器级模式 / 样式 / 背景、经典导航表面及安全区恢复 |
 | `BoneTabBarController` / `ShellTab` | 目的地、独立导航栈、模式 / 样式 / 背景、条目更新和附加动作 |
-| `ShellTabItemConfiguration` / `ShellTabIcon` / `ShellTabSelectedIconMode` | 标题、普通 / 选中图标、选中颜色或原图策略 |
-| `ShellTabBarAccessory` | 标签栏 leading / trailing 动作，不参与目的地选中 |
+| `ShellTabItemConfiguration` / `ShellTabIcon` / `ShellTabSelectedIconMode` | 标题、普通 / 选中图标、选中策略；支持[整项自定义视图](Bar-Presentation.md#普通标签的自定义视图) |
+| `ShellTabBarAccessory` | 标签栏两侧动作，不参与目的地选中；可[提供完整展示视图](Bar-Presentation.md#自定义附加按钮) |
 | `BoneSplitViewController` | 原生 `.doubleColumn` 分栏及主 / 详情导航包装 |
 | `ShellTextStyle` / `ShellNavigationStyle` / `ShellTabBarStyle` | 文字和图标属性，支持按当前 traits 解析字体与颜色 |
 | `ShellMaterial` / `ShellGlassView` | SDK 自有表面的材质选择与能力降级 |
@@ -82,9 +82,9 @@ BoneShellKit 是一个 UIKit 优先的 Swift Package，提供单一 `BoneShellKi
 | `.capsule` | 原生胶囊标签、系统导航 | SDK 胶囊标签、经典导航 |
 | `.system` | UIKit 原生呈现 | UIKit 原生呈现 |
 
-原生胶囊配置附加动作时，SDK 使用独立 `UITabBar` 与外侧圆按钮组成 dock；显式 `.system` 在 iOS 26+ 使用 `UITabAccessory` 槽位，旧系统使用拦截选择的原生 tab item。经典栏的动作位于栏内，兼容胶囊的动作位于外侧。附件是动作模型，不是任意内容的自定义 View 槽。
+原生胶囊配置附加动作时，SDK 使用独立 `UITabBar` 与外侧圆按钮组成 dock；显式 `.system` 在 iOS 26+ 使用 `UITabAccessory` 槽位，旧系统使用拦截选择的原生 tab item。经典栏的动作位于栏内，兼容胶囊的动作位于外侧。附件默认是动作模型，也可以通过 `customContent` 提供整项自定义视图。
 
-`NavigationAction` 保留原有字段，v0.10.0 新增 `icon`、`role`、`axisBehavior`。iOS 27+ 原生导航提交所有唯一动作至固定分组、系统优先级和系统溢出；经典及 iOS 15–26 沿用可用宽度和字体预算。重复 ID 取首个，按 ID 复用按钮与分组，刷新后使用最新有效回调。尚未提供 `additionalOverflowItems` 声明、加载态、导航 badge、任意 UIView 或菜单树接口。
+`NavigationAction` 保留原有字段，v0.10.0 新增 `icon`、`role`、`axisBehavior`，v0.11.0 新增可选 [NavButton](Navigation-Actions.md#自定义导航动作)。iOS 27+ 原生导航提交全部唯一动作（显式编组时共享承载项），系统负责溢出；经典及 iOS 15–26 使用宽度预算。重复 ID 取首个，按 ID 复用，刷新后调用最新的有效回调。尚未提供 `additionalOverflowItems` 声明、加载态、导航 badge 或任意菜单树接口。
 
 SDK 渲染的标签目的地超过五个时显示前四个与“更多”，后续目的地由 action sheet 选择；原生 `.system` 交给 `UITabBarController`。当前没有 `UITabGroup` 或 SDK 目的地侧栏模型。
 
@@ -109,7 +109,7 @@ SDK 渲染的标签目的地超过五个时显示前四个与“更多”，后�
 | 原生栏位轴向 | iOS 27.1 的经典模式禁用自动竖向栏位，其余转交系统；不是自定义轴向布局引擎 |
 | App / Scene 配置 | 没有 `BoneShell.configure`、`BoneShellContext`、通用主题或分层配置解析器 |
 | 旧页面与 SwiftUI | 没有 `ScreenShellAdapter` / 通用 adapter；没有 `BoneShellSwiftUI` 产品。复用现有 UIKit 导航容器不等于 adapter 已完成 |
-| 导航动作扩展 | 已提供图片、动作角色、轴向偏好及系统单动作分组；业务分组、加载 / 选中 / badge、自定义 View / 菜单声明仍待设计 |
+| 导航动作扩展 | 已提供图片、动作角色、轴向偏好、系统分组、NavButton、自定义标题视图和相容按钮组内间距。加载 / 选中 / badge 和业务菜单树仍待设计 |
 | 标签组织 | 无 SDK 侧栏、目的地分组、可见性规则或任意品牌布局 renderer API |
 | 状态与编辑保护 | 保留既有控制器和输入；没有未保存编辑确认、受控离开协议或业务状态持久化 |
 | iPad / Duo | 已有通用 bounds / safe-area / traits 与原生双栏；无 Duo 姿态、铰链、保留区域、双屏或专用栏位 API |
