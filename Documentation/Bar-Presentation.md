@@ -2,7 +2,7 @@
 
 `ShellBarPresentation` 将栏位外观与字体、颜色、材质分开配置。SDK 默认 `.system`，Demo 默认 `.automatic`。
 
-已发布行为以 v0.11.0 为基线；NavButton、导航标题视图和标签栏整项自定义 `UIView` 从 v0.11.0 提供。导航动作见 [导航动作](Navigation-Actions.md)，运行结果见 [验证记录](Implementation-Status.md)。示例需要 UIKit / BoneShellKit，在 `@MainActor` 上使用。
+已发布行为以 v0.12.0 为基线；导航动作强制显示策略自 v0.12.0 提供，NavButton、导航标题视图和标签栏整项自定义 `UIView` 从 v0.11.0 提供。导航动作见 [导航动作](Navigation-Actions.md)，运行结果见 [验证记录](Implementation-Status.md)。示例需要 UIKit / BoneShellKit，在 `@MainActor` 上使用。
 
 | 类型 | iOS 26 及以上 | iOS 26 以下 |
 | --- | --- | --- |

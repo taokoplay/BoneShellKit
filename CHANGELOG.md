@@ -5,7 +5,15 @@
 ## 未发布
 
 后续版本变更待补充。
-- 导航动作新增 `visibility: .always`，兼容布局保留指定按钮；iOS 27+ trailing 动作使用 pinned 分组，避免因栏位空间进入溢出菜单。
+
+## 0.12.0
+
+发布标签：[v0.12.0](https://github.com/taokoplay/BoneShellKit/tree/v0.12.0)。
+
+- `NavigationAction` 新增 `visibility`，支持 `.automatic` 和 `.always`。兼容布局会保留指定动作，iOS 27+ trailing 动作使用 pinned 分组。
+- NavButton 编组规则补充 `visibility` 一致性，`.individual` 与 `.grouped(spacing:)` 的行为和间距边界同步到公开文档。
+- Demo、API 参考、导航接入说明和验证记录同步到 v0.12.0。最低部署目标保持 iOS 15。
+- Demo 版本更新为 0.12.0（Build 1）。iOS 27.1 导航相关测试 31 项通过，iOS 18.6 兼容新增测试 3 项通过。
 
 ## 0.11.0
 

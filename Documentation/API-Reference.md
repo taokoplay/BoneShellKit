@@ -1,6 +1,6 @@
 # SDK 可设置字段与中文说明
 
-适用于 **v0.11.0**。NavButton、导航标题视图和标签栏整项自定义视图自 v0.11.0 提供；导航图片、动作角色、轴向偏好及系统动作布局自 v0.10.0 提供，v0.9.1 不包含。方法和创建入口见 [SDK 方法说明](Usage-Examples.md)。页面字段在 `configureScreen(_:)` 中设置；容器字段直接赋值。标注“创建时设置”的值不能在创建后直接修改，只读结果单列在文末。
+适用于 **v0.12.0**。NavButton、导航标题视图和标签栏整项自定义视图自 v0.11.0 提供，导航动作强制显示自 v0.12.0 提供；导航图片、动作角色、轴向偏好及系统动作布局自 v0.10.0 提供，v0.9.1 不包含。方法和创建入口见 [SDK 方法说明](Usage-Examples.md)。页面字段在 `configureScreen(_:)` 中设置；容器字段直接赋值。标注“创建时设置”的值不能在创建后直接修改，只读结果单列在文末。
 
 ## 页面配置：ScreenConfiguration
 
@@ -46,7 +46,7 @@
 | `navButton`（v0.11.0+） | `ShellNavButton?` | `nil` | 自定义按钮的普通样式及可选侧栏覆盖；`navButton:` 初始化器默认 `.verticalPreferred`，旧入口保持 `.automatic` |
 | `role`（v0.10.0+） | `ShellNavigationActionRole` | `.normal` | `.cancellation` 放在前侧；`.confirmation` 放在后侧，原生布局固定首个确认动作 |
 | `axisBehavior`（v0.10.0+） | `ShellNavigationActionAxisBehavior` | `.automatic` | 自动 / `.horizontalOnly` 仅横向 / `.verticalPreferred` 优先竖向，iOS 27.1+ 映射到系统 |
-| `visibility` | `ShellNavigationActionVisibility` | `.automatic` | `.automatic` 允许动作按空间与优先级进入溢出；`.always` 要求动作保留在导航栏中 |
+| `visibility`（v0.12.0+） | `ShellNavigationActionVisibility` | `.automatic` | `.automatic` 允许动作按空间与优先级进入溢出；`.always` 要求动作保留在导航栏中 |
 | `priority` | `Int` | `0` | 保留在栏上的优先级，越大越优先，不改变显示顺序 |
 | `isEnabled` | `Bool` | `true` | 是否允许点击 |
 | `handler` | `() -> Void` | 必填 | 点击回调，引用页面时可用 `[weak self]` |

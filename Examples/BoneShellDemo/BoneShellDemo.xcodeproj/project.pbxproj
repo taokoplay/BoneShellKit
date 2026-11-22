@@ -482,7 +482,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.11.0;
+				MARKETING_VERSION = 0.12.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.taokoplay.BoneShellDemo;
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
@@ -552,7 +552,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.11.0;
+				MARKETING_VERSION = 0.12.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.taokoplay.BoneShellDemo;
 				SDKROOT = iphoneos;
 				SUPPORTS_MACCATALYST = NO;
