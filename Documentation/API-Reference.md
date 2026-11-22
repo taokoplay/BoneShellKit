@@ -30,7 +30,7 @@
 | `usesLargeTitle` | `Bool` | `false` | 是否请求大标题显示 |
 | `leadingActions` | `[NavigationAction]` | `[]` | 导航栏前侧按钮，保留原生返回按钮 |
 | `trailingActions` | `[NavigationAction]` | `[]` | 导航栏后侧按钮，放不下时进入“更多”菜单 |
-| `navButtonLayout`（v0.11.0+） | `ShellNavButtonLayout` | `.individual` | 独立显示，或通过 `.grouped(spacing:)` 将相邻兼容自定义按钮按指定净距编组 |
+| `navButtonLayout`（v0.11.0+） | `ShellNavButtonLayout` | `.individual` | `.individual` 将每个 `navButton` 独立显示；`.grouped(spacing:)` 只编组同侧相邻且 `role`、`priority`、`visibility`、`axisBehavior` 一致的 `navButton`。`spacing` 单位为 pt，确认动作保持独立 |
 | `material` | `ShellMaterial` | `.automatic` | 导航材质，不改变栏位模式 |
 | `background` | `ShellBackgroundConfiguration?` | `nil` | 本页导航背景；`nil` 继承导航容器背景 |
 | `style` | `ShellNavigationStyle?` | `nil` | 本页导航字体与颜色；`nil` 继承导航容器样式 |
@@ -46,6 +46,7 @@
 | `navButton`（v0.11.0+） | `ShellNavButton?` | `nil` | 自定义按钮的普通样式及可选侧栏覆盖；`navButton:` 初始化器默认 `.verticalPreferred`，旧入口保持 `.automatic` |
 | `role`（v0.10.0+） | `ShellNavigationActionRole` | `.normal` | `.cancellation` 放在前侧；`.confirmation` 放在后侧，原生布局固定首个确认动作 |
 | `axisBehavior`（v0.10.0+） | `ShellNavigationActionAxisBehavior` | `.automatic` | 自动 / `.horizontalOnly` 仅横向 / `.verticalPreferred` 优先竖向，iOS 27.1+ 映射到系统 |
+| `visibility` | `ShellNavigationActionVisibility` | `.automatic` | `.automatic` 允许动作按空间与优先级进入溢出；`.always` 要求动作保留在导航栏中 |
 | `priority` | `Int` | `0` | 保留在栏上的优先级，越大越优先，不改变显示顺序 |
 | `isEnabled` | `Bool` | `true` | 是否允许点击 |
 | `handler` | `() -> Void` | 必填 | 点击回调，引用页面时可用 `[weak self]` |
@@ -181,6 +182,7 @@
 | `ShellContentPlacement` | `.safeArea` / `.underBars` | 安全区内布局 / 延伸到栏位下方 |
 | `ShellBackgroundComposition` | `.independent` / `.unified` | 分区背景 / 共用完整容器背景；整体模式需提供非 `.none` 的页面背景 |
 | `ShellTabLabelDisplayMode` | `.always` / `.never` / `.selectedOnly` / `.unselectedOnly` | 始终显示 / 始终隐藏 / 仅选中时显示 / 仅未选中时显示 |
+| `ShellNavigationActionVisibility` | `.automatic` / `.always` | 自动按空间和优先级处理 / 保留在导航栏中 |
 | `ShellTabSelectedIconMode` | `.automatic` / `.selectedColor` / `.selectedImage` | 自动 / 普通图案按选中颜色着色 / 选中图原色显示 |
 | `ShellMaterial` | `.automatic` / `.systemDefault` / `.systemGlass` / `.frostedGlass` / `.solid` | 自动 / 系统默认 / 原生玻璃 / 仿玻璃 / 实色 |
 

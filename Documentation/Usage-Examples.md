@@ -48,9 +48,9 @@
 | --- | --- |
 | `ScreenConfiguration()` | 创建页面默认配置，通常由 SDK 创建后传入页面配置方法 |
 | `NavigationConfiguration()` | 创建导航默认配置 |
-| `NavigationAction(id:title:symbol:priority:isEnabled:role:axisBehavior:handler:)` | 创建文字或 SF Symbol 动作；role / axisBehavior 自 v0.10.0 增加，有兼容默认值 |
-| `NavigationAction(id:title:icon:priority:isEnabled:role:axisBehavior:handler:)` | v0.10.0+ 图片动作；icon 参数必传，可为 nil，ID / 标题 / 点击回调必填；完整示例见 [导航动作](Navigation-Actions.md) |
-| `NavigationAction(id:title:navButton:icon:priority:isEnabled:role:axisBehavior:handler:)` | v0.11.0+ 创建可按横栏 / 侧栏分别呈现的 NavButton；可省略 icon 让普通样式显示文字，再在 `vertical` 样式中指定勾号 |
+| `NavigationAction(id:title:symbol:priority:visibility:isEnabled:role:axisBehavior:handler:)` | 创建文字或 SF Symbol 动作；`visibility: .always` 可要求动作保留在导航栏；role / axisBehavior 自 v0.10.0 增加，有兼容默认值 |
+| `NavigationAction(id:title:icon:priority:visibility:isEnabled:role:axisBehavior:handler:)` | v0.10.0+ 图片动作；icon 参数必传，可为 nil，ID / 标题 / 点击回调必填；完整示例见 [导航动作](Navigation-Actions.md) |
+| `NavigationAction(id:title:navButton:icon:priority:visibility:isEnabled:role:axisBehavior:handler:)` | v0.11.0+ 创建可按横栏 / 侧栏分别呈现的 NavButton；可省略 icon 让普通样式显示文字，再在 `vertical` 样式中指定勾号 |
 | `ShellTextStyle(font:color:scalesWithDynamicType:)` | 使用 UIFont 设置字体、文字颜色和动态字号 |
 | `ShellTextStyle(size:weight:color:scalesWithDynamicType:)` | 使用字号与字重创建系统字体样式，字号必须有限且大于 0 |
 | `ShellNavigationStyle(title:largeTitle:subtitle:buttons:)` | 创建导航栏各文字角色的样式 |
@@ -109,6 +109,6 @@
 | `ShellMaterials.resolve(_:supportsSystemGlass:reduceTransparency:)` | 请求材质、是否支持原生玻璃、是否减少透明度 → `ShellMaterialResolution` | 计算实际使用的材质和降级原因 |
 | `ShellBarPresentation.resolved(supportsNativeCapsule:)` | 是否支持原生胶囊 `Bool` → `ShellBarPresentation` | 将 `.automatic` 解析为胶囊或经典模式，显式模式保持请求值 |
 | `ShellTabLabelDisplayMode.isVisible(isSelected:)` | 是否选中 `Bool` → `Bool` | 判断该策略在当前选中状态下是否显示文字 |
-| `ShellActionLayout.visibleIDs(actions:maximumVisible:)` | 动作列表、最大数量 `Int` → `[String]` | 按优先级挑选操作 ID，保持原声明顺序；实际导航栏另按可用宽度布局 |
+| `ShellActionLayout.visibleIDs(actions:maximumVisible:)` | 动作列表、最大数量 `Int` → `[String]` | 先保留 `visibility: .always` 的动作，再按优先级挑选其余操作 ID；保持原声明顺序 |
 
 UIKit 的生命周期、布局方法和协议回调按 UIKit 规则使用；重写 SDK 页面或容器的生命周期时调用 `super`。`init(coder:)` 用于 UIKit 解档，日常代码接入使用上表的创建方法。

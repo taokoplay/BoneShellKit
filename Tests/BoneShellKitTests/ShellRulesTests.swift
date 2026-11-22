@@ -97,6 +97,21 @@ final class ShellRulesTests: XCTestCase {
         XCTAssertEqual(invocationCount, 0)
         XCTAssertFalse(disabled.isEnabled)
     }
+    func testAlwaysVisibilitySurvivesCountAndWidthLimits() {
+        let ordinary = action("ordinary", 100)
+        var required = action("required", -100)
+        required.visibility = .always
+
+        XCTAssertEqual(
+            ShellActionLayout.visibleIDs(actions: [ordinary, required], maximumVisible: 1),
+            ["required"]
+        )
+        XCTAssertEqual(
+            ShellActionLayout.visibleIDs(actions: [ordinary, required], availableWidth: 44) { _ in 80 },
+            ["required"]
+        )
+    }
+
 
     private func action(_ id: String, _ priority: Int = 0) -> NavigationAction {
         NavigationAction(id: id, title: id, symbol: "star", priority: priority) {}

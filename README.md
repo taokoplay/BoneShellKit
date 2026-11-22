@@ -77,7 +77,7 @@ func makeRootController() -> BoneNavigationController {
 | 页面内容 | `BoneViewController` + `ScreenConfiguration`；默认 `.safeArea`，`avoidsKeyboard = false`；键盘避让需按页开启 |
 | 原生容器 | `BoneNavigationController`、`BoneTabBarController`、`BoneSplitViewController`；分栏的业务选择和数据由宿主管理 |
 | 栏位呈现 | `.automatic / .classic / .capsule / .system`；SDK 默认 `.system`，Demo 默认 `.automatic`；导航只有系统与经典两种外观 |
-| 导航操作 | 图片 / SF Symbol / 文字、稳定 ID、角色、整数优先级、禁用状态及轴向偏好；iOS 27+ 使用系统布局，经典与旧系统保留 SDK 宽度预算 |
+| 导航操作 | 图片 / SF Symbol / 文字、稳定 ID、角色、整数优先级、自动或强制显示、禁用状态及轴向偏好；iOS 27+ 使用系统布局，经典与旧系统保留 SDK 宽度预算 |
 | 字体与图标 | 页面 / 容器样式、Dynamic Type、普通 / 选中图标、颜色 / 原图选中策略、按 ID 更新条目 |
 | 普通标签自定义视图 | 开发版 `ShellTabItemConfiguration.customContent` 接收整项 `UIView`；可与标准图文混用。见[接入说明](Documentation/Bar-Presentation.md#普通标签的自定义视图) |
 | 标签附加动作 | `tabBarAccessories`；开发版支持 [自定义整项内容](Documentation/Bar-Presentation.md#自定义附加按钮未发布)，不改变当前选中标签 |

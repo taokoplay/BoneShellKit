@@ -19,6 +19,7 @@ struct ShellNavButtonRun {
             if case .grouped = layout, action.navButton != nil, action.role != .confirmation,
                let previous = runs.last?.first, previous.navButton != nil,
                previous.role == action.role, previous.priority == action.priority,
+               previous.visibility == action.visibility,
                previous.axisBehavior == action.axisBehavior {
                 runs[runs.count - 1].others.append(action)
             } else {

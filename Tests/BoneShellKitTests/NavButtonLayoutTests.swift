@@ -17,6 +17,15 @@ final class NavButtonLayoutTests: XCTestCase {
         XCTAssertEqual(a.axisBehavior, .verticalPreferred)
         XCTAssertEqual(regular.axisBehavior, .automatic)
     }
+    func testGroupedRunsDoNotMixVisibilityPolicies() {
+        var automatic = action("automatic")
+        var always = action("always")
+        automatic.visibility = .automatic
+        always.visibility = .always
+
+        let runs = ShellNavButtonRun.collect([automatic, always], layout: .grouped(spacing: 8))
+        XCTAssertEqual(runs.map { $0.actions.map(\.id) }, [["automatic"], ["always"]])
+    }
 
     func testVisualSpacingAndSeparateTargetsInBothDirections() {
         let items = [action("short", width: 24), action("wide", width: 60)]

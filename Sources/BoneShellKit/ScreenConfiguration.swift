@@ -16,6 +16,11 @@ public enum ShellNavigationActionAxisBehavior: String, CaseIterable, Sendable {
     case horizontalOnly
     case verticalPreferred
 }
+public enum ShellNavigationActionVisibility: String, CaseIterable, Sendable {
+    case automatic
+    /// Keeps the action in the navigation bar when layout space is constrained.
+    case always
+}
 
 @MainActor
 public struct NavigationAction {
@@ -23,6 +28,8 @@ public struct NavigationAction {
     public var title: String
     public var symbol: String
     public var priority: Int
+    /// Controls whether width-based layout may move the action into overflow.
+    public var visibility: ShellNavigationActionVisibility
     public var isEnabled: Bool
     /// 非 nil 时覆盖 symbol；图片不可用时回退为文字。
     public var icon: ShellNavigationIcon?
@@ -37,6 +44,7 @@ public struct NavigationAction {
         title: String,
         symbol: String = "",
         priority: Int = 0,
+        visibility: ShellNavigationActionVisibility = .automatic,
         isEnabled: Bool = true,
         role: ShellNavigationActionRole = .normal,
         axisBehavior: ShellNavigationActionAxisBehavior = .automatic,
@@ -46,6 +54,7 @@ public struct NavigationAction {
         self.title = title
         self.symbol = symbol
         self.priority = priority
+        self.visibility = visibility
         self.isEnabled = isEnabled
         self.icon = nil
         self.role = role
@@ -58,12 +67,13 @@ public struct NavigationAction {
         title: String,
         icon: ShellNavigationIcon?,
         priority: Int = 0,
+        visibility: ShellNavigationActionVisibility = .automatic,
         isEnabled: Bool = true,
         role: ShellNavigationActionRole = .normal,
         axisBehavior: ShellNavigationActionAxisBehavior = .automatic,
         handler: @escaping () -> Void
     ) {
-        self.init(id: id, title: title, priority: priority, isEnabled: isEnabled,
+        self.init(id: id, title: title, priority: priority, visibility: visibility, isEnabled: isEnabled,
                   role: role, axisBehavior: axisBehavior, handler: handler)
         self.icon = icon
     }
@@ -74,13 +84,14 @@ public struct NavigationAction {
         navButton: ShellNavButton,
         icon: ShellNavigationIcon? = nil,
         priority: Int = 0,
+        visibility: ShellNavigationActionVisibility = .automatic,
         isEnabled: Bool = true,
         role: ShellNavigationActionRole = .normal,
         axisBehavior: ShellNavigationActionAxisBehavior = .verticalPreferred,
         handler: @escaping () -> Void
     ) {
-        self.init(id: id, title: title, icon: icon, priority: priority, isEnabled: isEnabled,
-                  role: role, axisBehavior: axisBehavior, handler: handler)
+        self.init(id: id, title: title, icon: icon, priority: priority, visibility: visibility,
+                  isEnabled: isEnabled, role: role, axisBehavior: axisBehavior, handler: handler)
         self.navButton = navButton
     }
 
@@ -144,34 +155,29 @@ public struct ScreenConfiguration {
 
 @MainActor
 public struct ShellActionLayout {
-    /// First occurrence wins for duplicate IDs. Priority affects selection, not display order.
+    /// First occurrence wins for duplicate IDs. Always-visible actions are selected before priority.
     public static func visibleIDs(actions: [NavigationAction], maximumVisible: Int) -> [String] {
-        guard maximumVisible > 0 else { return [] }
         let unique = uniqueActions(actions)
-        let selected = unique.enumerated().sorted {
-            let firstConfirms = $0.element.role == .confirmation
-            let secondConfirms = $1.element.role == .confirmation
-            if firstConfirms != secondConfirms { return firstConfirms }
-            if $0.element.priority == $1.element.priority { return $0.offset < $1.offset }
-            return $0.element.priority > $1.element.priority
-        }.prefix(maximumVisible)
-        let selectedIDs = Set(selected.map { $0.element.id })
+        let required = unique.filter { $0.visibility == .always }
+        guard maximumVisible > 0 else { return required.map(\.id) }
+
+        let automaticCapacity = maximumVisible <= required.count ? 0 : maximumVisible - required.count
+        let selectedAutomatic = orderedActions(unique)
+            .filter { $0.action.visibility == .automatic }
+            .prefix(automaticCapacity)
+        var selectedIDs = Set(required.map(\.id))
+        selectedIDs.formUnion(selectedAutomatic.map { $0.action.id })
         return unique.filter { selectedIDs.contains($0.id) }.map(\.id)
     }
 
     static func visibleIDs(actions: [NavigationAction], availableWidth: CGFloat, width: (NavigationAction) -> CGFloat) -> [String] {
         let unique = uniqueActions(actions)
-        let ordered = unique.enumerated().sorted {
-            let firstConfirms = $0.element.role == .confirmation
-            let secondConfirms = $1.element.role == .confirmation
-            if firstConfirms != secondConfirms { return firstConfirms }
-            return $0.element.priority == $1.element.priority ? $0.offset < $1.offset : $0.element.priority > $1.element.priority
-        }
+        let ordered = orderedActions(unique)
         var remaining = max(0, availableWidth)
         var selected = Set<String>()
         for (_, action) in ordered {
             let needed = max(44, width(action))
-            if needed <= remaining {
+            if action.visibility == .always || needed <= remaining {
                 selected.insert(action.id)
                 remaining -= needed
             }
@@ -182,5 +188,19 @@ public struct ShellActionLayout {
     static func uniqueActions(_ actions: [NavigationAction]) -> [NavigationAction] {
         var seen = Set<String>()
         return actions.filter { seen.insert($0.id).inserted }
+    }
+
+    private static func orderedActions(_ actions: [NavigationAction]) -> [(offset: Int, action: NavigationAction)] {
+        let sorted = actions.enumerated().sorted {
+            if $0.element.visibility != $1.element.visibility {
+                return $0.element.visibility == .always
+            }
+            let firstConfirms = $0.element.role == .confirmation
+            let secondConfirms = $1.element.role == .confirmation
+            if firstConfirms != secondConfirms { return firstConfirms }
+            if $0.element.priority == $1.element.priority { return $0.offset < $1.offset }
+            return $0.element.priority > $1.element.priority
+        }
+        return sorted.map { (offset: $0.offset, action: $0.element) }
     }
 }

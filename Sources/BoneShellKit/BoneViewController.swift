@@ -71,6 +71,8 @@ open class BoneViewController: UIViewController {
     }
     private var navigationActionStates: [String: NavigationActionState] = [:]
     private var appliedSystemActionLayout = false
+    private var pinnedSystemActionGroup: UIBarButtonItemGroup?
+    private var pinnedSystemActionIDs = Set<String>()
 
     public init() { super.init(nibName: nil, bundle: nil) }
     public required init?(coder: NSCoder) { super.init(coder: coder) }
@@ -650,7 +652,9 @@ open class BoneViewController: UIViewController {
             item.menuRepresentation = nil
         }
         if #available(iOS 27.0, *) {
-            item.visibilityPriority = UIBarButtonItemVisibilityPriority(rawValue: action.priority)
+            item.visibilityPriority = action.visibility == .always
+                ? UIBarButtonItemVisibilityPriority(rawValue: Int.max)
+                : UIBarButtonItemVisibilityPriority(rawValue: action.priority)
         }
         if #available(iOS 27.1, *) {
             switch action.axisBehavior {
@@ -693,19 +697,47 @@ open class BoneViewController: UIViewController {
 
     @available(iOS 27.0, *)
     private func applySystemNavigationActions(leading: [ShellNavButtonRun], trailing: [ShellNavButtonRun], material: ShellMaterial) {
+        for id in pinnedSystemActionIDs {
+            navigationActionStates[id]?.group = nil
+        }
+
+        let confirmationID = trailing.first { $0.first.role == .confirmation }?.first.id
+        let pinnedRuns = trailing.filter {
+            $0.first.id == confirmationID || $0.first.visibility == .always
+        }
+        for id in pinnedRuns.flatMap({ $0.actions.map(\.id) }) {
+            navigationActionStates[id]?.group = nil
+        }
+        pinnedSystemActionIDs = Set(pinnedRuns.flatMap { $0.actions.map(\.id) })
+
         func group(for run: ShellNavButtonRun) -> UIBarButtonItemGroup {
             let item = makeBarButton(for: run, material: material)
             let state = actionState(for: run.first)
             if let group = state.group { return group }
             let group = UIBarButtonItemGroup.fixedGroup(representativeItem: nil, items: [item])
-            group.alwaysAvailable = true
+            group.alwaysAvailable = run.first.visibility == .automatic
             state.group = group
             return group
         }
-        let pinnedID = trailing.first { $0.first.role == .confirmation }?.first.id
+
         let leadingGroups = leading.map(group)
-        let trailingGroups = trailing.filter { $0.first.id != pinnedID }.map(group)
-        let pinned = trailing.first { $0.first.id == pinnedID }.map(group)
+        let pinnedIDs = Set(pinnedRuns.map { $0.first.id })
+        let trailingGroups = trailing.filter { !pinnedIDs.contains($0.first.id) }.map(group)
+        let pinned: UIBarButtonItemGroup?
+        if pinnedRuns.isEmpty {
+            pinnedSystemActionGroup = nil
+            pinned = nil
+        } else {
+            let items = pinnedRuns.map { makeBarButton(for: $0, material: material) }
+            let group = pinnedSystemActionGroup ?? UIBarButtonItemGroup.fixedGroup(
+                representativeItem: nil, items: items
+            )
+            group.barButtonItems = items
+            group.alwaysAvailable = false
+            pinnedSystemActionGroup = group
+            pinned = group
+        }
+
         if !appliedSystemActionLayout {
             navigationItem.leftBarButtonItems = nil
             navigationItem.rightBarButtonItems = nil
@@ -725,6 +757,8 @@ open class BoneViewController: UIViewController {
             navigationItem.pinnedTrailingGroup = nil
         }
         for state in navigationActionStates.values { state.group = nil }
+        pinnedSystemActionGroup = nil
+        pinnedSystemActionIDs.removeAll()
         appliedSystemActionLayout = false
     }
 

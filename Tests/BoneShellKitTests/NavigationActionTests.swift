@@ -45,6 +45,50 @@ final class NavigationActionTests: XCTestCase {
         XCTAssertEqual(items(page).first { $0.accessibilityIdentifier == "action.done" }?.style, .done)
         XCTAssertEqual(Set(page.visibleActionIDs + page.overflowActionIDs), ["other", "done"])
     }
+    func testAlwaysVisibilityBypassesClassicWidthBudget() throws {
+        let page = ActionFixture()
+        page.trailing = [
+            NavigationAction(id: "ordinary", title: "普通动作", symbol: "star", priority: Int.max) {},
+            NavigationAction(id: "required", title: "必须一直显示", visibility: .always) {}
+        ]
+        host(page, presentation: .classic)
+        page.view.bounds.size = CGSize(width: 320, height: 600)
+        page.refreshScreenConfiguration()
+
+        XCTAssertFalse(page.usesSystemNavigationActionLayout)
+        XCTAssertEqual(page.visibleActionIDs, ["required"])
+        XCTAssertEqual(page.overflowActionIDs, ["ordinary"])
+        XCTAssertNotNil(items(page).first { $0.accessibilityIdentifier == "action.required" })
+    }
+
+    func testAlwaysVisibilityPinsTrailingActionInNativeLayout() throws {
+        guard #available(iOS 27.0, *) else { throw XCTSkip("Native groups require iOS 27") }
+        let page = ActionFixture()
+        page.leading = [
+            NavigationAction(id: "leading.required", title: "必须显示在前侧", visibility: .always) {}
+        ]
+        page.trailing = [
+            NavigationAction(id: "ordinary", title: "普通", symbol: "star") {},
+            NavigationAction(id: "required", title: "必须显示", symbol: "circle", visibility: .always) {}
+        ]
+        host(page)
+
+        XCTAssertEqual(
+            page.navigationItem.trailingItemGroups.flatMap(\.barButtonItems).map(\.accessibilityIdentifier),
+            ["action.ordinary"]
+        )
+        XCTAssertEqual(
+            page.navigationItem.leadingItemGroups.flatMap(\.barButtonItems).map(\.accessibilityIdentifier),
+            ["action.leading.required"]
+        )
+        let leadingItem = try XCTUnwrap(page.navigationItem.leadingItemGroups.first?.barButtonItems.first)
+        XCTAssertFalse(page.navigationItem.leadingItemGroups.first?.alwaysAvailable ?? true)
+        XCTAssertEqual(leadingItem.visibilityPriority.rawValue, Int.max)
+        let pinnedItem = try XCTUnwrap(page.navigationItem.pinnedTrailingGroup?.barButtonItems.first)
+        XCTAssertEqual(pinnedItem.accessibilityIdentifier, "action.required")
+        XCTAssertEqual(pinnedItem.visibilityPriority.rawValue, Int.max)
+    }
+
 
     func testSystemLayoutSubmitsEveryUniqueActionWithoutHorizontalPruning() throws {
         guard #available(iOS 27.0, *) else { throw XCTSkip("System action layout requires iOS 27") }

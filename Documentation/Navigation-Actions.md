@@ -8,9 +8,9 @@
 
 | 环境 | 布局与溢出 |
 | --- | --- |
-| iOS 27+、导航解析为 `.system` | 全部唯一动作提交给原生分组；UIKit 按空间、优先级和轴向安排，使用系统溢出菜单 |
+| iOS 27+、导航解析为 `.system` | 全部唯一动作提交给原生分组；UIKit 按空间、优先级、可见性和轴向安排，`.always` 动作保留在栏位结构中 |
 | iOS 27.1+ 原生导航 | 额外映射 `axisBehavior`；实际是否竖排仍由系统姿态与容器环境决定 |
-| iOS 15–26 原生导航 | 保留 SDK 按可用宽度、字体与优先级选择按钮及 `UIMenu` 的兼容路径 |
+| iOS 15–26 原生导航 | 保留 SDK 按可用宽度、字体、可见性与优先级选择按钮及 `UIMenu` 的兼容路径 |
 | `.classic` 导航 | 保留 SDK 横向布局与宽度预算；经典模式继续禁用系统竖向栏位 |
 
 `.automatic` / `.capsule` 在新版系统上使用原生导航，因此符合上表的原生条件。标签栏独立 dock 的适配不在本次导航能力范围内。
@@ -41,7 +41,7 @@ final class EditScreen: BoneViewController {
 
 - **尺寸**：默认按文字、图片的逻辑尺寸（pt）或自定义视图拟合；`size` 指按钮外框，`iconSize` 指图标，`contentInsets` 指内部留白。小图不必拉伸到点击区域大小。在分配的空间内尽可能提供 44 × 44 pt 的不重叠点击区域。标题字号不参与按钮测量。
 - **轴向图标**：`Style.icon` 可独立覆盖动作图标。普通样式不设置 `icon` 时，若动作也没有 `icon` / `symbol` 就显示 `title`；`vertical: .init(icon: .systemSymbol("checkmark"))` 只在实际侧栏显示勾号。
-- **顺序与间距**：`.individual` 将每个动作作为独立项。`.grouped(spacing:)` 按同侧数组顺序，将连续且角色、轴向、优先级一致的自定义项编组；确认动作独立。指定的是组内相邻按钮外框之间的净距，不含首尾空白，也不控制与系统返回键、其他分组或「完成」之间的距离。组按单项参与宽度预算或原生溢出；菜单仍提供每个动作，`priority` 不把可见项重新排序。
+- **顺序与间距**：`.individual` 将每个 `navButton` 作为独立导航项。`.grouped(spacing:)` 只编组同侧数组中相邻且连续的 `navButton`，要求 `role`、`priority`、`visibility` 和 `axisBehavior` 一致。标准 `NavigationAction` 不参与这个自定义按钮编组，确认动作始终独立。`spacing` 以 pt 为单位，控制同一组内相邻按钮外框之间的净距，不含首尾空白，也不控制与系统返回键、其他分组或「完成」之间的距离。编组后的组按单项参与宽度预算或原生溢出，组内每个动作仍保持独立点击区域、菜单项和回调。
 - **Duo**：`navButton:` 默认 `.verticalPreferred`；`.horizontalOnly` 仍可显式指定。只有实际侧栏承载时才采用 `vertical`。省略的字段继承 `normal`，整个 `vertical` 省略则沿用普通内容与材质，不旋转文字。经典栏始终为横向；UIKit 仍决定原生位置、可用尺寸和最终可见性。
 - **材质**：`.none` 透明无背景、`.blur` 背景模糊、`.liquidGlass` 在 iOS 26+ 使用系统液体玻璃，旧版回退为模糊。「减少透明度」开启时后两者改为可读实色，`.none` 仍透明。设置仅影响该按钮，不给相邻按钮或整栏重复叠加背景。
 - **整项 UIView**：可用 `.init(content: .custom(revision: 0, makeView: { MyView() }))` 替换按钮的全部视觉内容，工厂提供未挂载的视图。相同 ID 和内容版本复用，需更换内容时修改 `revision`。视觉内容不要再注册一套动作；栏上、辅助激活和溢出菜单均使用 `NavigationAction.handler`。
@@ -128,7 +128,7 @@ final class ActionsController: BoneViewController {
 
 示例资源 `Bookmark` 和保存 / 收藏业务由宿主提供。修改页面状态后调用 `refreshScreenConfiguration()`，保留业务内容和导航栈。
 
-## 角色、优先级和轴向
+## 角色、优先级、可见性和轴向
 
 | 字段 | 值 | 行为 |
 | --- | --- | --- |
@@ -136,13 +136,15 @@ final class ActionsController: BoneViewController {
 | `role` | `.cancellation` | 放在 leading，保留原生返回按钮 |
 | `role` | `.confirmation` | 放在 trailing；iOS 27+ 原生布局固定首个确认动作，后续确认动作仍可溢出；兼容路径优先保留确认动作 |
 | `priority` | 任意 `Int`，默认 `0` | 同角色下较大的值优先保留；原生映射为 `UIBarButtonItemVisibilityPriority`，不以此重排声明顺序 |
+| `visibility` | `.automatic`（默认） | 允许兼容布局按空间与优先级将动作移入溢出菜单 |
+| `visibility` | `.always` | 兼容布局保留动作；iOS 27+ trailing 动作放入 `pinnedTrailingGroup`，leading 动作使用最高可见性优先级 |
 | `axisBehavior` | `.automatic`（默认） | 系统根据图标、文字及环境推断 |
 | `axisBehavior` | `.horizontalOnly` | iOS 27.1+ 仅支持横向栏位；没有可用横向栏时不保证直接可见，可通过系统菜单访问 |
 | `axisBehavior` | `.verticalPreferred` | iOS 27.1+ 允许横向及竖向，在两者均存在时优先竖向 |
 
 轴向偏好在旧系统可声明但不会调用不可用的 UIKit API。优先竖向不是强制竖排；应同时提供合适图标和标题。图标与文字互相切换、或文字承载关键信息时，应选择稳定的横向行为。
 
-原生动作采用单动作固定分组，保持可在系统菜单中访问。首个确认操作单独放入 `pinnedTrailingGroup`，避免将多个操作固定在不可溢出的同一组。返回动作继续由系统导航栈管理。
+原生动作采用单动作固定分组，保持可在系统菜单中访问。首个确认操作和 trailing 侧的 `.always` 动作放入 `pinnedTrailingGroup`，直接保留在栏位末端。leading 侧的 `.always` 动作使用最高可见性优先级。返回动作继续由系统导航栈管理。
 
 ## 状态、身份与诊断
 
