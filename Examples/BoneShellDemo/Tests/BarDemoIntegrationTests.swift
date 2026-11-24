@@ -51,7 +51,7 @@ final class BarDemoIntegrationTests: XCTestCase {
         for (index, effect) in [ShellNavButton.Effect.none, .blur, .liquidGlass].enumerated() {
             try select("effect", index)
             let actions = page.screenConfiguration.navigation.trailingActions
-            XCTAssertEqual(actions.map(\.id), ["nav.share", "nav.mark", "nav.text"])
+            XCTAssertEqual(actions.map(\.id), ["nav.share", "nav.mark", "nav.detail", "nav.text"])
             let button = try XCTUnwrap(actions.last?.navButton)
             XCTAssertEqual(button.normal.effect, effect)
             XCTAssertEqual(button.normal.size, .preferred(CGSize(width: 56, height: 44)))
@@ -61,6 +61,58 @@ final class BarDemoIntegrationTests: XCTestCase {
         XCTAssertEqual(page.screenConfiguration.navigation.navButtonLayout, .individual)
         XCTAssertTrue(page.screenConfiguration.navigation.trailingActions.allSatisfy { $0.navButton == nil })
     }
+    func testNavButtonConfirmationKeepsItsTitleWithoutSystemDoneStyle() throws {
+        let (_, navigation, page) = navigationScene()
+        let mode = try XCTUnwrap(view(withIdentifier: "navbutton.mode", in: page.view) as? UISegmentedControl)
+        mode.selectedSegmentIndex = 1
+        mode.sendActions(for: .valueChanged)
+        let item = try XCTUnwrap(barButtonItems(in: page.navigationItem).trailing.first {
+            $0.accessibilityIdentifier == "action.nav.text"
+        })
+        XCTAssertEqual(item.style, .plain)
+        func title(in view: UIView?) -> String? {
+            guard let view else { return nil }
+            if let button = view as? ShellNavButtonHost { return button.currentTitle }
+            for child in view.subviews {
+                if let value = title(in: child) { return value }
+            }
+            return nil
+        }
+        XCTAssertEqual(title(in: item.customView), "完成")
+        XCTAssertTrue(navigation.topViewController === page)
+    }
+
+    func testNavButtonActionsRestoreAfterReturningFromDetail() throws {
+        let (tabs, navigation, page) = navigationScene()
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = tabs
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+
+        let mode = try XCTUnwrap(view(withIdentifier: "navbutton.mode", in: page.view) as? UISegmentedControl)
+        mode.selectedSegmentIndex = 1
+        mode.sendActions(for: .valueChanged)
+        let groupWidth = try XCTUnwrap(view(withIdentifier: "navbutton.group-width", in: page.view) as? UISegmentedControl)
+        groupWidth.selectedSegmentIndex = 1
+        groupWidth.sendActions(for: .valueChanged)
+        page.view.layoutIfNeeded()
+
+        let detail = page.openDetail()
+        XCTAssertTrue(navigation.topViewController === detail)
+        _ = navigation.popViewController(animated: false)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        page.view.layoutIfNeeded()
+
+        XCTAssertEqual(page.visibleActionIDs, ["nav.mark", "nav.share", "nav.detail", "nav.text"],
+                       "visible=\(page.visibleActionIDs) overflow=\(page.overflowActionIDs) bounds=\(page.view.bounds) safe=\(page.view.safeAreaInsets)")
+        let items = barButtonItems(in: page.navigationItem)
+        let ids = Set((items.leading + items.trailing).compactMap(\.accessibilityIdentifier))
+        XCTAssertTrue(ids.contains("action.nav.mark"))
+        XCTAssertTrue(ids.contains("action.nav.share"))
+        XCTAssertTrue(ids.contains("action.nav.detail"))
+        XCTAssertTrue(ids.contains("action.nav.text"))
+    }
+
 
     func testNavigationTitleAndButtonSizesAreIndependent() throws {
         let (_, _, page) = navigationScene()
@@ -96,6 +148,32 @@ final class BarDemoIntegrationTests: XCTestCase {
         XCTAssertEqual(tabs.barPresentation, .system)
         page.setPresentationIndexForTesting(0)
         XCTAssertNil(navigation.barPresentation)
+    }
+
+    func testNavigationPresentationPickerExposesAllSDKTypes() throws {
+        let (_, navigation, page) = navigationScene()
+        let picker = try XCTUnwrap(view(withIdentifier: "nav.presentation", in: page.view) as? UISegmentedControl)
+        let expected: [ShellBarPresentation?] = [nil, .system, .classic, .capsule, .automatic]
+        XCTAssertEqual(picker.numberOfSegments, expected.count)
+        for (index, presentation) in expected.enumerated() {
+            picker.selectedSegmentIndex = index
+            picker.sendActions(for: .valueChanged)
+            XCTAssertEqual(page.presentationIndex, index)
+            XCTAssertEqual(navigation.barPresentation, presentation)
+        }
+    }
+
+    func testNavigationMaterialPickerExposesSystemAndCustomMaterials() throws {
+        let (_, _, page) = navigationScene()
+        let picker = try XCTUnwrap(view(withIdentifier: "nav.material", in: page.view) as? UISegmentedControl)
+        let expected: [ShellMaterial] = [.automatic, .systemDefault, .systemGlass, .frostedGlass, .solid]
+        XCTAssertEqual(picker.numberOfSegments, expected.count)
+        for (index, material) in expected.enumerated() {
+            picker.selectedSegmentIndex = index
+            picker.sendActions(for: .valueChanged)
+            XCTAssertEqual(page.materialIndex, index)
+            XCTAssertEqual(page.screenConfiguration.navigation.material, material)
+        }
     }
 
     func testNavigationIconAndAxisPickersApplyConfigurationAndResolveImages() throws {
@@ -157,7 +235,7 @@ final class BarDemoIntegrationTests: XCTestCase {
         let axes = try XCTUnwrap(view(withIdentifier: "nav.axis", in: page.view) as? UISegmentedControl)
         for (identifier, index) in [
             ("nav.title-size", 3), ("nav.title-color", 2), ("nav.subtitle", 0), ("nav.large-title", 1),
-            ("nav.button-size", 3), ("nav.presentation", 2), ("nav.icon", 2), ("nav.axis", 2)
+            ("nav.button-size", 3), ("nav.presentation", 2), ("nav.material", 4), ("nav.icon", 2), ("nav.axis", 2)
         ] {
             let picker = try XCTUnwrap(view(withIdentifier: identifier, in: page.view) as? UISegmentedControl)
             picker.selectedSegmentIndex = index
@@ -176,6 +254,8 @@ final class BarDemoIntegrationTests: XCTestCase {
         XCTAssertNil(page.buttonSize)
         XCTAssertEqual(page.presentationIndex, 0)
         XCTAssertNil(navigation.barPresentation)
+        XCTAssertEqual(page.materialIndex, 0)
+        XCTAssertEqual(page.screenConfiguration.navigation.material, .automatic)
         XCTAssertNil(page.message)
         XCTAssertNil(page.screenConfiguration.navigation.style?.title.font)
         XCTAssertEqual(icons.selectedSegmentIndex, 0)

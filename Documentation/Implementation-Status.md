@@ -1,6 +1,13 @@
 # 当前实现与验证基线
 
-最新发布版本和 Demo 版本为 **v0.12.0 / 0.12.0（Build 1）**。导航动作强制显示策略已随 v0.12.0 发布，NavButton、自定义导航标题与整项自定义标签内容已随 v0.11.0 发布。文字策略功能源码基线为 `bd7a7f6`；0.8 既有功能代码基线为 `9f758a1`。版本变化见 [更新记录](../CHANGELOG.md)。
+最新发布版本和 Demo 版本为 **v0.12.1 / 0.12.1（Build 1）**。iOS 26 导航共享玻璃、NavButton 自定义 cluster 承载、confirmation 外观、返回恢复和兼容宽度预算已随 v0.12.1 发布，导航动作强制显示策略已随 v0.12.0 发布，NavButton、自定义导航标题与整项自定义标签内容已随 v0.11.0 发布。文字策略功能源码基线为 `bd7a7f6`；0.8 既有功能代码基线为 `9f758a1`。版本变化见 [更新记录](../CHANGELOG.md)。
+## v0.12.1 导航修复与验证
+
+- 自定义 NavButton 在系统导航中统一由 `ShellNavButtonCluster` 作为 `UIBarButtonItem.customView` 承载，系统 item 不再同时承载自定义动作的 `primaryAction`、标题和图标。
+- 自定义 confirmation 保留确认语义和优先级，使用自定义按钮外观；普通 confirmation 继续使用 UIKit `.done`。
+- iOS 15–26 兼容宽度预算在一侧没有 action 时把剩余空间交给另一侧。页面重新出现后重新提交按钮与分组，避免 push / pop 后出现空玻璃容器或按钮消失。
+- iOS 26.0 模拟器上的 Demo push / pop 返回回归通过。BoneShellDemo 通用测试构建通过，iPhone 13 Pro / iOS 26.5 的真机构建、安装和启动通过；完整 Xcode 真机测试需要设备保持解锁。
+
 
 ## NavButton 与 Duo 侧栏
 

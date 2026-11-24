@@ -174,7 +174,7 @@ final class ShellClassicNavigationBar: UIView {
             CGRect(x: bounds.minX + (isRTL ? width - logicalX - buttonWidth : logicalX),
                    y: rowY, width: buttonWidth, height: 44)
         }
-        var leading: CGFloat = 8
+        var leading: CGFloat = 16
         if model.showsBack {
             backButton.frame = frame(at: leading, width: 44)
             leading += 44
@@ -184,7 +184,7 @@ final class ShellClassicNavigationBar: UIView {
             button.frame = frame(at: leading, width: size)
             leading += size
         }
-        var trailing = width - 8
+        var trailing = width - 16
         for button in trailingButtons {
             let size = actionWidth(button)
             trailing -= size

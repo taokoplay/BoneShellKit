@@ -1,6 +1,6 @@
 # 导航动作与自适应栏位
 
-本文适用于 **v0.12.0**。导航动作强制显示策略自 v0.12.0 提供，NavButton、Duo 侧栏样式、按钮材质及标题视图自 v0.11.0 提供，最低部署目标仍为 iOS 15，编译使用 Xcode 27.1。
+本文适用于 **v0.12.1**。导航动作强制显示策略自 v0.12.0 提供，iOS 26 导航共享玻璃、NavButton 返回恢复和自定义 confirmation 行为自 v0.12.1 提供，NavButton、Duo 侧栏样式、按钮材质及标题视图自 v0.11.0 提供，最低部署目标仍为 iOS 15，编译使用 Xcode 27.1。
 
 ## 一次声明，按容器环境呈现
 
@@ -44,6 +44,11 @@ final class EditScreen: BoneViewController {
 - **顺序与间距**：`.individual` 将每个 `navButton` 作为独立导航项。`.grouped(spacing:)` 只编组同侧数组中相邻且连续的 `navButton`，要求 `role`、`priority`、`visibility` 和 `axisBehavior` 一致。标准 `NavigationAction` 不参与这个自定义按钮编组，确认动作始终独立。`spacing` 以 pt 为单位，控制同一组内相邻按钮外框之间的净距，不含首尾空白，也不控制与系统返回键、其他分组或「完成」之间的距离。编组后的组按单项参与宽度预算或原生溢出，组内每个动作仍保持独立点击区域、菜单项和回调。
 - **Duo**：`navButton:` 默认 `.verticalPreferred`；`.horizontalOnly` 仍可显式指定。只有实际侧栏承载时才采用 `vertical`。省略的字段继承 `normal`，整个 `vertical` 省略则沿用普通内容与材质，不旋转文字。经典栏始终为横向；UIKit 仍决定原生位置、可用尺寸和最终可见性。
 - **材质**：`.none` 透明无背景、`.blur` 背景模糊、`.liquidGlass` 在 iOS 26+ 使用系统液体玻璃，旧版回退为模糊。「减少透明度」开启时后两者改为可读实色，`.none` 仍透明。设置仅影响该按钮，不给相邻按钮或整栏重复叠加背景。
+- **系统项与自定义项**：`navButton:` 的动作由 SDK 创建 `ShellNavButtonHost` 和 `ShellNavButtonCluster`，再把 cluster 作为 `UIBarButtonItem.customView`。SDK 不同时使用系统 item 的 `primaryAction`、标题或图标承载同一个自定义动作。宿主只需要提供 `NavigationAction.handler`。
+- **确认动作**：`role: .confirmation` 仍参与原生优先级、固定位置和兼容宽度预算。自定义 confirmation 使用自定义按钮的文字与材质，不叠加 UIKit `.done` 的系统突出外观；未使用 `navButton:` 的 confirmation 继续使用系统 `.done` 样式。
+- **系统玻璃**：`ShellMaterial.systemGlass` 保留 UIKit 的共享玻璃背景。不要通过 `hidesSharedBackground` 关闭玻璃，再在每个自定义按钮上重复绘制一层系统表面。
+- **刷新与返回**：页面在 `viewWillAppear`、`viewDidAppear` 和布局变化时可能重新提交动作。SDK 按稳定 ID 复用 item、cluster 和按钮，并在 pop 完成后重新写入分组内容。宿主更新动作后仍需调用 `refreshScreenConfiguration()`。
+- **iOS 15–26 宽度预算**：当 leading 没有动作时，兼容路径把可用侧向空间交给 trailing；当 trailing 没有动作时，把空间交给 leading。放不下的普通动作进入 `UIMenu`，确认动作按其角色优先保留。
 - **整项 UIView**：可用 `.init(content: .custom(revision: 0, makeView: { MyView() }))` 替换按钮的全部视觉内容，工厂提供未挂载的视图。相同 ID 和内容版本复用，需更换内容时修改 `revision`。视觉内容不要再注册一套动作；栏上、辅助激活和溢出菜单均使用 `NavigationAction.handler`。
 
 ## 标题菜单与自定义按钮
@@ -160,6 +165,6 @@ final class ActionsController: BoneViewController {
 
 ## 范围与验收
 
-v0.12.0 提供标准动作、强制显示策略、自定义图片、角色、轴向偏好、NavButton 以及自定义标题视图。加载 / badge 声明、菜单树和自定义经典竖向 renderer 仍未提供。
+v0.12.1 提供标准动作、强制显示策略、自定义图片、角色、轴向偏好、NavButton、自定义标题视图和 iOS 26 导航恢复行为。自定义 NavButton 的系统承载、confirmation 外观、共享玻璃和返回恢复规则见上文。加载 / badge 声明、菜单树和自定义经典竖向 renderer 仍未提供。
 
 Demo“导航栏”页提供符号 / 本地图片 / UIImage 与自动 / 仅横向 / 优先侧边切换；“导航与多按钮”页用于观察优先级及实际溢出。已执行的设备、用例与截图分别记录在 [实现与验证记录](Implementation-Status.md)，不以 API 编译通过代替 Duo 全姿态验收。

@@ -1,6 +1,6 @@
 # SDK 当前范围与后续规划
 
-本文以 **v0.12.0 / Demo 0.12.0（Build 1）** 为当前接口范围。导航动作强制显示策略自 v0.12.0 提供，NavButton、导航标题视图和标签栏整项自定义视图自 v0.11.0 提供；导航图片、角色、轴向偏好及系统动作布局自 v0.10.0 提供；标签文字显示策略自 v0.9.0 提供。接入从 [README](../README.md) 开始，已执行范围见 [验证记录](Implementation-Status.md)。完整设计设想保留在 [归档草案](Archive/Design-Draft.md)，其中的拟定类型不属于当前公开 API。
+本文以 **v0.12.1 / Demo 0.12.1（Build 1）** 为当前接口范围。iOS 26 导航共享玻璃、NavButton 返回恢复和自定义 confirmation 行为自 v0.12.1 提供，导航动作强制显示策略自 v0.12.0 提供，NavButton、导航标题视图和标签栏整项自定义视图自 v0.11.0 提供；导航图片、角色、轴向偏好及系统动作布局自 v0.10.0 提供；标签文字显示策略自 v0.9.0 提供。接入从 [README](../README.md) 开始，已执行范围见 [验证记录](Implementation-Status.md)。完整设计设想保留在 [归档草案](Archive/Design-Draft.md)，其中的拟定类型不属于当前公开 API。
 
 导航动作的完整用法及兼容边界见 [导航动作与自适应](Navigation-Actions.md)。
 
@@ -84,7 +84,7 @@ BoneShellKit 是一个 UIKit 优先的 Swift Package，提供单一 `BoneShellKi
 
 原生胶囊配置附加动作时，SDK 使用独立 `UITabBar` 与外侧圆按钮组成 dock；显式 `.system` 在 iOS 26+ 使用 `UITabAccessory` 槽位，旧系统使用拦截选择的原生 tab item。经典栏的动作位于栏内，兼容胶囊的动作位于外侧。附件默认是动作模型，也可以通过 `customContent` 提供整项自定义视图。
 
-`NavigationAction` 保留原有字段，v0.10.0 新增 `icon`、`role`、`axisBehavior`，v0.11.0 新增可选 [NavButton](Navigation-Actions.md#自定义导航动作)，v0.12.0 新增 `visibility`。iOS 27+ 原生导航提交全部唯一动作（显式编组时共享承载项），系统负责溢出；经典及 iOS 15–26 使用宽度预算。重复 ID 取首个，按 ID 复用，刷新后调用最新的有效回调。尚未提供 `additionalOverflowItems` 声明、加载态、导航 badge 或任意菜单树接口。
+`NavigationAction` 保留原有字段，v0.10.0 新增 `icon`、`role`、`axisBehavior`，v0.11.0 新增可选 [NavButton](Navigation-Actions.md#自定义导航动作)，v0.12.0 新增 `visibility`，v0.12.1 修复系统共享玻璃、NavButton 承载、confirmation 外观、返回恢复和兼容宽度预算。iOS 27+ 原生导航提交全部唯一动作（显式编组时共享承载项），系统负责溢出；经典及 iOS 15–26 使用宽度预算。重复 ID 取首个，按 ID 复用，刷新后调用最新的有效回调。尚未提供 `additionalOverflowItems` 声明、加载态、导航 badge 或任意菜单树接口。
 
 SDK 渲染的标签目的地超过五个时显示前四个与“更多”，后续目的地由 action sheet 选择；原生 `.system` 交给 `UITabBarController`。当前没有 `UITabGroup` 或 SDK 目的地侧栏模型。
 

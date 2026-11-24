@@ -2,7 +2,7 @@
 
 `ShellBarPresentation` 将栏位外观与字体、颜色、材质分开配置。SDK 默认 `.system`，Demo 默认 `.automatic`。
 
-已发布行为以 v0.12.0 为基线；导航动作强制显示策略自 v0.12.0 提供，NavButton、导航标题视图和标签栏整项自定义 `UIView` 从 v0.11.0 提供。导航动作见 [导航动作](Navigation-Actions.md)，运行结果见 [验证记录](Implementation-Status.md)。示例需要 UIKit / BoneShellKit，在 `@MainActor` 上使用。
+已发布行为以 v0.12.1 为基线；iOS 26 导航共享玻璃、NavButton 返回恢复和自定义 confirmation 行为自 v0.12.1 提供，导航动作强制显示策略自 v0.12.0 提供，NavButton、导航标题视图和标签栏整项自定义 `UIView` 从 v0.11.0 提供。导航动作见 [导航动作](Navigation-Actions.md)，运行结果见 [验证记录](Implementation-Status.md)。示例需要 UIKit / BoneShellKit，在 `@MainActor` 上使用。
 
 | 类型 | iOS 26 及以上 | iOS 26 以下 |
 | --- | --- | --- |
@@ -47,6 +47,7 @@ override func configureScreen(_ screen: inout ScreenConfiguration) {
 修改页面声明后调用 `refreshScreenConfiguration()`；页面值设为 `nil` 时恢复继承。模式切换保留容器、控制器、导航栈、输入与选中项，不重建业务内容。返回按钮继续执行原生 pop，SDK 不替换原生边缘返回手势的 delegate。
 
 `BoneNavigationController.resolvedBarPresentation` 返回导航实际显示的 `.system` 或 `.classic`；标签容器的同名属性返回解析后的 `.system`、`.classic` 或 `.capsule`。
+系统或经典导航页面 push / pop 后，页面在重新可见时重新提交自身 action。自定义 NavButton 由 cluster 作为 `UIBarButtonItem.customView` 承载，避免返回转场后只剩系统玻璃容器而没有按钮内容。
 
 页面的 `BoneViewController.resolvedBarPresentation` 优先反映所在导航容器；需要判断标签栏时应读取标签容器自己的结果，结合 `dockBarView` 等诊断入口区分原生 dock。
 

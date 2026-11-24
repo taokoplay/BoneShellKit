@@ -124,6 +124,11 @@ open class BoneViewController: UIViewController {
     open override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         isShellVisible = true
+        // A navigation pop can finish after viewWillAppear and let the outgoing
+        // page's bar state win one last layout pass. Re-submit this page's actions
+        // after the controller is actually visible.
+        lastActionLayoutKey = nil
+        updateNavigationActions()
         updateShellBackgrounds(playbackActive: true)
     }
 
@@ -519,21 +524,24 @@ open class BoneViewController: UIViewController {
         let titleBudget = min(preferredTitleBudget, max(44, usableWidth - 24 - primaryReserve * 2))
         subtitleTitleView?.maximumWidth = titleBudget
         customNavigationTitle?.maximumWidth = max(44, titleBudget)
-        let sideBudget = max(0, (usableWidth - titleBudget - 24) / 2)
         let backWidth = backTitle.map {
             min(128, max(44, ($0 as NSString).size(
                 withAttributes: [.font: buttonFont]
             ).width + 28))
         } ?? 0
+        // Give an empty side's share to the side that actually owns actions.
+        let sideSpace = max(0, usableWidth - titleBudget - 24)
+        let leadingSideBudget = trailingRuns.isEmpty ? sideSpace : sideSpace / 2
+        let trailingSideBudget = leadingRuns.isEmpty ? sideSpace : sideSpace / 2
         // A run occupies one slot including its measured gaps; never split it when pruning.
         let leftHeads = leadingRuns.map(\.first), rightHeads = trailingRuns.map(\.first)
         let leadingVisible = Set(ShellActionLayout.visibleIDs(actions: leftHeads,
-            availableWidth: max(0, sideBudget - backWidth), width: navigationActionWidth))
+            availableWidth: max(0, leadingSideBudget - backWidth), width: navigationActionWidth))
         var trailingVisible = Set(ShellActionLayout.visibleIDs(actions: rightHeads,
-            availableWidth: sideBudget, width: navigationActionWidth))
+            availableWidth: trailingSideBudget, width: navigationActionWidth))
         if leadingVisible.count + trailingVisible.count < leadingRuns.count + trailingRuns.count {
             trailingVisible = Set(ShellActionLayout.visibleIDs(actions: rightHeads,
-                availableWidth: max(0, sideBudget - 44), width: navigationActionWidth))
+                availableWidth: max(0, trailingSideBudget - 44), width: navigationActionWidth))
         }
         let leftRuns = leadingRuns.filter { leadingVisible.contains($0.first.id) }
         let rightRuns = trailingRuns.filter { trailingVisible.contains($0.first.id) }
@@ -635,18 +643,20 @@ open class BoneViewController: UIViewController {
         state.action = action
         let item = state.item
         // 菜单中的 UIAction 在旧系统上不可变；配置刷新时替换表示，保留 item 身份。
-        item.primaryAction = run.others.isEmpty ? makeMenuAction(action) : nil
-        item.title = action.title
-        item.image = action.resolvedImage(traits: traitCollection)
-        item.style = action.role == .confirmation ? .done : .plain
+        let usesCustomButton = action.navButton != nil
+        item.primaryAction = usesCustomButton || !run.others.isEmpty ? nil : makeMenuAction(action)
+        item.title = usesCustomButton ? nil : action.title
+        item.image = usesCustomButton ? nil : action.resolvedImage(traits: traitCollection)
+        item.style = action.role == .confirmation && !usesCustomButton ? .done : .plain
         item.width = usesSystemNavigationActionLayout ? 0 : navigationActionWidth(action)
         item.isEnabled = run.others.isEmpty ? action.isEnabled : run.actions.contains { $0.isEnabled }
         if #available(iOS 27.0, *) {
-            item.menuRepresentation = run.others.isEmpty ? makeMenuAction(action)
+            item.menuRepresentation = run.others.isEmpty
+                ? (usesCustomButton ? nil : makeMenuAction(action))
                 : UIMenu(options: .displayInline, children: run.actions.map(makeMenuAction))
         } else if !run.others.isEmpty, #available(iOS 16.0, *) {
             item.menuRepresentation = UIMenu(options: .displayInline, children: run.actions.map(makeMenuAction))
-        } else if action.navButton == nil, #available(iOS 16.0, *) {
+        } else if !usesCustomButton, #available(iOS 16.0, *) {
             item.menuRepresentation = makeMenuAction(action)
         } else if #available(iOS 16.0, *) {
             item.menuRepresentation = nil
@@ -668,14 +678,11 @@ open class BoneViewController: UIViewController {
         configureSharedBackground(for: item, material: material)
         if let cluster = state.cluster {
             if resolvedBarPresentation != .classic {
-                if run.others.isEmpty, !usesSystemNavigationActionLayout, let button = cluster.buttons.first {
-                    button.removeFromSuperview()
-                    item.customView = button
-                } else if item.customView !== cluster {
-                    item.customView = cluster
-                }
+                // Keep the cluster as the custom view even for one action. UIKit can
+                // detach a bare child button during a navigation-bar relayout,
+                // leaving its glass container visible with no content.
+                if item.customView !== cluster { item.customView = cluster }
             }
-            if #available(iOS 26.0, *) { item.hidesSharedBackground = true }
         }
         return item
     }
@@ -713,8 +720,10 @@ open class BoneViewController: UIViewController {
         func group(for run: ShellNavButtonRun) -> UIBarButtonItemGroup {
             let item = makeBarButton(for: run, material: material)
             let state = actionState(for: run.first)
-            if let group = state.group { return group }
-            let group = UIBarButtonItemGroup.fixedGroup(representativeItem: nil, items: [item])
+            let group = state.group ?? UIBarButtonItemGroup.fixedGroup(representativeItem: nil, items: [item])
+            // UIKit may detach or empty a group while a navigation pop is completing.
+            // Reattach the current item before submitting the group again.
+            group.barButtonItems = [item]
             group.alwaysAvailable = run.first.visibility == .automatic
             state.group = group
             return group
@@ -742,8 +751,8 @@ open class BoneViewController: UIViewController {
             navigationItem.leftBarButtonItems = nil
             navigationItem.rightBarButtonItems = nil
         }
-        if navigationItem.leadingItemGroups != leadingGroups { navigationItem.leadingItemGroups = leadingGroups }
-        if navigationItem.trailingItemGroups != trailingGroups { navigationItem.trailingItemGroups = trailingGroups }
+        navigationItem.leadingItemGroups = leadingGroups
+        navigationItem.trailingItemGroups = trailingGroups
         if navigationItem.pinnedTrailingGroup !== pinned { navigationItem.pinnedTrailingGroup = pinned }
         appliedSystemActionLayout = true
         (navigationController as? BoneNavigationController)?.refreshBarPresentation()

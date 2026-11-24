@@ -6,6 +6,16 @@
 
 后续版本变更待补充。
 
+## 0.12.1
+
+发布标签：[v0.12.1](https://github.com/taokoplay/BoneShellKit/tree/v0.12.1)。
+
+- 修复 iOS 26 系统导航中共享 Liquid Glass 背景被自定义按钮路径关闭的问题。
+- NavButton 在系统栏位中统一由 `ShellNavButtonCluster` 承载，避免导航栏重排或返回转场后出现空玻璃容器。
+- 自定义 confirmation NavButton 保留确认语义和优先级，不再叠加 UIKit `.done` 外观，按钮文字和材质由自定义视图负责。
+- 修复 iOS 15–26 兼容导航在 leading 为空时错误压缩 trailing action 的宽度预算，返回页面后重新提交导航分组和按钮内容。
+- Demo 导航页支持全部栏位呈现和材质选择，并补充 NavButton confirmation、push / pop 恢复及材质配置回归。
+
 ## 0.12.0
 
 发布标签：[v0.12.0](https://github.com/taokoplay/BoneShellKit/tree/v0.12.0)。

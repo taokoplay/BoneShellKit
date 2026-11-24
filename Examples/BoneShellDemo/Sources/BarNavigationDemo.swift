@@ -10,6 +10,7 @@ final class NavigationBarDemoController: DemoStackController {
     private(set) var usesLargeTitle = false
     private(set) var buttonSize: CGFloat?
     private(set) var presentationIndex = 0
+    private(set) var materialIndex = 0
     private(set) var iconIndex = 0
     private(set) var axisIndex = 0
     private(set) var message: String?
@@ -67,7 +68,8 @@ final class NavigationBarDemoController: DemoStackController {
     private let sizes: [CGFloat] = [16, 20, 24]
     private let buttonSizes: [CGFloat] = [15, 17, 19]
     private let colorNames = ["系统", "蓝", "橙"]
-    private let presentationNames = ["跟随标签", "系统", "经典"]
+    private let presentationNames = ["跟随标签", "系统", "经典", "胶囊", "自动"]
+    private let materialNames = ["自动", "系统默认", "系统玻璃", "模糊玻璃", "实色"]
     private let iconNames = ["符号", "本地图片", "UIImage"]
     private let axisNames = ["自动", "仅横向", "优先侧边"]
     private let axisBehaviors: [ShellNavigationActionAxisBehavior] = [.automatic, .horizontalOnly, .verticalPreferred]
@@ -77,7 +79,8 @@ final class NavigationBarDemoController: DemoStackController {
     private let subtitlePicker = UISegmentedControl(items: ["关", "开"])
     private let largeTitlePicker = UISegmentedControl(items: ["关", "开"])
     private let buttonSizePicker = UISegmentedControl(items: ["系统", "15", "17", "19"])
-    private let presentationPicker = UISegmentedControl(items: ["跟随标签", "系统", "经典"])
+    private let presentationPicker = UISegmentedControl(items: ["跟随标签", "系统", "经典", "胶囊", "自动"])
+    private let materialPicker = UISegmentedControl(items: ["自动", "系统默认", "系统玻璃", "模糊玻璃", "实色"])
     private let iconPicker = UISegmentedControl(items: ["符号", "本地图片", "UIImage"])
     private let axisPicker = UISegmentedControl(items: ["自动", "仅横向", "优先侧边"])
     private let customTitlePicker = UISegmentedControl(items: ["文字", "自定义"])
@@ -140,7 +143,11 @@ final class NavigationBarDemoController: DemoStackController {
     }
 
     private var presentation: ShellBarPresentation? {
-        [nil, .system, .classic][presentationIndex]
+        [nil, .system, .classic, .capsule, .automatic][presentationIndex]
+    }
+
+    private var material: ShellMaterial {
+        [.automatic, .systemDefault, .systemGlass, .frostedGlass, .solid][materialIndex]
     }
 
     private var detailIcon: ShellNavigationIcon {
@@ -163,6 +170,7 @@ final class NavigationBarDemoController: DemoStackController {
         screen.navigation.usesLargeTitle = usesLargeTitle
         if showsCustomTitle { screen.navigation.titleView = titleButton }
         screen.navigation.style = style
+        screen.navigation.material = material
         if navButtons.mode == 1 {
             screen.navigation.navButtonLayout = navButtons.spacing == 0 ? .individual
                 : .grouped(spacing: [0, 8, 16][navButtons.spacing - 1])
@@ -198,9 +206,15 @@ final class NavigationBarDemoController: DemoStackController {
         let done = NavigationAction(id: "nav.text", title: "完成",
                                     navButton: .init(normal: normalStyle(width: widths[navButtons.size]), vertical: vertical),
                                     priority: 30, role: .confirmation) { [weak self] in self?.recordNavButton("完成") }
-        guard navButtons.groupWidth != 0 else { return [done] }
+        let detail = NavigationAction(
+            id: "nav.detail", title: "详情",
+            navButton: .init(normal: normalStyle(width: 44, iconSize: CGSize(width: 20, height: 20))),
+            icon: .systemSymbol("arrow.right"), priority: 20,
+            axisBehavior: axisBehaviors[axisIndex]
+        ) { [weak self] in self?.openDetail() }
+        guard navButtons.groupWidth != 0 else { return [detail, done] }
 
-        // Only the two ordinary actions form a group; the confirmation keeps its own slot.
+        // 标记与分享形成一个组，详情和完成保持独立语义。
         let icons = ShellNavButton(normal: normalStyle(width: navButtons.groupWidth == 1 ? 44 : 400,
                                                        iconSize: CGSize(width: 20, height: 20)))
         var actions = [("nav.mark", "标记", "bookmark"), ("nav.share", "分享", "square.and.arrow.up")].map { id, title, symbol in
@@ -209,7 +223,7 @@ final class NavigationBarDemoController: DemoStackController {
             }
         }
         if navButtons.order == 1 { actions.reverse() }
-        return actions + [done]
+        return actions + [detail, done]
     }
 
     private func recordNavButton(_ title: String) {
@@ -286,10 +300,14 @@ final class NavigationBarDemoController: DemoStackController {
         }
         card([DemoStyle.label("导航栏形态", style: .headline), presentationPicker,
               DemoStyle.label("“跟随标签”使用标签栏的形态；其它选项只作用于导航栏。", style: .footnote, color: .secondaryLabel)])
-
-        button("打开输入详情", symbol: "arrow.right.circle", id: "nav.detail") { [weak self] in
-            self?.openDetail()
+        bind(materialPicker, id: "nav.material") { [weak self] index in
+            guard let self else { return }
+            self.materialIndex = index
+            self.apply()
         }
+        card([DemoStyle.label("导航栏材质", style: .headline), materialPicker,
+              DemoStyle.label("标准模式使用系统 UIBarButtonItem 共享玻璃，NavButton 模式使用自定义按钮材质。", style: .footnote, color: .secondaryLabel)])
+
         for (picker, id, key) in navButtonPickers {
             bind(picker, id: "navbutton.\(id)") { [weak self] index in
                 guard let self else { return }
@@ -330,6 +348,7 @@ final class NavigationBarDemoController: DemoStackController {
         usesLargeTitle = false
         buttonSize = nil
         presentationIndex = 0
+        materialIndex = 0
         iconIndex = 0
         axisIndex = 0
         showsCustomTitle = false
@@ -379,6 +398,7 @@ final class NavigationBarDemoController: DemoStackController {
         largeTitlePicker.selectedSegmentIndex = usesLargeTitle ? 1 : 0
         buttonSizePicker.selectedSegmentIndex = buttonSize.flatMap { buttonSizes.firstIndex(of: $0) }.map { $0 + 1 } ?? 0
         presentationPicker.selectedSegmentIndex = presentationIndex
+        materialPicker.selectedSegmentIndex = materialIndex
         iconPicker.selectedSegmentIndex = iconIndex
         axisPicker.selectedSegmentIndex = axisIndex
         customTitlePicker.selectedSegmentIndex = showsCustomTitle ? 1 : 0
@@ -396,7 +416,7 @@ final class NavigationBarDemoController: DemoStackController {
         let buttons = buttonSize.map { "\(Int($0)) pt" } ?? "系统"
         let subtitle = showsSubtitle ? "开" : "关"
         let large = usesLargeTitle ? "开" : "关"
-        let text = "标题：\(size) / \(colorNames[colorIndex])\n按钮：\(buttons)\n图标：\(iconNames[iconIndex]) / 方向：\(axisNames[axisIndex])\n副标题：\(subtitle) / 大标题：\(large)\n形态：\(presentationNames[presentationIndex])"
+        let text = "标题：\(size) / \(colorNames[colorIndex])\n按钮：\(buttons)\n图标：\(iconNames[iconIndex]) / 方向：\(axisNames[axisIndex])\n副标题：\(subtitle) / 大标题：\(large)\n形态：\(presentationNames[presentationIndex])\n材质：\(materialNames[materialIndex])"
         let titleMode = showsCustomTitle ? "\n自定义标题：\(selectedTitle)" : ""
         let count = navButtons.mode == 1 ? "\nNavButton 点击：\(navButtonTapCount) 次" : ""
         let full = text + titleMode + count + (message.map { "\n" + $0 } ?? "")
