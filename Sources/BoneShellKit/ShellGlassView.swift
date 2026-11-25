@@ -81,6 +81,7 @@ public final class ShellGlassView: UIView {
             contentView.backgroundColor = traitCollection.userInterfaceStyle == .dark
                 ? UIColor.white.withAlphaComponent(0.04)
                 : UIColor.white.withAlphaComponent(0.16)
+
             layer.borderWidth = 1 / max(1, traitCollection.displayScale)
             layer.borderColor = (traitCollection.userInterfaceStyle == .dark
                 ? UIColor.white.withAlphaComponent(0.24)
@@ -88,6 +89,22 @@ public final class ShellGlassView: UIView {
         case .systemDefault, .automatic:
             effectView.effect = UIBlurEffect(style: .systemMaterial)
         }
+    }
+
+    /// 同步外层材质视图与内部系统效果层的圆角裁剪。
+    public override func layoutSubviews() {
+        super.layoutSubviews()
+        synchronizeCornerRadius()
+    }
+
+    func synchronizeCornerRadius() {
+        let radius = layer.cornerRadius
+        effectView.layer.cornerRadius = radius
+        effectView.layer.cornerCurve = .continuous
+        effectView.layer.masksToBounds = true
+        effectView.contentView.layer.cornerRadius = radius
+        effectView.contentView.layer.cornerCurve = .continuous
+        effectView.contentView.layer.masksToBounds = true
     }
 
     /// 特征环境变化时重新解析材质。

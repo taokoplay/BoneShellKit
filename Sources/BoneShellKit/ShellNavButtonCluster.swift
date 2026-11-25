@@ -162,6 +162,7 @@ final class ShellNavButtonCluster: UIView {
         groupSurface.layer.cornerRadius = min(groupSurface.bounds.width, groupSurface.bounds.height) / 2
         groupSurface.layer.cornerCurve = .continuous
         groupSurface.layer.masksToBounds = true
+        groupSurface.synchronizeCornerRadius()
         let m = metrics
         guard !buttons.isEmpty else { touchRects = []; return }
         let available = isVertical

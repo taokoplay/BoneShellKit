@@ -6,6 +6,11 @@
 
 后续版本变更待补充。
 
+## 0.13.2
+
+发布标签：[v0.13.2](https://github.com/taokoplay/BoneShellKit/tree/v0.13.2)。
+
+- 修复 iOS 26 真机的 Liquid Glass 组材质内部 `UIVisualEffectView` 未同步圆角 mask，按钮组不再显示为直角矩形。
 ## 0.13.1
 
 发布标签：[v0.13.1](https://github.com/taokoplay/BoneShellKit/tree/v0.13.1)。

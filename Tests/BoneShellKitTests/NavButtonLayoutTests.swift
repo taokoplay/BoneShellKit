@@ -76,6 +76,8 @@ final class NavButtonLayoutTests: XCTestCase {
         let surface = try XCTUnwrap(cluster.subviews.compactMap { $0 as? ShellGlassView }.first)
         XCTAssertGreaterThan(surface.layer.cornerRadius, 0)
         XCTAssertTrue(surface.layer.masksToBounds)
+        XCTAssertEqual(surface.contentView.layer.cornerRadius, surface.layer.cornerRadius)
+        XCTAssertTrue(surface.contentView.layer.masksToBounds)
         withExtendedLifetime(nav) {}
     }
 
