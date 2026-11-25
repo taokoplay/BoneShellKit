@@ -71,7 +71,11 @@ final class NavButtonLayoutTests: XCTestCase {
         XCTAssertTrue(cluster.buttons.allSatisfy { button in
             button.subviews.compactMap { $0 as? UIVisualEffectView }.isEmpty
         })
-        XCTAssertFalse(item.hidesSharedBackground)
+        XCTAssertTrue(item.hidesSharedBackground)
+        cluster.layoutIfNeeded()
+        let surface = try XCTUnwrap(cluster.subviews.compactMap { $0 as? ShellGlassView }.first)
+        XCTAssertGreaterThan(surface.layer.cornerRadius, 0)
+        XCTAssertTrue(surface.layer.masksToBounds)
         withExtendedLifetime(nav) {}
     }
 

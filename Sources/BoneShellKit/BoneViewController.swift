@@ -685,9 +685,7 @@ open class BoneViewController: UIViewController {
 
     private func clusterMaterial(for run: ShellNavButtonRun) -> ShellMaterial? {
         guard let material = run.groupMaterial else { return nil }
-        let resolved = ShellMaterials.currentResolution(for: material).resolved
-        // On the native iOS 27 path UIKit owns the systemGlass group surface.
-        return usesSystemNavigationActionLayout && resolved == .systemGlass ? nil : material
+        return material
     }
 
     private func makeBarButton(for run: ShellNavButtonRun, material: ShellMaterial) -> UIBarButtonItem {
@@ -732,8 +730,8 @@ open class BoneViewController: UIViewController {
             let resolvedGroupMaterial = ShellMaterials.currentResolution(for: groupMaterial).resolved
             configureSharedBackground(for: item, material: resolvedGroupMaterial)
             if #available(iOS 26.0, *) {
-                let nativeSharedSurface = usesSystemNavigationActionLayout && resolvedGroupMaterial == .systemGlass
-                item.hidesSharedBackground = !nativeSharedSurface
+                // The cluster renders one rounded group surface; avoid UIKit drawing a second shared surface.
+                item.hidesSharedBackground = true
             }
         } else {
             configureSharedBackground(for: item, material: material)

@@ -76,6 +76,11 @@ final class NavigationTitleViewTests: XCTestCase {
             XCTAssertLessThan(host.bounds.width, host.preferredWidth)
             for control in controls { XCTAssertFalse(host.frame.intersects(control.frame)) }
             XCTAssertTrue(bar.bounds.contains(host.frame))
+            if direction == .forceLeftToRight {
+                let leadingEdge = controls.filter { $0.frame.minX < bar.bounds.midX }
+                    .map(\.frame.maxX).max() ?? 0
+                XCTAssertEqual(host.frame.minX, leadingEdge + 4, accuracy: 1)
+            }
             XCTAssertEqual(button.convert(button.bounds, to: host), host.bounds)
         }
         bar.frame.size.width = 600

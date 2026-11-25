@@ -195,7 +195,7 @@ final class ShellClassicNavigationBar: UIView {
             let end = max(start, trailing - 4)
             let titleWidth = min(end - start, customTitleView.preferredWidth)
             let titleHeight = min(usableHeight, 44)
-            let center = min(max(width / 2, start + titleWidth / 2), end - titleWidth / 2)
+            let center = start + titleWidth / 2
             var titleFrame = frame(at: center - titleWidth / 2, width: titleWidth)
             titleFrame.origin.y += (44 - titleHeight) / 2
             titleFrame.size.height = titleHeight

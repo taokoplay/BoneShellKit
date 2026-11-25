@@ -4,6 +4,20 @@
 
 ## 未发布
 
+后续版本变更待补充。
+
+## 0.13.1
+
+发布标签：[v0.13.1](https://github.com/taokoplay/BoneShellKit/tree/v0.13.1)。
+
+- 修复经典导航栏自定义 `titleView` 被居中布局的问题，标题从 leading 控件之后开始布局并保留 RTL 支持。
+- 修复 iOS 27 原生导航按钮组把 Liquid Glass 表面交给 UIKit 后圆角不稳定的问题，统一使用 SDK 的单层圆角组材质并关闭重复共享背景。
+- 补充自定义标题左对齐和原生组圆角的回归断言。
+
+## 0.13.0
+
+发布标签：[v0.13.0](https://github.com/taokoplay/BoneShellKit/tree/v0.13.0)。
+
 - 按职责拆分源码目录：容器类型移入 `Sources/BoneShellKit/Containers/`，导航声明和兼容布局移入 `Sources/BoneShellKit/Navigation/`。
 - `BoneContainers.swift` 拆为导航容器、标签目的地、标签容器和分栏容器文件；`ScreenConfiguration.swift` 拆为导航动作、导航配置、页面配置和动作布局文件。
 - 补充源码结构说明、类型维护入口和拆分后的验证规则；公开 API、模块导入方式和宿主接入方式保持不变。
