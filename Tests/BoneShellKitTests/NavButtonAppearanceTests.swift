@@ -42,6 +42,28 @@ final class NavButtonAppearanceTests: XCTestCase {
         }
     }
 
+    func testNegativeVisualOffsetKeepsImageInsideButtonHost() throws {
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 20, height: 20)).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 20, height: 20))
+        }.withRenderingMode(.alwaysOriginal)
+        var action = NavigationAction(id: "offset", title: "More", icon: .image(image)) {}
+        action.navButton = .init(normal: .init(
+            size: .preferred(CGSize(width: 44, height: 44)),
+            iconSize: CGSize(width: 20, height: 20),
+            contentInsets: .init(top: 4, leading: 8, bottom: 4, trailing: 8)
+        ))
+        let host = ShellNavButtonHost()
+        host.update(action: action, textStyle: .init()) {}
+        host.bounds.size = host.preferredVisualSize
+        host.setModuleVisualOffset(-13, vertical: false)
+        host.layoutIfNeeded()
+        let imageView = try XCTUnwrap(host.imageView)
+        let frame = imageView.convert(imageView.bounds, to: host)
+        XCTAssertGreaterThanOrEqual(frame.minX, host.bounds.minX)
+        XCTAssertLessThanOrEqual(frame.maxX, host.bounds.maxX)
+    }
+
     func testVerticalStyleCanReplaceNormalTitleWithItsOwnIcon() throws {
         let action = NavigationAction(id: "done", title: "完成", navButton: .init(
             normal: .init(size: .preferred(CGSize(width: 72, height: 44))),

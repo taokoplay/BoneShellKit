@@ -29,6 +29,8 @@ final class ShellNavButtonHost: UIButton {
     private var titleFittingWidth: CGFloat = 0
     private var material = Material.none
     private var materialView: UIVisualEffectView?
+    private var moduleVisualOffset: CGFloat = 0
+    private var moduleVisualOffsetVertical = false
     // Keep invalid or unbounded input out of UIKit geometry, without imposing a 44 pt visual minimum.
     private static let extentLimit: CGFloat = 1024
 
@@ -231,14 +233,27 @@ final class ShellNavButtonHost: UIButton {
     }
 
     override var intrinsicContentSize: CGSize { preferredVisualSize }
+    func setModuleVisualOffset(_ offset: CGFloat, vertical: Bool) {
+        moduleVisualOffset = offset.isFinite ? offset : 0
+        moduleVisualOffsetVertical = vertical
+        setNeedsLayout()
+    }
+
+    private func shiftedVisualBounds(_ rect: CGRect) -> CGRect {
+        let shifted = moduleVisualOffsetVertical
+            ? rect.offsetBy(dx: 0, dy: moduleVisualOffset)
+            : rect.offsetBy(dx: moduleVisualOffset, dy: 0)
+        return shifted.intersection(bounds)
+    }
+
     var moduleVisualBounds: CGRect {
         if !customSlot.isHidden, let view = customSlot.subviews.first {
-            return view.frame
+            return shiftedVisualBounds(view.frame)
         }
         let content = contentRect(forBounds: bounds)
         if image(for: .normal) != nil { return imageRect(forContentRect: content) }
-        if title(for: .normal) != nil { return titleRect(forContentRect: content) }
-        return content
+        if title(for: .normal) != nil { return shiftedVisualBounds(titleRect(forContentRect: content)) }
+        return shiftedVisualBounds(content)
     }
 
     override func sizeThatFits(_ size: CGSize) -> CGSize {
@@ -266,7 +281,7 @@ final class ShellNavButtonHost: UIButton {
         guard let image = image(for: .normal), image.size.width > 0, image.size.height > 0 else { return .zero }
         let scale = min(min(rect.width, iconBox.width) / image.size.width, min(rect.height, iconBox.height) / image.size.height)
         let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-        return CGRect(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2, width: size.width, height: size.height)
+        return shiftedVisualBounds(CGRect(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2, width: size.width, height: size.height))
     }
 
     override func titleRect(forContentRect rect: CGRect) -> CGRect { rect }

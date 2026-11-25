@@ -2,6 +2,11 @@
 
 已发布版本按 Git 标签记录。接入方式见 [README](README.md)，实际执行范围见 [验证记录](Documentation/Implementation-Status.md)。
 
+## 0.13.4
+
+发布标签：[v0.13.4](https://github.com/taokoplay/BoneShellKit/tree/v0.13.4)。
+
+- 修复模块间距校正移动按钮组内容导致独立图标裁剪或组内左右留白变化的问题。
 ## 0.13.3
 
 发布标签：[v0.13.3](https://github.com/taokoplay/BoneShellKit/tree/v0.13.3)。

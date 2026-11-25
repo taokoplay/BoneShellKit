@@ -171,12 +171,11 @@ final class ShellNavButtonCluster: UIView {
         let groupLength = isVertical
             ? max(0, bounds.height - moduleSpacingAfter)
             : max(0, bounds.width - moduleSpacingAfter)
-        let offset = isVertical ? CGPoint(x: 0, y: moduleVisualOffset) : CGPoint(x: moduleVisualOffset, y: 0)
-        func shifted(_ frame: CGRect) -> CGRect { frame.offsetBy(dx: offset.x, dy: offset.y) }
         let groupFrame = isVertical
             ? CGRect(x: bounds.minX, y: bounds.minY, width: bounds.width, height: groupLength)
             : CGRect(x: bounds.minX, y: bounds.minY, width: groupLength, height: bounds.height)
-        groupSurface.frame = shifted(groupFrame)
+        buttons.forEach { $0.setModuleVisualOffset(groupSurface.isHidden ? moduleVisualOffset : 0, vertical: isVertical) }
+        groupSurface.frame = groupFrame
         groupSurface.layer.cornerRadius = min(groupSurface.bounds.width, groupSurface.bounds.height) / 2
         groupSurface.layer.cornerCurve = .continuous
         groupSurface.layer.masksToBounds = true
@@ -204,12 +203,12 @@ final class ShellNavButtonCluster: UIView {
         touchRects = buttons.indices.map { i in
             let length = m.lengths[i] * scale
             let span = min(cross, m.cross[i])
-            buttons[i].frame = shifted(rect(p, length, span))
+            buttons[i].frame = rect(p, length, span)
             let need = max(0, 44 - length)
             let left = i == 0 ? min(p, max(need / 2, need - gap / 2)) : min(gap / 2, need / 2)
             let right = i == buttons.count - 1 ? min(max(0, available - p - length), need - left) : min(gap / 2, need - left)
             defer { p += length + gap }
-            return shifted(rect(p - left, length + left + right, min(cross, max(44, span))))
+            return rect(p - left, length + left + right, min(cross, max(44, span)))
         }
     }
 
