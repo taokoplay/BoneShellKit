@@ -1,13 +1,18 @@
 import UIKit
 import AVFoundation
 
-/// A noninteractive media surface. Hosts activate it from their visibility lifecycle.
+/// 非交互式媒体背景视图。宿主应在自身可见性生命周期中控制播放。
 @MainActor
 public final class ShellBackgroundView: UIView {
+    /// 当前应用的背景配置，只读反映最近一次 `apply` 结果。
     public private(set) var configuration: ShellBackgroundConfiguration?
+    /// 当前背景加载或播放状态。
     public private(set) var status = ShellBackgroundStatus(.idle, kind: "none")
+    /// 状态发生变化时调用的回调。
     public var onStatusChange: ((ShellBackgroundStatus) -> Void)?
+    /// 播放预算分配时使用的优先级；数值越大越优先获得播放资格。
     public var playbackPriority: Int = 0 { didSet { ShellBackgroundPlaybackBudget.rebalance() } }
+    /// 当前是否正在播放动态背景。
     public private(set) var isPlaybackRunning = false
 
     private let posterView = UIImageView()
@@ -39,7 +44,12 @@ public final class ShellBackgroundView: UIView {
     private var videoPosterAttempted = false
     private var videoPosterVersion: UInt64 = 0
 
+    /// 创建指定 frame 的背景视图。
+    /// - Parameter frame: 视图的初始 frame。
     public override init(frame: CGRect = .zero) { super.init(frame: frame); initialize() }
+
+    /// 从归档恢复背景视图。
+    /// - Parameter coder: 用于解码视图的归档对象。
     public required init?(coder: NSCoder) { super.init(coder: coder); initialize() }
     deinit { videoPosterGenerator?.cancelAllCGImageGeneration() }
 
@@ -56,9 +66,12 @@ public final class ShellBackgroundView: UIView {
         ShellBackgroundPlaybackBudget.register(self)
     }
 
+    /// 视图隐藏状态变化时重新计算动态背景播放预算。
     public override var isHidden: Bool { didSet { ShellBackgroundPlaybackBudget.rebalance() } }
+    /// 视图透明度变化时重新计算动态背景播放预算。
     public override var alpha: CGFloat { didSet { ShellBackgroundPlaybackBudget.rebalance() } }
 
+    /// 按当前边界布局背景内容并重新计算播放资格。
     public override func layoutSubviews() {
         super.layoutSubviews()
         posterView.frame = bounds
@@ -70,23 +83,29 @@ public final class ShellBackgroundView: UIView {
         ShellBackgroundPlaybackBudget.rebalance()
     }
 
+    /// 视图进入窗口时刷新资源和播放资格。
     public override func didMoveToWindow() {
         super.didMoveToWindow()
         refreshImagesIfNeeded()
         ShellBackgroundPlaybackBudget.rebalance()
     }
 
+    /// 视图进入或离开父视图时重新计算播放资格。
     public override func didMoveToSuperview() {
         super.didMoveToSuperview()
         ShellBackgroundPlaybackBudget.rebalance()
     }
 
+    /// 特征环境变化时刷新图片资源和播放资格。
+    /// - Parameter previousTraitCollection: 变化前的特征环境。
     public override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         refreshImagesIfNeeded()
         ShellBackgroundPlaybackBudget.rebalance()
     }
 
+    /// 应用新的背景配置；传入 nil 会停止并释放当前背景资源。
+    /// - Parameter configuration: 要应用的背景配置；为空时清除背景。
     public func apply(_ configuration: ShellBackgroundConfiguration?) {
         guard let configuration = configuration else { stopAndRelease(); return }
         if self.configuration == configuration {
@@ -128,6 +147,8 @@ public final class ShellBackgroundView: UIView {
         ShellBackgroundPlaybackBudget.rebalance()
     }
 
+    /// 设置宿主是否希望动态背景播放。
+    /// - Parameter active: 为 true 时请求播放，为 false 时请求暂停。
     public func setPlaybackActive(_ active: Bool) {
         let changed = playbackActive != active
         playbackActive = active
@@ -147,7 +168,7 @@ public final class ShellBackgroundView: UIView {
         ShellBackgroundPlaybackBudget.rebalance()
     }
 
-    /// Clears the configuration as well as all owned media. Reapply a configuration to reuse the view.
+    /// 清除配置并释放该视图拥有的全部媒体资源；重新应用配置后可以继续复用视图。
     public func stopAndRelease() {
         generation &+= 1
         configuration = nil

@@ -51,7 +51,7 @@ private final class SplitDetailController: DemoStackController {
     private let selectedLabel = DemoStyle.label("当前条目：1", style: .headline)
     override func configureScreen(_ screen: inout ScreenConfiguration) {
         screen.navigation.title = "详情"
-        screen.navigation.leadingActions = [NavigationAction(id: "split.close", title: "关闭", symbol: "xmark", handler: { [weak self] in self?.onClose?() })]
+        screen.navigation.leadingModules = [NavigationAction(id: "split.close", title: "关闭", symbol: "xmark", handler: { [weak self] in self?.onClose?() })].map(\.asNavigationModule)
         screen.avoidsKeyboard = true
     }
     override func buildDemo() {

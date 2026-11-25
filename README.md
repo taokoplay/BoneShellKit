@@ -147,6 +147,7 @@ Scheme 包含 `BoneShellDemoTests` 和 `BoneShellDemoUITests`；前者同时编�
 
 - [SDK 方法说明](Documentation/Usage-Examples.md)
 - [可设置字段与中文说明](Documentation/API-Reference.md)
+- [源码结构说明](Documentation/Source-Layout.md)
 - [版本更新记录](CHANGELOG.md)
 - [SDK 当前范围与后续规划](Documentation/SDK-Plan.md)
 - [Demo 入口、自动化与待验收矩阵](Documentation/Demo-Test-Plan.md)

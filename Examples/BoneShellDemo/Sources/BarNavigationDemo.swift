@@ -172,13 +172,11 @@ final class NavigationBarDemoController: DemoStackController {
         screen.navigation.style = style
         screen.navigation.material = material
         if navButtons.mode == 1 {
-            screen.navigation.navButtonLayout = navButtons.spacing == 0 ? .individual
-                : .grouped(spacing: [0, 8, 16][navButtons.spacing - 1])
-            screen.navigation.leadingActions = []
-            screen.navigation.trailingActions = customActions()
+            screen.navigation.moduleSpacing = 8
+            screen.navigation.trailingModules = customModules()
             return
         }
-        screen.navigation.trailingActions = [
+        screen.navigation.trailingModules = [
             NavigationAction(id: "nav.text", title: "完成", priority: 30, role: .confirmation) { [weak self] in
                 self?.note("完成")
             },
@@ -186,15 +184,15 @@ final class NavigationBarDemoController: DemoStackController {
                              axisBehavior: axisBehaviors[axisIndex]) { [weak self] in
                 self?.openDetail()
             }
-        ]
-        screen.navigation.leadingActions = [
+        ].map(\.asNavigationModule)
+        screen.navigation.leadingModules = [
             NavigationAction(id: "nav.mark", title: "标记", symbol: "bookmark", priority: 10) { [weak self] in
                 self?.note("标记")
             }
-        ]
+        ].map(\.asNavigationModule)
     }
 
-    private func customActions() -> [NavigationAction] {
+    private func customModules() -> [NavigationModule] {
         func normalStyle(width: CGFloat?, iconSize: CGSize? = nil) -> ShellNavButton.Style {
             .init(size: width.map { .preferred(CGSize(width: $0, height: 44)) } ?? .fitting,
                   iconSize: iconSize, contentInsets: .init(top: 0, leading: 4, bottom: 0, trailing: 4),
@@ -212,18 +210,25 @@ final class NavigationBarDemoController: DemoStackController {
             icon: .systemSymbol("arrow.right"), priority: 20,
             axisBehavior: axisBehaviors[axisIndex]
         ) { [weak self] in self?.openDetail() }
-        guard navButtons.groupWidth != 0 else { return [detail, done] }
+        guard navButtons.groupWidth != 0 else { return [.button(detail), .button(done)] }
 
-        // 标记与分享形成一个组，详情和完成保持独立语义。
-        let icons = ShellNavButton(normal: normalStyle(width: navButtons.groupWidth == 1 ? 44 : 400,
-                                                       iconSize: CGSize(width: 20, height: 20)))
+        let icons = ShellNavButton(normal: normalStyle(
+            width: navButtons.groupWidth == 1 ? 44 : 400,
+            iconSize: CGSize(width: 20, height: 20)
+        ))
         var actions = [("nav.mark", "标记", "bookmark"), ("nav.share", "分享", "square.and.arrow.up")].map { id, title, symbol in
             NavigationAction(id: id, title: title, navButton: icons, icon: .systemSymbol(symbol), priority: 10) { [weak self] in
                 self?.recordNavButton(title)
             }
         }
         if navButtons.order == 1 { actions.reverse() }
-        return actions + [detail, done]
+        let group = NavigationButtonGroup(
+            id: "nav.mark-share",
+            actions: actions,
+            itemSpacing: [0, 8, 16][max(0, min(2, navButtons.spacing))],
+            material: .systemGlass
+        )
+        return [.group(group), .button(detail), .button(done)]
     }
 
     private func recordNavButton(_ title: String) {

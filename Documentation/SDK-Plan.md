@@ -22,7 +22,7 @@ BoneShellKit 是一个 UIKit 优先的 Swift Package，提供单一 `BoneShellKi
 
 宿主创建根容器、提供业务数据和路由；SDK 不提供全局根控制器单例或业务路由系统。`BoneSplitViewController(primary:detail:)` 封装原生双栏，可用于宿主声明的列表 / 详情；选中项、编辑数据与同步仍由宿主管理。
 
-实际源码集中于 `Sources/BoneShellKit/`，并有 `Backgrounds/`、`Classic/`、`Capsule/`、`Accessory/` 子目录；不存在草案中的 `Adapters/`、全局配置上下文或独立 SwiftUI 产品。
+实际源码集中于 `Sources/BoneShellKit/`：容器类型位于 `Containers/`，导航声明模型和兼容布局位于 `Navigation/`，背景、附加操作、经典栏和胶囊栏分别位于 `Backgrounds/`、`Accessory/`、`Classic/` 和 `Capsule/`。页面基类与部分跨渲染器公共承载仍位于根目录。源码边界、`private` extension 约束和维护入口见 [源码结构说明](Source-Layout.md)；不存在草案中的 `Adapters/`、全局配置上下文或独立 SwiftUI 产品。
 
 ## 2. 已有公开接口
 

@@ -325,8 +325,8 @@ private final class ActionFixture: BoneViewController {
     override func configureScreen(_ screen: inout ScreenConfiguration) {
         screen.barPresentation = presentation
         screen.navigation.title = "动作适配"
-        screen.navigation.leadingActions = leading
-        screen.navigation.trailingActions = trailing
+        screen.navigation.leadingModules = leading.map { .button($0) }
+        screen.navigation.trailingModules = trailing.map { .button($0) }
     }
 }
 

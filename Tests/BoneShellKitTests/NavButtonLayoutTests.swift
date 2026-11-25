@@ -4,28 +4,78 @@ import UIKit
 
 @MainActor
 final class NavButtonLayoutTests: XCTestCase {
-    func testOnlyAdjacentCompatibleItemsGroupInDeclarationOrder() {
-        let a = action("a"), b = action("b"), c = action("c")
-        let regular = NavigationAction(id: "text", title: "Text") {}
-        var horizontal = action("horizontal"); horizontal.axisBehavior = .horizontalOnly
-        var done = action("done"); done.role = .confirmation
-        var low = action("low"); low.priority = -1
-        let items = [b, a, regular, c, horizontal, low, done]
-        let runs = ShellNavButtonRun.collect(items, layout: .grouped(spacing: 8))
-        XCTAssertEqual(runs.map { $0.actions.map(\.id) }, [["b", "a"], ["text"], ["c"], ["horizontal"], ["low"], ["done"]])
-        XCTAssertEqual(ShellNavButtonRun.collect(items, layout: .individual).count, items.count)
-        XCTAssertEqual(a.axisBehavior, .verticalPreferred)
-        XCTAssertEqual(regular.axisBehavior, .automatic)
-    }
-    func testGroupedRunsDoNotMixVisibilityPolicies() {
-        var automatic = action("automatic")
-        var always = action("always")
-        automatic.visibility = .automatic
-        always.visibility = .always
+    func testExplicitModulesKeepGroupAtomicAndUseGroupMaterial() throws {
+        var filter = action("filter")
+        filter.priority = 100
+        filter.navButton?.normal.effect = .liquidGlass
+        var search = action("search")
+        search.priority = -100
+        search.navButton?.normal.effect = .liquidGlass
+        let more = action("more")
+        let group = NavigationButtonGroup(
+            id: "tools",
+            actions: [filter, search],
+            itemSpacing: 5,
+            material: .systemGlass
+        )
+        let runs = ShellNavButtonRun.collect(
+            [.group(group), .button(more)],
+            moduleSpacing: 12
+        )
+        XCTAssertEqual(runs.map { $0.actions.map(\.id) }, [["filter", "search"], ["more"]])
+        XCTAssertEqual(runs[0].groupID, "tools")
+        XCTAssertEqual(runs[0].itemSpacing, 5)
+        XCTAssertEqual(runs[0].moduleSpacingAfter, 12)
+        XCTAssertNil(runs[1].groupID)
 
-        let runs = ShellNavButtonRun.collect([automatic, always], layout: .grouped(spacing: 8))
-        XCTAssertEqual(runs.map { $0.actions.map(\.id) }, [["automatic"], ["always"]])
+        let page = NavButtonPage()
+        page.modules = [.group(group)]
+        let nav = BoneNavigationController(rootViewController: page)
+        nav.barPresentation = .classic
+        nav.loadViewIfNeeded()
+        page.loadViewIfNeeded()
+        page.view.bounds.size = CGSize(width: 640, height: 640)
+        page.refreshScreenConfiguration()
+        let item = try XCTUnwrap(page.navigationItem.rightBarButtonItems?.first as? ShellNavigationBarItem)
+        let cluster = try XCTUnwrap(item.classicSlot)
+        XCTAssertTrue(cluster.subviews.contains { $0 is ShellGlassView })
+        XCTAssertTrue(cluster.buttons.allSatisfy { button in
+            button.subviews.compactMap { $0 as? UIVisualEffectView }.isEmpty
+        })
+        withExtendedLifetime(nav) {}
     }
+    func testExplicitModulesSubmitOneNativeGroupPerModule() throws {
+        guard #available(iOS 27.0, *) else { throw XCTSkip("Native module groups require iOS 27") }
+        var filter = action("filter")
+        filter.navButton?.normal.effect = .liquidGlass
+        var search = action("search")
+        search.navButton?.normal.effect = .liquidGlass
+        let group = NavigationButtonGroup(
+            id: "tools",
+            actions: [filter, search],
+            itemSpacing: 5,
+            material: .systemGlass
+        )
+        let page = NavButtonPage()
+        page.modules = [.group(group), .button(action("more"))]
+        let nav = BoneNavigationController(rootViewController: page)
+        nav.barPresentation = .system
+        nav.loadViewIfNeeded()
+        page.loadViewIfNeeded()
+        page.view.bounds.size = CGSize(width: 900, height: 650)
+        page.refreshScreenConfiguration()
+        XCTAssertTrue(page.usesSystemNavigationActionLayout)
+        XCTAssertEqual(page.navigationItem.trailingItemGroups.count, 2)
+        let item = try XCTUnwrap(page.navigationItem.trailingItemGroups.first?.barButtonItems.first)
+        let cluster = try XCTUnwrap(item.customView as? ShellNavButtonCluster)
+        XCTAssertTrue(cluster.buttons.allSatisfy { button in
+            button.subviews.compactMap { $0 as? UIVisualEffectView }.isEmpty
+        })
+        XCTAssertFalse(item.hidesSharedBackground)
+        withExtendedLifetime(nav) {}
+    }
+
+
 
     func testVisualSpacingAndSeparateTargetsInBothDirections() {
         let items = [action("short", width: 24), action("wide", width: 60)]
@@ -59,7 +109,7 @@ final class NavButtonLayoutTests: XCTestCase {
         let page = NavButtonPage()
         var calls: [String] = []
         let done = NavigationAction(id: "done", title: "Done", navButton: .init(normal: .init(size: .preferred(.init(width: 58, height: 32)))), role: .confirmation) { calls.append("done") }
-        page.actions = [done, action("a") { calls.append("a") }, action("b") { calls.append("b") }]
+        page.modules = [.button(done), .button(action("a") { calls.append("a") }), .button(action("b") { calls.append("b") })]
         let nav = BoneNavigationController(rootViewController: UIViewController())
         nav.barPresentation = .classic
         nav.loadViewIfNeeded()
@@ -83,14 +133,14 @@ final class NavButtonLayoutTests: XCTestCase {
         doneSlot.buttons.first?.sendActions(for: .primaryActionTriggered)
         XCTAssertEqual(calls, ["a", "b", "done"])
         XCTAssertFalse(page.navigationItem.hidesBackButton)
-        page.actions = [done]
+        page.modules = [.button(done)]
         page.refreshScreenConfiguration()
         entries.forEach(invoke)
         XCTAssertEqual(calls, ["a", "b", "done"])
         withExtendedLifetime(nav) {}
     }
 
-    func testGroupReordersByIDMigratesBetweenRenderersAndRestoresStandardItem() throws {
+    func testExplicitGroupReordersBetweenRenderersAndRestoresStandardItem() throws {
         let page = NavButtonPage()
         let nav = BoneNavigationController(rootViewController: page)
         nav.barPresentation = .system
@@ -99,8 +149,12 @@ final class NavButtonLayoutTests: XCTestCase {
         page.loadViewIfNeeded()
         page.view.bounds.size = nav.view.bounds.size
         var hits = 0
-        let a = action("a") { hits += 1 }, b = action("b")
-        page.actions = [a, b]
+        let a = action("a") { hits += 1 }
+        let b = action("b")
+        func group(_ actions: [NavigationAction]) -> NavigationButtonGroup {
+            NavigationButtonGroup(id: "actions", actions: actions, itemSpacing: 8, material: .systemGlass)
+        }
+        page.modules = [.group(group([a, b]))]
         page.refreshScreenConfiguration()
         func groupItem() throws -> ShellNavigationBarItem {
             if #available(iOS 27.0, *), page.usesSystemNavigationActionLayout {
@@ -115,7 +169,7 @@ final class NavButtonLayoutTests: XCTestCase {
             XCTAssertEqual(menu.children.compactMap { ($0 as? UIAction)?.identifier.rawValue }, ["action.a", "action.b"])
         }
         var updated = action("a") { hits += 10 }
-        page.actions = [b, updated]
+        page.modules = [.group(group([b, updated]))]
         page.refreshScreenConfiguration()
         let cluster = try XCTUnwrap(try groupItem().customView as? ShellNavButtonCluster)
         XCTAssertEqual(cluster.buttons.map(\.actionID), ["b", "a"])
@@ -131,11 +185,11 @@ final class NavButtonLayoutTests: XCTestCase {
         page.refreshScreenConfiguration()
         XCTAssertTrue(try groupItem().customView === cluster)
         updated.isEnabled = false
-        page.actions = [updated]
+        page.modules = [.group(group([b, updated]))]
         page.refreshScreenConfiguration()
         original.sendActions(for: .primaryActionTriggered)
         XCTAssertEqual(hits, 10)
-        page.actions = [NavigationAction(id: "a", title: "Standard") {}]
+        page.modules = [.button(NavigationAction(id: "a", title: "Standard") {})]
         page.refreshScreenConfiguration()
         XCTAssertNil(try groupItem().customView)
         XCTAssertNil(original.superview)
@@ -154,10 +208,11 @@ final class NavButtonLayoutTests: XCTestCase {
 }
 
 private final class NavButtonPage: BoneViewController {
-    var actions: [NavigationAction] = []
+    var modules: [NavigationModule] = []
+
     override func configureScreen(_ screen: inout ScreenConfiguration) {
         screen.navigation.title = "Source"
-        screen.navigation.navButtonLayout = .grouped(spacing: 8)
-        screen.navigation.trailingActions = actions
+        screen.navigation.moduleSpacing = 12
+        screen.navigation.trailingModules = modules
     }
 }

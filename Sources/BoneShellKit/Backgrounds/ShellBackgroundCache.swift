@@ -38,13 +38,16 @@ struct ShellBackgroundImageError: LocalizedError {
 }
 
 @MainActor
+/// 管理背景图片资源的解码、缓存、预取和请求合并。
 public enum ShellBackgroundCache {
+    /// 内存缓存允许使用的最大成本，单位为字节。
     public static var memoryCostLimit: Int = 48 * 1024 * 1024 {
         didSet {
             storage.totalCostLimit = max(0, memoryCostLimit)
             if memoryCostLimit <= 0 { storage.removeAllObjects() }
         }
     }
+    /// 当前缓存请求、命中、解码和在途任务的统计信息。
     public static var statistics: ShellBackgroundCacheStatistics {
         ShellBackgroundCacheStatistics(requestCount: requests, cacheHitCount: hits,
                                        decodeCount: decodes, inFlightCount: jobs.count)
@@ -76,6 +79,12 @@ public enum ShellBackgroundCache {
         init(_ completion: @escaping Completion) { completions = [completion] }
     }
 
+    /// 预先加载配置中的主背景和海报资源。
+    /// - Parameters:
+    ///   - configuration: 要预取资源的背景配置。
+    ///   - targetSize: 目标显示区域尺寸。
+    ///   - scale: 目标显示区域的屏幕缩放比例。
+    ///   - traits: 用于解析资源的特征环境；为空时使用主屏幕环境。
     public static func prefetch(_ configuration: ShellBackgroundConfiguration, targetSize: CGSize,
                                 scale: CGFloat, traits: UITraitCollection? = nil) {
         switch configuration.source {
@@ -90,7 +99,7 @@ public enum ShellBackgroundCache {
         }
     }
 
-    /// Cancels pending requests and prevents their eventual worker results from repopulating the cache.
+    /// 清除所有缓存、取消等待中的请求，并阻止旧结果重新写入缓存。
     public static func removeAll() {
         storage.removeAllObjects()
         let cancelled = Array(jobs.values)
@@ -105,6 +114,7 @@ public enum ShellBackgroundCache {
         }
     }
 
+    /// 将缓存请求、命中和解码计数归零。
     public static func resetStatistics() { requests = 0; hits = 0; decodes = 0 }
 
     static func pixelBucket(targetSize: CGSize, scale: CGFloat, animated: Bool) -> Int {

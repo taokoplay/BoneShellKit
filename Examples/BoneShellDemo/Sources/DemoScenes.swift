@@ -50,13 +50,13 @@ final class NavigationDemoController: DemoStackController {
         screen.navigation.title = "导航与多按钮"
         screen.navigation.subtitle = "按优先级保留主要操作"
         screen.navigation.material = classic ? .solid : .automatic
-        screen.navigation.leadingActions = [NavigationAction(id: "leading", title: "标记", symbol: "pin", handler: { [weak self] in self?.record("标记") })]
-        screen.navigation.trailingActions = (0..<actionCount).map { index in
+        screen.navigation.leadingModules = [NavigationAction(id: "leading", title: "标记", symbol: "pin", handler: { [weak self] in self?.record("标记") })].map(\.asNavigationModule)
+        screen.navigation.trailingModules = (0..<actionCount).map { index in
             NavigationAction(id: "nav.\(index)", title: actionNames[index], symbol: symbols[index], priority: index == 0 ? 20 : 0, handler: { [weak self] in
                 guard let self = self else { return }
                 self.record(self.actionNames[index])
             })
-        }
+        }.map(\.asNavigationModule)
     }
     override func buildDemo() {
         intro("多操作，自动分配空间", "增加右侧操作数量。空间不足时，次要操作进入更多菜单；系统返回按钮仍然保留。")
@@ -120,13 +120,13 @@ class FormDemoController: DemoStackController {
     override func configureScreen(_ screen: inout ScreenConfiguration) {
         screen.navigation.title = pageTitle
         screen.avoidsKeyboard = true
-        screen.navigation.trailingActions = [NavigationAction(id: "save", title: "保存", symbol: "checkmark", priority: 20, role: .confirmation, handler: { [weak self] in
+        screen.navigation.trailingModules = [NavigationAction(id: "save", title: "保存", symbol: "checkmark", priority: 20, role: .confirmation, handler: { [weak self] in
             guard let self = self else { return }
             self.view.endEditing(true)
-            self.status.text = "已保存：\(self.input.text ?? "")"
-        })]
+            self.status.text = "已保存：\(self.input.text ?? \"\")"
+        })].map(\.asNavigationModule)
         if showsCloseButton {
-            screen.navigation.leadingActions = [NavigationAction(id: "close", title: "关闭", symbol: "xmark", role: .cancellation, handler: { [weak self] in self?.dismiss(animated: true) })]
+            screen.navigation.leadingModules = [NavigationAction(id: "close", title: "关闭", symbol: "xmark", role: .cancellation, handler: { [weak self] in self?.dismiss(animated: true) })].map(\.asNavigationModule)
         }
     }
     override func buildDemo() {

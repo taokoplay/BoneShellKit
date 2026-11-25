@@ -18,9 +18,9 @@ final class DetailController: BoneViewController {
             buttons: ShellTextStyle(size: 17, weight: .medium, color: .systemBlue)
         )
         // 不传 symbol 就显示文字按钮，字体使用 buttons 配置。
-        screen.navigation.trailingActions = [
-            NavigationAction(id: "save", title: "保存", priority: 20, handler: { })
-        ]
+        screen.navigation.trailingModules = [
+            NavigationAction(id: "save", title: "保存", priority: 20, handler: {})
+        ].map(\.asNavigationModule)
     }
 }
 ```

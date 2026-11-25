@@ -1,15 +1,21 @@
 import UIKit
 
+/// 可承载内容的材质背景视图，统一处理系统玻璃、磨砂玻璃和不透明回退。
 @MainActor
 public final class ShellGlassView: UIView {
+    /// 请求使用的背景材质；修改后会立即刷新视图。
     public var material: ShellMaterial {
         didSet { refreshMaterial() }
     }
+    /// 玻璃效果视图内部的内容容器。
     public var contentView: UIView { effectView.contentView }
+    /// 当前材质经过系统能力解析后的结果，只读。
     public private(set) var resolution: ShellMaterialResolution
 
     private let effectView = UIVisualEffectView(effect: nil)
 
+    /// 创建使用指定材质的玻璃视图。
+    /// - Parameter material: 请求使用的背景材质。
     public init(material: ShellMaterial = .automatic) {
         self.material = material
         self.resolution = ShellMaterials.currentResolution(for: material)
@@ -17,6 +23,8 @@ public final class ShellGlassView: UIView {
         setUp()
     }
 
+    /// 从归档恢复玻璃视图。
+    /// - Parameter coder: 用于解码视图的归档对象。
     public required init?(coder: NSCoder) {
         material = .automatic
         resolution = ShellMaterials.currentResolution(for: .automatic)
@@ -45,6 +53,7 @@ public final class ShellGlassView: UIView {
         refreshMaterial()
     }
 
+    /// 按当前材质和辅助功能设置刷新背景效果及解析结果。
     public func refreshMaterial() {
         resolution = ShellMaterials.currentResolution(for: material)
         backgroundColor = .clear
@@ -81,6 +90,8 @@ public final class ShellGlassView: UIView {
         }
     }
 
+    /// 特征环境变化时重新解析材质。
+    /// - Parameter previousTraitCollection: 变化前的特征环境。
     public override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         if previousTraitCollection?.hasDifferentColorAppearance(comparedTo: traitCollection) != false
@@ -89,6 +100,7 @@ public final class ShellGlassView: UIView {
         }
     }
 
+    /// 视图从窗口移除时重新解析当前材质。
     public override func didMoveToWindow() {
         super.didMoveToWindow()
         refreshMaterial()

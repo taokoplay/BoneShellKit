@@ -4,7 +4,10 @@
 
 ## 未发布
 
-后续版本变更待补充。
+- 按职责拆分源码目录：容器类型移入 `Sources/BoneShellKit/Containers/`，导航声明和兼容布局移入 `Sources/BoneShellKit/Navigation/`。
+- `BoneContainers.swift` 拆为导航容器、标签目的地、标签容器和分栏容器文件；`ScreenConfiguration.swift` 拆为导航动作、导航配置、页面配置和动作布局文件。
+- 补充源码结构说明、类型维护入口和拆分后的验证规则；公开 API、模块导入方式和宿主接入方式保持不变。
+- SDK 的 `public` / `open` 类型、属性、初始化器、方法及参数继续使用中文文档，并完成公开 API 文档扫描。
 
 ## 0.12.1
 
@@ -21,7 +24,7 @@
 发布标签：[v0.12.0](https://github.com/taokoplay/BoneShellKit/tree/v0.12.0)。
 
 - `NavigationAction` 新增 `visibility`，支持 `.automatic` 和 `.always`。兼容布局会保留指定动作，iOS 27+ trailing 动作使用 pinned 分组。
-- NavButton 编组规则补充 `visibility` 一致性，`.individual` 与 `.grouped(spacing:)` 的行为和间距边界同步到公开文档。
+- Navigation 配置改为有序 `leadingModules` / `trailingModules`；按钮组拥有明确的组材质和 `itemSpacing`，模块之间使用 `moduleSpacing`，移除旧的自动相邻 NavButton 编组入口。
 - Demo、API 参考、导航接入说明和验证记录同步到 v0.12.0。最低部署目标保持 iOS 15。
 - Demo 版本更新为 0.12.0（Build 1）。iOS 27.1 导航相关测试 31 项通过，iOS 18.6 兼容新增测试 3 项通过。
 

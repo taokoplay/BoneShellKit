@@ -1,9 +1,13 @@
 import UIKit
 
+/// Shell 页面控制器基类，负责页面配置、内容容器、背景和导航动作。
 @MainActor
 open class BoneViewController: UIViewController {
+    /// 业务内容应添加到此容器；SDK 会负责其栏位边界和键盘布局。
     public let contentView = UIView()
+    /// 页面独立背景视图；在统一背景模式下由容器背景替代显示。
     public let backgroundView = ShellBackgroundView()
+    /// 当前页面实际采用的栏位呈现模式。
     public var resolvedBarPresentation: ShellBarPresentation {
         if let navigation = navigationController as? BoneNavigationController {
             return navigation.resolvedBarPresentation
@@ -15,21 +19,24 @@ open class BoneViewController: UIViewController {
             .resolved(supportsNativeCapsule: ShellBarPresentation.supportsNativeCapsule)
     }
 
+    /// iOS 27.1+ 的竖向系统栏行为；经典栏位会关闭系统竖向迁移。
     @available(iOS 27.1, *)
     open override var preferredVerticalBarBehavior: UIVerticalBarBehavior {
         resolvedBarPresentation == .classic ? .disabled : .automatic
     }
 
+    /// 页面是否正在使用贯穿页面和栏位的统一背景。
     public var usesUnifiedBackground: Bool {
         screenConfiguration.backgroundComposition == .unified && (screenConfiguration.background.map { !$0.source.isEmpty } ?? false)
     }
-    /// The shared full-container surface in unified mode; the page surface otherwise.
+    /// 当前页面正在显示的背景视图；统一背景模式返回容器共享背景。
     public var activeBackgroundView: ShellBackgroundView {
         usesUnifiedBackground ? existingUnifiedBackgroundHost?.view ?? backgroundView : backgroundView
     }
     private var standaloneUnifiedBackgroundHost: ShellUnifiedBackgroundHost?
     private weak var displayedUnifiedBackgroundHost: ShellUnifiedBackgroundHost?
     private var isShellVisible = false
+    /// 页面当前生效的完整配置，只读反映最近一次刷新结果。
     public private(set) var screenConfiguration = ScreenConfiguration()
     /// iOS 27+ 的原生导航使用系统分组、优先级与溢出，不预先按横向宽度裁剪。
     public var usesSystemNavigationActionLayout: Bool {
@@ -74,12 +81,20 @@ open class BoneViewController: UIViewController {
     private var pinnedSystemActionGroup: UIBarButtonItemGroup?
     private var pinnedSystemActionIDs = Set<String>()
 
+    /// 创建没有 storyboard 的 Shell 页面控制器。
     public init() { super.init(nibName: nil, bundle: nil) }
+    /// 从 storyboard 或归档恢复 Shell 页面控制器。
+    /// - Parameter coder: 用于解码页面控制器的归档对象。
     public required init?(coder: NSCoder) { super.init(coder: coder) }
 
+    /// 声明页面的导航、栏位、背景和内容配置。
+    /// - Parameter screen: SDK 每次刷新时重新生成的页面配置。
     open func configureScreen(_ screen: inout ScreenConfiguration) {}
+    /// 在 SDK 内容容器中创建业务视图。
+    /// - Parameter contentView: 由 SDK 管理边界的内容容器。
     open func buildContent(in contentView: UIView) {}
 
+    /// 加载页面基础视图、初始配置和背景容器。
     open override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
@@ -111,6 +126,8 @@ open class BoneViewController: UIViewController {
         updateShellBackgrounds(playbackActive: false)
     }
 
+    /// 页面即将显示时应用导航、布局和背景配置。
+    /// - Parameter animated: 页面出现是否带有动画。
     open override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         isShellVisible = false
@@ -121,6 +138,8 @@ open class BoneViewController: UIViewController {
         updateNavigationActions()
     }
 
+    /// 页面完成显示后恢复可见状态并开始背景播放。
+    /// - Parameter animated: 页面出现是否带有动画。
     open override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         isShellVisible = true
@@ -132,6 +151,8 @@ open class BoneViewController: UIViewController {
         updateShellBackgrounds(playbackActive: true)
     }
 
+    /// 页面即将隐藏时暂停页面及容器背景播放。
+    /// - Parameter animated: 页面消失是否带有动画。
     open override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         isShellVisible = false
@@ -141,11 +162,14 @@ open class BoneViewController: UIViewController {
         if navigationController == nil && tabBarController == nil { standaloneUnifiedBackgroundHost?.pause() }
     }
 
+    /// 页面完成隐藏后结束统一背景的显示记录。
+    /// - Parameter animated: 页面消失是否带有动画。
     open override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         displayedUnifiedBackgroundHost?.finishDisplaying(self)
     }
 
+    /// 页面子视图布局完成后同步键盘、导航动作和背景位置。
     open override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         updateLegacyKeyboardAvoidance()
@@ -154,6 +178,7 @@ open class BoneViewController: UIViewController {
         updateBottomContentFade()
     }
 
+    /// 安全区变化后重新计算栏位和页面内容布局。
     open override func viewSafeAreaInsetsDidChange() {
         super.viewSafeAreaInsetsDidChange()
         guard isViewLoaded else { return }
@@ -165,6 +190,8 @@ open class BoneViewController: UIViewController {
         refreshContentLayoutForBars()
     }
 
+    /// 特征环境变化后按需要重新应用导航样式和动作布局。
+    /// - Parameter previousTraitCollection: 变化前的特征环境。
     open override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         guard isViewLoaded else { return }
@@ -188,7 +215,7 @@ open class BoneViewController: UIViewController {
         updateNavigationActions()
     }
 
-    /// Re-evaluates page declarations without rebuilding business content or its scroll view.
+    /// 重新执行页面声明，并更新导航、背景和布局，不重建业务内容或其滚动视图。
     public func refreshScreenConfiguration() {
         var configuration = ScreenConfiguration()
         configureScreen(&configuration)
@@ -202,6 +229,8 @@ open class BoneViewController: UIViewController {
         view.setNeedsLayout()
     }
 
+    /// 注册页面主要滚动视图，使 SDK 能处理浮动标签栏和底部安全区。
+    /// - Parameter scrollView: 页面承担主要滚动内容的滚动视图。
     public func registerPrimaryScrollView(_ scrollView: UIScrollView) {
         if #available(iOS 26.0, *), let hidden = originalBottomEdgeEffectHidden {
             primaryScrollView?.bottomEdgeEffect.isHidden = hidden
@@ -480,8 +509,10 @@ open class BoneViewController: UIViewController {
         }
         guard key != lastActionLayoutKey else { return }
         lastActionLayoutKey = key
+        let leadingModules = configuration.leadingModules
+        let trailingModules = configuration.trailingModules
         let allActions = ShellActionLayout.uniqueActions(
-            configuration.leadingActions + configuration.trailingActions
+            (leadingModules + trailingModules).flatMap(\.actions)
         )
         let activeIDs = Set(allActions.map(\.id))
         for (id, state) in navigationActionStates where !activeIDs.contains(id) {
@@ -492,14 +523,10 @@ open class BoneViewController: UIViewController {
         }
         navigationActionStates = navigationActionStates.filter { activeIDs.contains($0.key) }
         for action in allActions { actionState(for: action).action = action }
-        let leadingIDs = Set(configuration.leadingActions.map(\.id))
-        let leading = allActions.filter {
-            $0.role == .cancellation || ($0.role == .normal && leadingIDs.contains($0.id))
-        }
-        let trailing = allActions.filter { action in !leading.contains { $0.id == action.id } }
-        let leadingRuns = ShellNavButtonRun.collect(leading, layout: configuration.navButtonLayout)
-        let trailingRuns = ShellNavButtonRun.collect(trailing, layout: configuration.navButtonLayout)
-        prepareNavButtons(leadingRuns + trailingRuns, layout: configuration.navButtonLayout)
+
+        let leadingRuns = ShellNavButtonRun.collect(leadingModules, moduleSpacing: configuration.moduleSpacing)
+        let trailingRuns = ShellNavButtonRun.collect(trailingModules, moduleSpacing: configuration.moduleSpacing)
+        prepareNavButtons(leadingRuns + trailingRuns)
         let material = ShellMaterials.currentResolution(for: configuration.material).resolved
         if #available(iOS 27.0, *), systemLayout {
             customNavigationTitle?.maximumWidth = UIView.layoutFittingExpandedSize.width
@@ -595,7 +622,7 @@ open class BoneViewController: UIViewController {
         return result
     }
 
-    private func prepareNavButtons(_ runs: [ShellNavButtonRun], layout: ShellNavButtonLayout) {
+    private func prepareNavButtons(_ runs: [ShellNavButtonRun]) {
         let heads = Set(runs.compactMap { $0.first.navButton == nil ? nil : $0.first.id })
         for (id, state) in navigationActionStates {
             if state.action.navButton == nil, let old = state.button {
@@ -609,8 +636,7 @@ open class BoneViewController: UIViewController {
                 state.cluster = nil
             }
         }
-        let spacing: CGFloat
-        switch layout { case .individual: spacing = 0; case .grouped(let gap): spacing = gap }
+
         let textStyle = effectiveNavigationStyle.buttons
         let classic = resolvedBarPresentation == .classic
         for run in runs where run.first.navButton != nil {
@@ -625,16 +651,43 @@ open class BoneViewController: UIViewController {
                 let state = actionState(for: action)
                 let button = state.button ?? ShellNavButtonHost(frame: .zero)
                 state.button = button
-                button.update(action: action, textStyle: textStyle) { [weak state] in
+                let displayAction = run.groupID == nil ? action : actionWithoutButtonMaterial(action)
+                button.update(action: displayAction, textStyle: textStyle) { [weak state] in
                     guard let state, state.action.isEnabled else { return }
                     if state.action.navButton != nil { state.invokeNavButton() } else { state.action.handler() }
                 }
                 return button
             }
-            cluster.update(buttons: buttons, spacing: spacing,
-                           tracksNativePlacement: usesSystemNavigationActionLayout && run.first.axisBehavior != .horizontalOnly)
+            cluster.update(
+                buttons: buttons,
+                spacing: run.itemSpacing,
+                tracksNativePlacement: usesSystemNavigationActionLayout && run.first.axisBehavior != .horizontalOnly,
+                groupMaterial: clusterMaterial(for: run),
+                moduleSpacingAfter: run.moduleSpacingAfter
+            )
             cluster.isUserInteractionEnabled = true
-            }
+        }
+    }
+
+    private func actionWithoutButtonMaterial(_ action: NavigationAction) -> NavigationAction {
+        guard var navButton = action.navButton else { return action }
+        var normal = navButton.normal
+        normal.effect = .none
+        navButton.normal = normal
+        if var vertical = navButton.vertical {
+            vertical.effect = .none
+            navButton.vertical = vertical
+        }
+        var result = action
+        result.navButton = navButton
+        return result
+    }
+
+    private func clusterMaterial(for run: ShellNavButtonRun) -> ShellMaterial? {
+        guard let material = run.groupMaterial else { return nil }
+        let resolved = ShellMaterials.currentResolution(for: material).resolved
+        // On the native iOS 27 path UIKit owns the systemGlass group surface.
+        return usesSystemNavigationActionLayout && resolved == .systemGlass ? nil : material
     }
 
     private func makeBarButton(for run: ShellNavButtonRun, material: ShellMaterial) -> UIBarButtonItem {
@@ -675,7 +728,16 @@ open class BoneViewController: UIViewController {
         }
         item.accessibilityLabel = action.title
         item.accessibilityIdentifier = "action.\(action.id)"
-        configureSharedBackground(for: item, material: material)
+        if let groupMaterial = run.groupMaterial {
+            let resolvedGroupMaterial = ShellMaterials.currentResolution(for: groupMaterial).resolved
+            configureSharedBackground(for: item, material: resolvedGroupMaterial)
+            if #available(iOS 26.0, *) {
+                let nativeSharedSurface = usesSystemNavigationActionLayout && resolvedGroupMaterial == .systemGlass
+                item.hidesSharedBackground = !nativeSharedSurface
+            }
+        } else {
+            configureSharedBackground(for: item, material: material)
+        }
         if let cluster = state.cluster {
             if resolvedBarPresentation != .classic {
                 // Keep the cluster as the custom view even for one action. UIKit can

@@ -5,6 +5,22 @@ import UIKit
 
 @MainActor
 final class BarDemoIntegrationTests: XCTestCase {
+    private func actions(from modules: [NavigationModule]) -> [NavigationAction] {
+        modules.flatMap { module in
+            switch module {
+            case .button(let action): return [action]
+            case .group(let group): return group.actions
+            }
+        }
+    }
+
+    private func groups(from modules: [NavigationModule]) -> [NavigationButtonGroup] {
+        modules.compactMap { module in
+            if case .group(let group) = module { return group }
+            return nil
+        }
+    }
+
     // MARK: - Navigation bar scene
 
     func testNavigationSceneExposesEveryNavigationSetting() {
@@ -46,20 +62,22 @@ final class BarDemoIntegrationTests: XCTestCase {
         try select("order", 1)
         for (index, gap) in [0, 8, 16].enumerated() {
             try select("spacing", index + 1)
-            XCTAssertEqual(page.screenConfiguration.navigation.navButtonLayout, .grouped(spacing: CGFloat(gap)))
+            XCTAssertEqual(groups(from: page.screenConfiguration.navigation.trailingModules).first?.itemSpacing, CGFloat(gap))
         }
         for (index, effect) in [ShellNavButton.Effect.none, .blur, .liquidGlass].enumerated() {
             try select("effect", index)
-            let actions = page.screenConfiguration.navigation.trailingActions
-            XCTAssertEqual(actions.map(\.id), ["nav.share", "nav.mark", "nav.detail", "nav.text"])
-            let button = try XCTUnwrap(actions.last?.navButton)
+            let configuredActions = actions(from: page.screenConfiguration.navigation.trailingModules)
+            XCTAssertEqual(configuredActions.map(\.id), ["nav.share", "nav.mark", "nav.detail", "nav.text"])
+            let button = try XCTUnwrap(configuredActions.last?.navButton)
             XCTAssertEqual(button.normal.effect, effect)
             XCTAssertEqual(button.normal.size, .preferred(CGSize(width: 56, height: 44)))
             XCTAssertEqual(button.vertical?.size, .preferred(CGSize(width: 44, height: 72)))
         }
         page.reset()
-        XCTAssertEqual(page.screenConfiguration.navigation.navButtonLayout, .individual)
-        XCTAssertTrue(page.screenConfiguration.navigation.trailingActions.allSatisfy { $0.navButton == nil })
+        XCTAssertTrue(page.screenConfiguration.navigation.trailingModules.allSatisfy { module in
+            if case .button(let action) = module { return action.navButton == nil }
+            return false
+        })
     }
     func testNavButtonConfirmationKeepsItsTitleWithoutSystemDoneStyle() throws {
         let (_, navigation, page) = navigationScene()
@@ -196,7 +214,7 @@ final class BarDemoIntegrationTests: XCTestCase {
             XCTAssertEqual(axes.titleForSegment(at: index), axisNames[index])
             icons.selectedSegmentIndex = index
             icons.sendActions(for: .valueChanged)
-            let detail = try XCTUnwrap(page.screenConfiguration.navigation.trailingActions.first { $0.id == "nav.detail" })
+            let detail = try XCTUnwrap(actions(from: page.screenConfiguration.navigation.trailingModules).first { $0.id == "nav.detail" })
             let icon = try XCTUnwrap(detail.icon)
             let resolved = try XCTUnwrap(actionImage(id: "nav.detail", in: page.navigationItem))
             switch icon {
@@ -218,7 +236,7 @@ final class BarDemoIntegrationTests: XCTestCase {
 
             axes.selectedSegmentIndex = index
             axes.sendActions(for: .valueChanged)
-            let updated = try XCTUnwrap(page.screenConfiguration.navigation.trailingActions.first { $0.id == "nav.detail" })
+            let updated = try XCTUnwrap(actions(from: page.screenConfiguration.navigation.trailingModules).first { $0.id == "nav.detail" })
             XCTAssertEqual(updated.axisBehavior, behaviors[index])
             XCTAssertTrue(status.text?.contains("图标：\(iconNames[index]) / 方向：\(axisNames[index])") == true)
         }
@@ -260,7 +278,7 @@ final class BarDemoIntegrationTests: XCTestCase {
         XCTAssertNil(page.screenConfiguration.navigation.style?.title.font)
         XCTAssertEqual(icons.selectedSegmentIndex, 0)
         XCTAssertEqual(axes.selectedSegmentIndex, 0)
-        let detail = try XCTUnwrap(page.screenConfiguration.navigation.trailingActions.first { $0.id == "nav.detail" })
+        let detail = try XCTUnwrap(actions(from: page.screenConfiguration.navigation.trailingModules).first { $0.id == "nav.detail" })
         XCTAssertEqual(detail.axisBehavior, .automatic)
         guard case .systemSymbol(let name)? = detail.icon else {
             return XCTFail("Reset must restore the original symbol")
@@ -280,9 +298,9 @@ final class BarDemoIntegrationTests: XCTestCase {
 
     func testNavigationActionsUseConfirmationAndCancellationSemantics() throws {
         let (_, navigation, page) = navigationScene()
-        let done = try XCTUnwrap(page.screenConfiguration.navigation.trailingActions.first { $0.id == "nav.text" })
-        let mark = try XCTUnwrap(page.screenConfiguration.navigation.leadingActions.first { $0.id == "nav.mark" })
-        let detail = try XCTUnwrap(page.screenConfiguration.navigation.trailingActions.first { $0.id == "nav.detail" })
+        let done = try XCTUnwrap(actions(from: page.screenConfiguration.navigation.trailingModules).first { $0.id == "nav.text" })
+        let mark = try XCTUnwrap(actions(from: page.screenConfiguration.navigation.leadingModules).first { $0.id == "nav.mark" })
+        let detail = try XCTUnwrap(actions(from: page.screenConfiguration.navigation.trailingModules).first { $0.id == "nav.detail" })
         XCTAssertEqual(done.role, .confirmation)
         XCTAssertEqual(mark.role, .normal)
         XCTAssertEqual(detail.role, .normal)
@@ -297,8 +315,8 @@ final class BarDemoIntegrationTests: XCTestCase {
         let form = try XCTUnwrap(navigation.topViewController as? FormDemoController)
         form.loadViewIfNeeded()
         XCTAssertEqual(form.pageTitle, "导航与输入")
-        XCTAssertFalse(form.screenConfiguration.navigation.leadingActions.contains { $0.id == "close" })
-        let save = try XCTUnwrap(form.screenConfiguration.navigation.trailingActions.first { $0.id == "save" })
+        XCTAssertFalse(actions(from: form.screenConfiguration.navigation.leadingModules).contains { $0.id == "close" })
+        let save = try XCTUnwrap(actions(from: form.screenConfiguration.navigation.trailingModules).first { $0.id == "save" })
         XCTAssertEqual(save.role, .confirmation)
         form.input.text = "保留保存行为"
         save.handler()
@@ -308,9 +326,9 @@ final class BarDemoIntegrationTests: XCTestCase {
         let sheet = FormDemoController()
         sheet.showsCloseButton = true
         let (_, sheetNavigation) = containers(sheet)
-        let close = try XCTUnwrap(sheet.screenConfiguration.navigation.leadingActions.first { $0.id == "close" })
+        let close = try XCTUnwrap(actions(from: sheet.screenConfiguration.navigation.leadingModules).first { $0.id == "close" })
         XCTAssertEqual(close.role, .cancellation)
-        XCTAssertEqual(sheet.screenConfiguration.navigation.trailingActions.first { $0.id == "save" }?.role, .confirmation)
+        XCTAssertEqual(actions(from: sheet.screenConfiguration.navigation.trailingModules).first { $0.id == "save" }?.role, .confirmation)
         let sheetItems = barButtonItems(in: sheet.navigationItem)
         XCTAssertNotNil(sheetItems.leading.first { $0.accessibilityIdentifier == "action.close" })
         let saveItem = try XCTUnwrap(sheetItems.trailing.first { $0.accessibilityIdentifier == "action.save" })
@@ -319,7 +337,7 @@ final class BarDemoIntegrationTests: XCTestCase {
 
         let multipleActions = NavigationDemoController()
         multipleActions.loadViewIfNeeded()
-        XCTAssertEqual(multipleActions.screenConfiguration.navigation.leadingActions.first { $0.id == "leading" }?.role, .normal)
+        XCTAssertEqual(actions(from: multipleActions.screenConfiguration.navigation.leadingModules).first { $0.id == "leading" }?.role, .normal)
     }
 
     // MARK: - Tab bar scene

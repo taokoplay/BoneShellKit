@@ -1,24 +1,22 @@
-/// The presentation of SDK-managed navigation and tab bars.
+/// SDK 管理的导航栏和标签栏的呈现模式。
 ///
-/// The value describes the requested appearance, not the OS version: an explicit
-/// case keeps its appearance on every supported system, and `.automatic` picks one
-/// from the current runtime's capabilities.
+/// 该值描述请求的外观，而不是系统版本。显式模式在所有支持的系统上保持一致，
+/// `.automatic` 会根据当前运行环境的能力选择呈现方式。
 public enum ShellBarPresentation: String, CaseIterable, Sendable {
-    /// iOS 26 and later use the native floating capsule; earlier systems use `.classic`.
+    /// iOS 26 及以上使用原生浮动胶囊；更早系统使用 `.classic`。
     case automatic
-    /// Flat navigation and edge-to-edge bottom tabs inspired by pre-iOS 26 UIKit.
-    /// Always used, including on iOS 26 and later.
+    /// 扁平导航栏和延伸到边缘的底部标签栏。
+    /// 在 iOS 26 及以上也保持经典外观。
     case classic
-    /// Floating capsule tab bar over the content.
-    /// iOS 26 and later use the system capsule; earlier systems use the SDK capsule.
+    /// 悬浮在内容之上的胶囊标签栏。
+    /// iOS 26 及以上使用系统胶囊；更早系统使用 SDK 胶囊。
     case capsule
-    /// UIKit's native presentation on every system, unchanged legacy behavior.
+    /// 在所有系统上使用 UIKit 原生栏位，保留系统默认行为。
     case system
 
-    /// Whether this runtime provides the native floating capsule tab bar.
+    /// 当前运行环境是否提供原生浮动胶囊标签栏。
     ///
-    /// `capabilityOverride` exists so tests can measure the SDK capsule renderer used
-    /// below iOS 26 without shipping an OS-version spoof in the app.
+    /// 测试可以通过 `capabilityOverride` 使用旧系统的 SDK 胶囊渲染器，而无需伪造系统版本。
     public static var supportsNativeCapsule: Bool {
         if let override = capabilityOverride { return override }
         if #available(iOS 26.0, *) { return true }
@@ -27,34 +25,33 @@ public enum ShellBarPresentation: String, CaseIterable, Sendable {
 
     static var capabilityOverride: Bool?
 
-    /// Resolves the appearance this case shows on a runtime with the given capability.
+    /// 按给定的系统能力解析当前呈现模式。
     ///
-    /// Explicit cases stay unchanged, so `.classic` remains classic on iOS 26 and
-    /// `.capsule` keeps the capsule appearance below iOS 26.
+    /// 显式指定的模式保持不变；只有 `.automatic` 会根据能力选择胶囊或经典栏。
+    /// - Parameter supportsNativeCapsule: 当前运行环境是否支持原生浮动胶囊标签栏。
     public func resolved(supportsNativeCapsule: Bool) -> ShellBarPresentation {
         guard self == .automatic else { return self }
         return supportsNativeCapsule ? .capsule : .classic
     }
 
-    /// Resolves the appearance for the current runtime.
+    /// 按当前运行环境解析自动呈现模式。
     public var resolvedForCurrentSystem: ShellBarPresentation {
         resolved(supportsNativeCapsule: Self.supportsNativeCapsule)
     }
 }
 
-/// Which renderer draws a container's bars.
+/// 负责绘制容器栏位的内部渲染器。
 enum ShellBarRendering: Equatable {
-    /// The native UIKit bar stays in charge.
+    /// 由 UIKit 原生栏位负责绘制。
     case native
-    /// `ShellClassicNavigationBar` / `ShellClassicTabBar`.
+    /// 使用 `ShellClassicNavigationBar` 或 `ShellClassicTabBar` 绘制。
     case classic
-    /// `ShellCapsuleTabBar`. Only used below iOS 26; newer systems use the native capsule.
+    /// 使用 `ShellCapsuleTabBar` 绘制；iOS 26 及以上使用原生胶囊。
     case capsule
-    /// `ShellNativeDockBar`: a real `UITabBar` plus circular accessories in one row.
-    /// Used on iOS 26+ when capsule presentation needs a button outside the system capsule.
+    /// 使用 `ShellNativeDockBar` 绘制原生标签栏及同一行的圆形附加操作。
     case dock
 
-    /// The tab bar renderer for a resolved presentation.
+    /// 根据已解析的呈现模式选择标签栏渲染器。
     static func tabBar(_ presentation: ShellBarPresentation, supportsNativeCapsule: Bool) -> ShellBarRendering {
         switch presentation {
         case .classic:
@@ -68,10 +65,7 @@ enum ShellBarRendering: Equatable {
         }
     }
 
-    /// The navigation bar renderer for a resolved presentation.
-    ///
-    /// There is no self-drawn capsule navigation bar, so a capsule request below
-    /// iOS 26 keeps the flat classic navigation instead of inventing a new bar.
+    /// 根据已解析的呈现模式选择导航栏渲染器。
     static func navigation(_ presentation: ShellBarPresentation, supportsNativeCapsule: Bool) -> ShellBarRendering {
         switch presentation {
         case .classic:

@@ -1,335 +1,9 @@
 import UIKit
 
 @MainActor
-open class BoneNavigationController: UINavigationController {
-    /// Nil inherits the containing tab controller; system is the standalone default.
-    public var barPresentation: ShellBarPresentation? {
-        didSet { refreshCurrentBackground() }
-    }
-    /// The navigation appearance this container shows after resolving `.automatic`.
-    ///
-    /// There is no self-drawn capsule navigation bar, so below iOS 26 a capsule
-    /// request keeps the flat classic navigation instead of inventing a new bar.
-    public var resolvedBarPresentation: ShellBarPresentation {
-        let requested = ShellBarBackgroundHost.topScreen(in: topViewController)?.screenConfiguration.barPresentation
-            ?? barPresentation ?? (tabBarController as? BoneTabBarController)?.barPresentation ?? .system
-        switch ShellBarRendering.navigation(requested, supportsNativeCapsule: ShellBarPresentation.supportsNativeCapsule) {
-        case .classic: return .classic
-        case .capsule: return .capsule
-        case .dock: return .capsule
-        case .native: return .system
-        }
-    }
-    public var classicNavigationBarView: UIView? {
-        resolvedBarPresentation == .classic ? classicNavigationBar : nil
-    }
-    private var classicNavigationBar: ShellClassicNavigationBar?
-    private var originalNavigationBarAlpha: CGFloat?
-    private var originalNavigationBarAccessibilityHidden = false
-    private var layingOutClassicNavigationBar = false
-    @MainActor private final class ClassicNavigationInset {
-        weak var controller: UIViewController?
-        var contribution: CGFloat = 0
-        init(_ controller: UIViewController) { self.controller = controller }
-        func restore() {
-            guard let controller = controller, contribution != 0 else { return }
-            var insets = controller.additionalSafeAreaInsets
-            insets.top -= contribution
-            contribution = 0
-            controller.additionalSafeAreaInsets = insets
-        }
-    }
-    private var classicNavigationInsets: [ObjectIdentifier: ClassicNavigationInset] = [:]
-    private var updatingBarPresentation = false
-    private var backgroundNavigationSurface: UIView {
-        if resolvedBarPresentation == .classic, let bar = classicNavigationBar { return bar }
-        return navigationBar
-    }
-
-    internal func refreshBarPresentation() {
-        guard isViewLoaded, !updatingBarPresentation else { return }
-        updatingBarPresentation = true
-        defer { updatingBarPresentation = false }
-        if resolvedBarPresentation == .classic {
-            if originalNavigationBarAlpha == nil {
-                originalNavigationBarAlpha = navigationBar.alpha
-                originalNavigationBarAccessibilityHidden = navigationBar.accessibilityElementsHidden
-            }
-            if classicNavigationBar == nil {
-                let bar = ShellClassicNavigationBar()
-                bar.onBack = { [weak self] in self?.popViewController(animated: true) }
-                classicNavigationBar = bar
-            }
-            navigationBar.alpha = 0
-            navigationBar.accessibilityElementsHidden = true
-            let page = ShellBarBackgroundHost.topScreen(in: topViewController)
-            let configuration = page?.screenConfiguration.navigation
-            let background = configuration?.background ?? backgroundConfiguration
-            let media = page?.usesUnifiedBackground == true || (background.map { !$0.source.isEmpty } ?? false)
-            let item = topViewController?.navigationItem
-            classicNavigationBar?.tintColor = navigationBar.tintColor
-            classicNavigationBar?.update(title: configuration?.title ?? item?.title ?? topViewController?.title ?? "",
-                subtitle: configuration?.subtitle, largeTitle: configuration?.usesLargeTitle ?? false,
-                showsBack: viewControllers.count > 1 && item?.hidesBackButton != true,
-                leadingItems: item?.leftBarButtonItems ?? [], trailingItems: item?.rightBarButtonItems ?? [],
-                style: configuration?.style ?? navigationStyle, material: configuration?.material ?? .automatic,
-                showsMediaBackground: media, customTitleView: page?.customTitleForClassicBar())
-            layoutClassicNavigationBar()
-        } else {
-            if let alpha = originalNavigationBarAlpha {
-                navigationBar.alpha = alpha
-                navigationBar.accessibilityElementsHidden = originalNavigationBarAccessibilityHidden
-                originalNavigationBarAlpha = nil
-            }
-            classicNavigationBar?.isHidden = true
-            classicNavigationBar?.clearCustomTitleView()
-            classicNavigationBar?.detachCustomActions()
-            classicNavigationBar?.removeFromSuperview()
-            for inset in classicNavigationInsets.values { inset.restore() }
-            classicNavigationInsets.removeAll()
-            ShellBarBackgroundHost.topScreen(in: topViewController)?.installNativeCustomTitle()
-        }
-        if #available(iOS 27.1, *) { setNeedsUpdateOfVerticalBarConfiguration() }
-    }
-
-    private func layoutClassicNavigationBar() {
-        guard resolvedBarPresentation == .classic, let bar = classicNavigationBar,
-              let parent = navigationBar.superview, !layingOutClassicNavigationBar else { return }
-        layingOutClassicNavigationBar = true
-        defer { layingOutClassicNavigationBar = false }
-        navigationBar.alpha = 0
-        var frame = navigationBar.convert(navigationBar.bounds, to: parent)
-        let containerFrame = navigationBar.convert(navigationBar.bounds, to: view)
-        let top = max(0, min(view.safeAreaInsets.top, containerFrame.minY - view.bounds.minY))
-        frame.origin.y -= top
-        frame.size.height += top
-        bar.topInset = top
-        if bar.superview !== parent { parent.insertSubview(bar, aboveSubview: navigationBar) }
-        if bar.frame != frame { bar.frame = frame }
-        bar.isHidden = isNavigationBarHidden || navigationBar.isHidden
-        if transitionCoordinator == nil { restoreRemovedClassicNavigationInsets() }
-        if let page = topViewController, page.isViewLoaded {
-            let id = ObjectIdentifier(page)
-            let inset = classicNavigationInsets[id] ?? ClassicNavigationInset(page)
-            classicNavigationInsets[id] = inset
-            let headerBottom = bar.convert(bar.bounds, to: page.view).maxY - page.view.bounds.minY
-            // 容器与页面的原生安全区可能不同；从页面实测值扣除本 SDK 的旧贡献。
-            // 保留宿主自己的 additionalSafeAreaInsets，避免遮挡或重复预留栏位高度。
-            let pageSafeTopWithoutContribution = page.view.safeAreaInsets.top - inset.contribution
-            let desired: CGFloat = bar.isHidden ? 0 : max(0, headerBottom - max(0, pageSafeTopWithoutContribution))
-            if abs(desired - inset.contribution) > 0.1 {
-                var safe = page.additionalSafeAreaInsets
-                safe.top += desired - inset.contribution
-                inset.contribution = desired
-                page.additionalSafeAreaInsets = safe
-            }
-        }
-        parent.bringSubviewToFront(bar)
-    }
-
-    private func restoreRemovedClassicNavigationInsets() {
-        let retained = Set(viewControllers.map { ObjectIdentifier($0) })
-        for (id, inset) in classicNavigationInsets where !retained.contains(id) {
-            inset.restore()
-            classicNavigationInsets[id] = nil
-        }
-    }
-
-    @available(iOS 27.1, *)
-    open override var preferredVerticalBarBehavior: UIVerticalBarBehavior {
-        resolvedBarPresentation == .classic ? .disabled : .automatic
-    }
-
-    @available(iOS 27.1, *)
-    open override var childForPreferredVerticalBarBehavior: UIViewController? {
-        resolvedBarPresentation == .classic ? nil : topViewController
-    }
-
-
-    internal var shellUnifiedBackgroundHost: ShellUnifiedBackgroundHost?
-    public var unifiedBackgroundView: ShellBackgroundView? {
-        guard let host = shellUnifiedBackgroundHost, host.view.configuration != nil else { return nil }
-        return host.view
-    }
-    internal func ensureUnifiedBackgroundHost() -> ShellUnifiedBackgroundHost {
-        if let host = shellUnifiedBackgroundHost { return host }
-        let host = ShellUnifiedBackgroundHost(container: self)
-        shellUnifiedBackgroundHost = host
-        return host
-    }
-
-    public var navigationStyle = ShellNavigationStyle() {
-        didSet { refreshCurrentBackground() }
-    }
-    private var originalButtonTint: UIColor?
-    private var overridesButtonTint = false
-
-    internal func applyShellButtonTint(_ color: UIColor?) {
-        if let color = color {
-            if !overridesButtonTint { originalButtonTint = navigationBar.tintColor; overridesButtonTint = true }
-            navigationBar.tintColor = color
-        } else if overridesButtonTint {
-            navigationBar.tintColor = originalButtonTint
-            originalButtonTint = nil
-            overridesButtonTint = false
-        }
-    }
-
-    public var backgroundConfiguration: ShellBackgroundConfiguration? {
-        didSet { refreshCurrentBackground() }
-    }
-    public var backgroundView: ShellBackgroundView? { backgroundHost?.view }
-    private var backgroundHost: ShellBarBackgroundHost?
-    private var legacySnapshot: ShellNavigationBackgroundSnapshot?
-    private var shellIsVisible = false
-
-    public override init(rootViewController: UIViewController) {
-        super.init(rootViewController: rootViewController)
-        navigationBar.prefersLargeTitles = true
-    }
-
-    public required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        navigationBar.prefersLargeTitles = true
-    }
-
-    open override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        shellIsVisible = false
-        refreshCurrentBackground()
-    }
-    open override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        shellIsVisible = true
-        refreshCurrentBackground()
-    }
-    open override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        shellIsVisible = false
-        backgroundView?.setPlaybackActive(false)
-        shellUnifiedBackgroundHost?.pause()
-    }
-    open override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        layoutClassicNavigationBar()
-        backgroundHost?.layout(in: backgroundNavigationSurface)
-        shellUnifiedBackgroundHost?.layout()
-    }
-    open override func pushViewController(_ viewController: UIViewController, animated: Bool) {
-        prepareBackgrounds(for: viewController)
-        backgroundView?.setPlaybackActive(false)
-        super.pushViewController(viewController, animated: animated)
-        refreshAfterTransition()
-    }
-    @discardableResult
-    open override func popViewController(animated: Bool) -> UIViewController? {
-        if viewControllers.count > 1 { prepareBackgrounds(for: viewControllers[viewControllers.count - 2]) }
-        backgroundView?.setPlaybackActive(false)
-        let result = super.popViewController(animated: animated)
-        refreshAfterTransition()
-        return result
-    }
-    private func prepareBackgrounds(for controller: UIViewController) {
-        guard isViewLoaded, let page = ShellBarBackgroundHost.topScreen(in: controller) else { return }
-        page.prepareBackgroundAssets(pageSize: tabBarController?.view.bounds.size ?? view.bounds.size, navigationSize: navigationBar.bounds.size, tabSize: tabBarController?.tabBar.bounds.size ?? .zero, scale: traitCollection.displayScale, traits: traitCollection)
-    }
-    private func refreshAfterTransition() {
-        guard isViewLoaded else { return }
-        if let coordinator = transitionCoordinator {
-            coordinator.animate(alongsideTransition: nil) { [weak self] _ in
-                self?.restoreRemovedClassicNavigationInsets()
-                self?.refreshCurrentBackground()
-            }
-        } else {
-            restoreRemovedClassicNavigationInsets()
-            refreshCurrentBackground()
-        }
-    }
-    private func refreshCurrentBackground() {
-        guard isViewLoaded else { return }
-        if let page = ShellBarBackgroundHost.topScreen(in: topViewController), page.isViewLoaded {
-            page.refreshShellBarBackgrounds(playbackActive: shellIsVisible)
-        } else {
-            if topViewController == nil || !(topViewController is BoneViewController) {
-                shellUnifiedBackgroundHost?.deactivate()
-                if let tabs = tabBarController as? BoneTabBarController, tabs.selectedViewController === self {
-                    tabs.shellUnifiedBackgroundHost?.deactivate()
-                }
-            }
-            applyShellBackground(nil, playbackActive: shellIsVisible)
-            applyShellButtonTint(navigationStyle.buttons.color)
-        }
-    }
-    internal func applyShellBackground(_ override: ShellBackgroundConfiguration?, playbackActive: Bool, unifiedBackground: Bool = false) {
-        guard isViewLoaded else { return }
-        let configuration = override ?? backgroundConfiguration
-        let enabled = !unifiedBackground && (configuration.map { !$0.source.isEmpty } ?? false)
-        refreshBarPresentation()
-        if enabled, backgroundHost == nil {
-            backgroundHost = ShellBarBackgroundHost(bar: navigationBar, container: view, priority: 20, extendsToStatusArea: true)
-            backgroundHost?.view.accessibilityIdentifier = "shell.background.navigation"
-        }
-        backgroundHost?.layout(in: backgroundNavigationSurface)
-        backgroundHost?.view.apply(enabled ? configuration : nil)
-        backgroundHost?.view.setPlaybackActive(playbackActive && enabled)
-        if !(topViewController is BoneViewController), let top = topViewController {
-            if enabled {
-                if legacySnapshot?.controller !== top {
-                    legacySnapshot?.restore()
-                    legacySnapshot = ShellNavigationBackgroundSnapshot(controller: top)
-                }
-                let appearance = ShellBarBackgroundHost.navigationAppearance()
-                top.navigationItem.standardAppearance = appearance
-                top.navigationItem.scrollEdgeAppearance = appearance
-                top.navigationItem.compactAppearance = appearance
-                top.navigationItem.compactScrollEdgeAppearance = appearance
-            } else {
-                legacySnapshot?.restore()
-                legacySnapshot = nil
-            }
-        }
-    }
-
-    open override var childForStatusBarStyle: UIViewController? { topViewController }
-    open override var childForStatusBarHidden: UIViewController? { topViewController }
-    open override var childForHomeIndicatorAutoHidden: UIViewController? { topViewController }
-}
-
-@MainActor
-public struct ShellTab {
-    public let id: String
-    public let item: ShellTabItemConfiguration
-    public let root: UIViewController
-    public var title: String { item.title }
-    /// Kept for source compatibility; custom images have no SF Symbol name.
-    public var symbol: String {
-        if case .systemSymbol(let name)? = item.icon { return name }
-        return ""
-    }
-
-    public init(id: String, title: String, symbol: String,
-                selectedIconMode: ShellTabSelectedIconMode = .automatic,
-                labelDisplayMode: ShellTabLabelDisplayMode? = nil, root: UIViewController) {
-        self.init(id: id, title: title, icon: .systemSymbol(symbol), selectedIconMode: selectedIconMode,
-                  labelDisplayMode: labelDisplayMode, root: root)
-    }
-
-    public init(id: String, title: String, icon: ShellTabIcon, selectedIcon: ShellTabIcon? = nil,
-                selectedIconMode: ShellTabSelectedIconMode = .automatic,
-                labelDisplayMode: ShellTabLabelDisplayMode? = nil, root: UIViewController) {
-        self.init(id: id, item: ShellTabItemConfiguration(title: title, icon: icon, selectedIcon: selectedIcon,
-                                                        selectedIconMode: selectedIconMode, labelDisplayMode: labelDisplayMode), root: root)
-    }
-
-    public init(id: String, item: ShellTabItemConfiguration, root: UIViewController) {
-        self.id = id
-        self.item = item
-        self.root = root
-    }
-}
-
-@MainActor
+/// 管理多个 Shell 标签目的地及其标签栏呈现、背景和附加操作。
 open class BoneTabBarController: UITabBarController {
+    /// 请求的标签栏呈现模式；页面配置可以覆盖该值。
     public var barPresentation: ShellBarPresentation = .system {
         didSet {
             refreshCurrentBackground()
@@ -338,7 +12,7 @@ open class BoneTabBarController: UITabBarController {
             }
         }
     }
-    /// The resolved presentation, including an SDK bar when UIKit cannot host a custom slot.
+    /// 当前容器解析出的标签栏呈现模式，包括自定义内容无法由 UIKit 原生承载时的回退。
     public var resolvedBarPresentation: ShellBarPresentation {
         let nativeCapsule = ShellBarPresentation.supportsNativeCapsule
         let presentation = (ShellBarBackgroundHost.topScreen(in: selectedViewController)?.screenConfiguration.barPresentation
@@ -357,8 +31,7 @@ open class BoneTabBarController: UITabBarController {
         if hasCustomTabItems { return .capsule }
         return tabBarAccessories.isEmpty ? .native : .dock
     }
-    /// Floating surfaces overlay the primary scroll viewport; their safe-area contribution
-    /// becomes scrollable padding instead of an opaque strip below a clipped viewport.
+    /// 浮动栏覆盖主滚动视图时，是否应将占用区域转化为可滚动内边距。
     internal var floatsAboveScrollContent: Bool {
         let floating = resolvedBarPresentation == .capsule
             || (resolvedBarPresentation == .system && ShellBarPresentation.supportsNativeCapsule)
@@ -371,10 +44,11 @@ open class BoneTabBarController: UITabBarController {
         return !originalTabBarHidden
     }
 
+    /// SDK 绘制的经典标签栏视图；当前呈现模式不是经典栏时为空。
     public var classicTabBarView: UIView? { resolvedBarPresentation == .classic ? classicTabBar : nil }
-    /// The SDK-rendered capsule, used for compatibility and live destination icons.
+    /// SDK 绘制的胶囊标签栏视图，用于兼容系统和自定义目的地图标。
     public var capsuleTabBarView: UIView? { tabBarRendering == .capsule ? capsuleTabBar : nil }
-    /// The dock row, present when capsule presentation hosts accessories on iOS 26+.
+    /// iOS 26 及以上胶囊呈现承载附加操作时使用的 Dock 行。
     public var dockBarView: UIView? { tabBarRendering == .dock ? dockBar : nil }
     private var dockBar: ShellNativeDockBar?
     private var classicTabBar: ShellClassicTabBar?
@@ -910,11 +584,13 @@ open class BoneTabBarController: UITabBarController {
         }
     }
 
+    /// iOS 27.1+ 的竖向系统栏行为；经典栏位会关闭系统竖向迁移。
     @available(iOS 27.1, *)
     open override var preferredVerticalBarBehavior: UIVerticalBarBehavior {
         resolvedBarPresentation == .classic ? .disabled : .automatic
     }
 
+    /// iOS 27.1+ 负责竖向栏行为的子控制器；经典栏位不交给子控制器迁移。
     @available(iOS 27.1, *)
     open override var childForPreferredVerticalBarBehavior: UIViewController? {
         resolvedBarPresentation == .classic ? nil : selectedViewController
@@ -922,6 +598,7 @@ open class BoneTabBarController: UITabBarController {
 
 
     internal var shellUnifiedBackgroundHost: ShellUnifiedBackgroundHost?
+    /// 当前标签栏容器使用的统一背景视图；没有已应用配置时为空。
     public var unifiedBackgroundView: ShellBackgroundView? {
         guard let host = shellUnifiedBackgroundHost, host.view.configuration != nil else { return nil }
         return host.view
@@ -933,11 +610,10 @@ open class BoneTabBarController: UITabBarController {
         return host
     }
 
-    /// Extra action buttons attached to the tab bar. They never become selected tabs.
+    /// 附加在标签栏上的操作按钮，不会成为可选中的标签目的地。
     ///
-    /// Classic bars host actions inside the bar; capsule bars draw circles beside the
-    /// capsule. Explicit system presentation uses a native accessory slot on iOS 26+
-    /// and intercepted tab items on earlier systems.
+    /// 经典栏将操作放在栏内，胶囊栏将圆形操作放在胶囊旁边；原生系统栏根据系统版本
+    /// 使用系统附加操作区域或兼容标签项承载这些操作。
     public var tabBarAccessories: [ShellTabBarAccessory] = [] {
         didSet {
             // Identical visuals keep in-flight touch targets. Their handlers resolve the
@@ -946,14 +622,12 @@ open class BoneTabBarController: UITabBarController {
             refreshBarPresentation()
         }
     }
-    /// Whether the current renderer can display accessories.
-    ///
-    /// Native capsule docks and compatibility renderers host their own controls. Explicit
-    /// system presentation uses intercepted tab items below iOS 26 and a system slot on 26+.
+    /// 当前栏位渲染器是否支持显示标签栏附加操作。
     public var supportsTabBarAccessories: Bool { true }
 
-    /// The content resolved by the current host, even if its bar is temporarily hidden.
-    /// Returns nil when the accessory does not have a mounted representation yet.
+    /// 当前宿主解析出的附加操作内容模式，即使栏位暂时隐藏也会返回结果。
+    /// - Parameter id: 要查询的附加操作稳定标识。
+    /// - Returns: 当前内容模式；操作尚未挂载或不存在时返回 nil。
     public func tabBarAccessoryContentMode(for id: String) -> ShellTabBarCustomContent.Mode? {
         guard isViewLoaded else { return nil }
         switch tabBarRendering {
@@ -969,15 +643,16 @@ open class BoneTabBarController: UITabBarController {
         }
     }
 
-    /// The system-hosted accessory view, present only for native bars using the slot.
+    /// 使用系统附加操作区域时承载附加按钮的视图。
     public private(set) var nativeTabAccessoryView: UIView?
     @available(iOS 26.0, *)
     private var systemBottomAccessory: UITabAccessory? {
         get { bottomAccessory }
         set { bottomAccessory = newValue }
     }
-    /// Controls hosted by compatibility renderers; use dockBarView or nativeTabAccessoryView for native hosts.
+    /// 兼容渲染器承载的前侧附加按钮。
     public private(set) var leadingAccessoryButtons: [UIView] = []
+    /// 兼容渲染器承载的后侧附加按钮。
     public private(set) var trailingAccessoryButtons: [UIView] = []
     private var accessoryButtons: [ShellTabAccessoryButton] = []
     /// Legacy accessory tab items keyed by their placeholder controllers.
@@ -985,6 +660,7 @@ open class BoneTabBarController: UITabBarController {
     private var accessoryAction: [UIViewController: () -> Void] = [:]
     private weak var forwardedTabDelegate: UITabBarControllerDelegate?
 
+    /// 标签栏文字、图标和标题显示方式的样式。
     public var tabBarStyle = ShellTabBarStyle() {
         didSet { refreshCurrentBackground() }
     }
@@ -1006,13 +682,18 @@ open class BoneTabBarController: UITabBarController {
     private var overridesSelectedTint = false
     private var overridesNormalTint = false
 
+    /// 返回指定 ID 对应的标签项配置。
+    /// - Parameter id: 标签目的地的稳定标识。
+    /// - Returns: 当前配置；控制器不存在或已从标签栏移除时返回 nil。
     public func tabItemConfiguration(for id: String) -> ShellTabItemConfiguration? {
         guard let record = tabRecords[id], let controller = record.controller,
               viewControllers?.contains(where: { $0 === controller }) == true else { return nil }
         return record.configuration
     }
 
-    /// The destination's actual layout mode. An overflow-only custom item has no live slot.
+    /// 返回标签目的地实际使用的自定义内容模式。
+    /// - Parameter id: 标签目的地的稳定标识。
+    /// - Returns: 当前内容模式；没有实时占位区域时返回 nil 或 `.unavailable`。
     public func tabItemContentMode(for id: String) -> ShellTabBarCustomContent.Mode? {
         guard isViewLoaded, let configuration = tabItemConfiguration(for: id),
               let item = tabRecords[id]?.controller?.tabBarItem else { return nil }
@@ -1024,7 +705,11 @@ open class BoneTabBarController: UITabBarController {
         }
     }
 
-    /// Updates the existing native item without rebuilding its controller or navigation stack.
+    /// 更新已有标签项，而不重建其控制器或导航栈。
+    /// - Parameters:
+    ///   - id: 要更新的标签目的地稳定标识。
+    ///   - configuration: 新的标签项配置。
+    /// - Returns: 找到并更新标签项时返回 true，否则返回 false。
     @discardableResult
     public func updateTabItem(id: String, configuration: ShellTabItemConfiguration) -> Bool {
         guard let record = tabRecords[id], let controller = record.controller,
@@ -1163,6 +848,8 @@ open class BoneTabBarController: UITabBarController {
         }.withRenderingMode(.alwaysOriginal)
     }
 
+    /// 特征环境变化后重新应用标签图标、样式和背景。
+    /// - Parameter previousTraitCollection: 变化前的特征环境。
     open override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
         guard isViewLoaded else { return }
@@ -1172,27 +859,40 @@ open class BoneTabBarController: UITabBarController {
         refreshCurrentBackground()
     }
 
+    /// 标签栏背景配置；为空时不显示独立标签栏背景。
     public var backgroundConfiguration: ShellBackgroundConfiguration? {
         didSet { refreshCurrentBackground() }
     }
+    /// 当前标签栏使用的背景视图；没有背景配置时为空。
     public var backgroundView: ShellBackgroundView? { backgroundHost?.view }
     private var backgroundHost: ShellBarBackgroundHost?
     private var originalStandard: UITabBarAppearance?
     private var originalEdge: UITabBarAppearance?
     private var shellIsVisible = false
 
+    /// 当前选中的标签索引发生变化时刷新标签栏背景。
     open override var selectedIndex: Int { didSet { refreshCurrentBackground() } }
+    /// 当前选中的标签控制器发生变化时刷新标签栏背景。
     open override var selectedViewController: UIViewController? { didSet { refreshCurrentBackground() } }
+
+    /// 标签栏控制器即将显示时应用当前背景。
+    /// - Parameter animated: 标签栏出现是否带有动画。
     open override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         shellIsVisible = false
         refreshCurrentBackground()
     }
+
+    /// 标签栏控制器完成显示后恢复背景播放。
+    /// - Parameter animated: 标签栏出现是否带有动画。
     open override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         shellIsVisible = true
         refreshCurrentBackground()
     }
+
+    /// 标签栏控制器即将隐藏时暂停自绘栏和背景播放。
+    /// - Parameter animated: 标签栏消失是否带有动画。
     open override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         shellIsVisible = false
@@ -1206,6 +906,8 @@ open class BoneTabBarController: UITabBarController {
         backgroundView?.setPlaybackActive(false)
         shellUnifiedBackgroundHost?.pause()
     }
+
+    /// 标签栏控制器布局完成后同步自绘栏和背景位置。
     open override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         layoutSelfDrawnTabBar()
@@ -1280,6 +982,8 @@ open class BoneTabBarController: UITabBarController {
         backgroundHost?.view.setPlaybackActive(playbackActive && enabled)
     }
 
+    /// 创建包含指定标签目的地的标签栏控制器。
+    /// - Parameter tabs: 标签目的地列表；每个标签的 ID 必须唯一。
     public init(tabs: [ShellTab]) {
         precondition(Set(tabs.map(\.id)).count == tabs.count, "ShellTab IDs must be unique.")
         super.init(nibName: nil, bundle: nil)
@@ -1300,6 +1004,8 @@ open class BoneTabBarController: UITabBarController {
         }
     }
 
+    /// 从归档恢复标签栏控制器。
+    /// - Parameter coder: 用于解码控制器的归档对象。
     public required init?(coder: NSCoder) { super.init(coder: coder) }
 
     private static func stableTag(for id: String) -> Int {
@@ -1309,39 +1015,14 @@ open class BoneTabBarController: UITabBarController {
     }
 }
 
-@MainActor
-open class BoneSplitViewController: UISplitViewController, UISplitViewControllerDelegate {
-    public init(primary: UIViewController, detail: UIViewController) {
-        super.init(style: .doubleColumn)
-        preferredDisplayMode = .oneBesideSecondary
-        setViewController(Self.navigationContainer(for: primary), for: .primary)
-        setViewController(Self.navigationContainer(for: detail), for: .secondary)
-        delegate = self
-    }
-
-    public required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        delegate = self
-    }
-
-    /// UIKit owns stacking and separation; retain the supplied detail when collapsing.
-    open func splitViewController(
-        _ svc: UISplitViewController,
-        topColumnForCollapsingToProposedTopColumn proposedTopColumn: UISplitViewController.Column
-    ) -> UISplitViewController.Column {
-        .secondary
-    }
-
-    private static func navigationContainer(for controller: UIViewController) -> UIViewController {
-        controller as? UINavigationController
-            ?? BoneNavigationController(rootViewController: controller)
-    }
-}
-
 // MARK: - Accessory selection interception
 
 extension BoneTabBarController: UITabBarControllerDelegate {
-    /// Accessory items behave like buttons: run the action and keep the current tab.
+    /// 拦截附加操作的选择，将其作为按钮执行并保持当前标签。
+    /// - Parameters:
+    ///   - tabBarController: 触发选择的标签栏控制器。
+    ///   - viewController: 被请求选择的控制器。
+    /// - Returns: 是否允许 UIKit 切换到该控制器。
     public func tabBarController(_ tabBarController: UITabBarController,
                                  shouldSelect viewController: UIViewController) -> Bool {
         if let action = accessoryAction[viewController] {
@@ -1351,11 +1032,21 @@ extension BoneTabBarController: UITabBarControllerDelegate {
         return forwardedTabDelegate?.tabBarController?(tabBarController, shouldSelect: viewController) ?? true
     }
 
+    /// 将普通标签选择事件转发给宿主代理。
+    /// - Parameters:
+    ///   - tabBarController: 触发选择的标签栏控制器。
+    ///   - viewController: 已经选中的控制器。
     public func tabBarController(_ tabBarController: UITabBarController,
                                  didSelect viewController: UIViewController) {
         forwardedTabDelegate?.tabBarController?(tabBarController, didSelect: viewController)
     }
 
+    /// 将标签切换动画控制器请求转发给宿主代理。
+    /// - Parameters:
+    ///   - tabBarController: 触发切换的标签栏控制器。
+    ///   - fromVC: 切换前的控制器。
+    ///   - toVC: 切换后的控制器。
+    /// - Returns: 宿主提供的动画控制器；没有时返回 nil。
     public func tabBarController(_ tabBarController: UITabBarController,
                                  animationControllerForTransitionFrom fromVC: UIViewController,
                                  to toVC: UIViewController) -> UIViewControllerAnimatedTransitioning? {

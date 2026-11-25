@@ -1,6 +1,14 @@
 # 当前实现与验证基线
 
 最新发布版本和 Demo 版本为 **v0.12.1 / 0.12.1（Build 1）**。iOS 26 导航共享玻璃、NavButton 自定义 cluster 承载、confirmation 外观、返回恢复和兼容宽度预算已随 v0.12.1 发布，导航动作强制显示策略已随 v0.12.0 发布，NavButton、自定义导航标题与整项自定义标签内容已随 v0.11.0 发布。文字策略功能源码基线为 `bd7a7f6`；0.8 既有功能代码基线为 `9f758a1`。版本变化见 [更新记录](../CHANGELOG.md)。
+## 未发布源码结构调整
+
+当前未发布工作树已将容器类型拆入 `Sources/BoneShellKit/Containers/`，将导航声明和兼容布局拆入 `Sources/BoneShellKit/Navigation/`；公开类型、模块导入方式和宿主接入方式保持不变。源码分区和维护入口见 [源码结构说明](Source-Layout.md)。
+
+- 公开 API 中文文档扫描：`missing=0`。
+- `git diff --check` 和新目录尾随空格检查通过。
+- iOS Simulator SDK 编译通过；导航模块原子组材质和图片回退定向测试 2 项通过。
+
 ## v0.12.1 导航修复与验证
 
 - 自定义 NavButton 在系统导航中统一由 `ShellNavButtonCluster` 作为 `UIBarButtonItem.customView` 承载，系统 item 不再同时承载自定义动作的 `primaryAction`、标题和图标。

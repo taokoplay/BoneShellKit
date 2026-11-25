@@ -1,18 +1,33 @@
 import UIKit
 
+/// Shell 栏位和控件可使用的背景材质。
 public enum ShellMaterial: String, CaseIterable {
+    /// 根据系统能力自动选择最合适的材质。
     case automatic
+    /// 使用系统提供的默认材质。
     case systemDefault
+    /// 使用 iOS 26 及以上的系统液态玻璃；旧系统回退为磨砂玻璃。
     case systemGlass
+    /// 使用兼容旧系统的磨砂玻璃效果。
     case frostedGlass
+    /// 使用普通不透明颜色绘制，不产生透明或模糊效果。
     case solid
 }
 
+/// 材质请求及其运行时解析结果。
 public struct ShellMaterialResolution {
+    /// 调用方请求的材质。
     public let requested: ShellMaterial
+    /// 当前环境实际采用的材质。
     public let resolved: ShellMaterial
+    /// 材质回退或调整的原因；没有原因时为空。
     public let reason: String?
 
+    /// 创建一次材质解析结果。
+    /// - Parameters:
+    ///   - requested: 调用方请求的材质。
+    ///   - resolved: 当前环境实际采用的材质。
+    ///   - reason: 发生回退时的说明；没有回退时为空。
     public init(
         requested: ShellMaterial = .automatic,
         resolved: ShellMaterial = .systemDefault,
@@ -24,9 +39,14 @@ public struct ShellMaterialResolution {
     }
 }
 
+/// 材质解析工具，负责统一处理系统能力和辅助功能回退。
 @MainActor
 public enum ShellMaterials {
-    /// Capability inputs are explicit so fallback rules can be tested on any OS.
+    /// 将请求的材质按系统能力和辅助功能设置解析为实际材质。
+    /// - Parameters:
+    ///   - requested: 调用方请求的材质。
+    ///   - supportsSystemGlass: 当前运行环境是否支持系统液态玻璃。
+    ///   - reduceTransparency: 用户是否开启了减少透明度。
     public static func resolve(
         _ requested: ShellMaterial,
         supportsSystemGlass: Bool,

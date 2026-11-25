@@ -1,9 +1,9 @@
-/// How a tab chooses and renders its icon while selected.
+/// 标签选中时选择和渲染图标的方式。
 public enum ShellTabSelectedIconMode: String, CaseIterable, Sendable {
-    /// Preserve the existing selected-icon and rendering-mode behavior.
+    /// 保留现有的选中图标和渲染模式行为。
     case automatic
-    /// Keep the normal artwork and apply the current selected color.
+    /// 保留普通图标，并应用当前选中颜色。
     case selectedColor
-    /// Keep the selected artwork's original colors and transparency; fall back to the normal icon.
+    /// 保留选中图标的原始颜色和透明度；没有选中图标时回退为普通图标。
     case selectedImage
 }

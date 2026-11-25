@@ -32,18 +32,21 @@ final class EditScreen: BoneViewController {
                                      icon: .systemSymbol("square.and.arrow.up")) { /* 分享 */ }
         let done = NavigationAction(id: "done", title: "完成", navButton: .init(
             normal: .init(size: .preferred(CGSize(width: 72, height: 44)), effect: .liquidGlass),
-            vertical: .init(size: .preferred(CGSize(width: 44, height: 72)), icon: .systemSymbol("checkmark"))
+            iPhoneDuo: .init(size: .preferred(CGSize(width: 44, height: 72)), icon: .systemSymbol("checkmark"))
         ) { /* 完成 */ }
-        screen.navigation.navButtonLayout = .grouped(spacing: 8)
+        screen.navigation.trailingModules = [
+            .group(NavigationButtonGroup(id: "editing", actions: [edit, share], itemSpacing: 8, material: .systemGlass)),
+            .button(done)
+        ]
     }
 }
 ```
 
 - **尺寸**：默认按文字、图片的逻辑尺寸（pt）或自定义视图拟合；`size` 指按钮外框，`iconSize` 指图标，`contentInsets` 指内部留白。小图不必拉伸到点击区域大小。在分配的空间内尽可能提供 44 × 44 pt 的不重叠点击区域。标题字号不参与按钮测量。
-- **轴向图标**：`Style.icon` 可独立覆盖动作图标。普通样式不设置 `icon` 时，若动作也没有 `icon` / `symbol` 就显示 `title`；`vertical: .init(icon: .systemSymbol("checkmark"))` 只在实际侧栏显示勾号。
-- **顺序与间距**：`.individual` 将每个 `navButton` 作为独立导航项。`.grouped(spacing:)` 只编组同侧数组中相邻且连续的 `navButton`，要求 `role`、`priority`、`visibility` 和 `axisBehavior` 一致。标准 `NavigationAction` 不参与这个自定义按钮编组，确认动作始终独立。`spacing` 以 pt 为单位，控制同一组内相邻按钮外框之间的净距，不含首尾空白，也不控制与系统返回键、其他分组或「完成」之间的距离。编组后的组按单项参与宽度预算或原生溢出，组内每个动作仍保持独立点击区域、菜单项和回调。
-- **Duo**：`navButton:` 默认 `.verticalPreferred`；`.horizontalOnly` 仍可显式指定。只有实际侧栏承载时才采用 `vertical`。省略的字段继承 `normal`，整个 `vertical` 省略则沿用普通内容与材质，不旋转文字。经典栏始终为横向；UIKit 仍决定原生位置、可用尺寸和最终可见性。
-- **材质**：`.none` 透明无背景、`.blur` 背景模糊、`.liquidGlass` 在 iOS 26+ 使用系统液体玻璃，旧版回退为模糊。「减少透明度」开启时后两者改为可读实色，`.none` 仍透明。设置仅影响该按钮，不给相邻按钮或整栏重复叠加背景。
+- **轴向与内容**：`Style.icon` 可为横栏与 iPhone Duo 分别指定图标，`iPhoneDuo` 样式只在实际侧边栏承载时生效。`axisBehavior.horizontalOnly` 关闭自动侧边栏迁移，`verticalPreferred` 允许并优先侧边栏。
+- **模块顺序与间距**：`leadingModules`、`trailingModules` 按声明顺序呈现。独立按钮使用 `.button`，多个按钮使用 `NavigationButtonGroup`；`itemSpacing` 控制组内间距，`NavigationConfiguration.moduleSpacing` 控制模块之间的期望间距。按钮组作为一个原子模块参与宽度预算、溢出和 Duo 位置计算。
+- **材质**：组内按钮的按钮级 effect 自动解析为 `.none`，只使用 `NavigationButtonGroup.material`；独立按钮才使用自己的按钮材质。导航栏 `material` 仍负责整条导航栏背景。
+- **自定义内容**：`ShellNavButton` 可提供尺寸、图标、iPhone Duo 样式和完整自定义 UIView。组内自定义内容不要再自行绘制第二层导航表面。
 - **系统项与自定义项**：`navButton:` 的动作由 SDK 创建 `ShellNavButtonHost` 和 `ShellNavButtonCluster`，再把 cluster 作为 `UIBarButtonItem.customView`。SDK 不同时使用系统 item 的 `primaryAction`、标题或图标承载同一个自定义动作。宿主只需要提供 `NavigationAction.handler`。
 - **确认动作**：`role: .confirmation` 仍参与原生优先级、固定位置和兼容宽度预算。自定义 confirmation 使用自定义按钮的文字与材质，不叠加 UIKit `.done` 的系统突出外观；未使用 `navButton:` 的 confirmation 继续使用系统 `.done` 样式。
 - **系统玻璃**：`ShellMaterial.systemGlass` 保留 UIKit 的共享玻璃背景。不要通过 `hidesSharedBackground` 关闭玻璃，再在每个自定义按钮上重复绘制一层系统表面。
@@ -114,19 +117,17 @@ import BoneShellKit
 final class ActionsController: BoneViewController {
     override func configureScreen(_ screen: inout ScreenConfiguration) {
         screen.navigation.title = "编辑"
-        screen.navigation.leadingActions = [
-            NavigationAction(id: "close", title: "关闭", symbol: "xmark",
-                             role: .cancellation) { [weak self] in
-                self?.dismiss(animated: true)
-            }
-        ]
-        screen.navigation.trailingActions = [
-            NavigationAction(id: "bookmark", title: "收藏",
-                             icon: .asset("Bookmark", bundle: .main),
-                             priority: 10, axisBehavior: .verticalPreferred) { },
-            NavigationAction(id: "save", title: "保存", symbol: "checkmark",
-                             priority: 20, role: .confirmation) { }
-        ]
+        let close = NavigationAction(id: "close", title: "关闭", symbol: "xmark",
+                                     role: .cancellation) { [weak self] in
+            self?.dismiss(animated: true)
+        }
+        let bookmark = NavigationAction(id: "bookmark", title: "收藏",
+                                         icon: .asset("Bookmark", bundle: .main),
+                                         priority: 10, axisBehavior: .verticalPreferred) { }
+        let save = NavigationAction(id: "save", title: "保存", symbol: "checkmark",
+                                    priority: 20, role: .confirmation) { }
+        screen.navigation.leadingModules = [.button(close)]
+        screen.navigation.trailingModules = [.button(bookmark), .button(save)]
     }
 }
 ```
@@ -137,7 +138,7 @@ final class ActionsController: BoneViewController {
 
 | 字段 | 值 | 行为 |
 | --- | --- | --- |
-| `role` | `.normal`（默认） | 保留 `leadingActions` / `trailingActions` 指定的位置 |
+| `role` | `.normal`（默认） | 保留 `leadingModules` / `trailingModules` 指定的位置 |
 | `role` | `.cancellation` | 放在 leading，保留原生返回按钮 |
 | `role` | `.confirmation` | 放在 trailing；iOS 27+ 原生布局固定首个确认动作，后续确认动作仍可溢出；兼容路径优先保留确认动作 |
 | `priority` | 任意 `Int`，默认 `0` | 同角色下较大的值优先保留；原生映射为 `UIBarButtonItemVisibilityPriority`，不以此重排声明顺序 |

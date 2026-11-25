@@ -1,36 +1,49 @@
 import UIKit
 
-/// Replaces all visual content of a tab or accessory. The SDK owns the slot and its action.
+/// 替换标签或附加操作的全部视觉内容；SDK 仍负责占位区域和点击行为。
 public struct ShellTabBarCustomContent {
+    /// 自定义内容当前的挂载模式。
     public enum Mode: Equatable, Sendable {
+        /// 使用 SDK 的标准标签内容。
         case standard
+        /// 使用工厂创建的自定义视图。
         case customView
-        /// The item has no visible slot or the factory returned a view already in use.
+        /// 没有可见内容，或工厂返回的视图已被其他层级占用。
         case unavailable
     }
 
+    /// 传递给自定义内容视图的当前状态。
     public struct State: Equatable, Sendable {
+        /// 自定义内容挂载区域当前是否可见。
         public let isVisible: Bool
-        /// Always false for accessories, which are actions rather than destinations.
+        /// 附加操作始终为 false，因为附加操作是动作而不是目的地。
         public let isSelected: Bool
+        /// 当前内容是否允许交互。
         public let isEnabled: Bool
+        /// 当前内容是否处于高亮状态。
         public let isHighlighted: Bool
     }
 
-    /// Change this to replace the mounted view without replacing the button.
+    /// 修改此版本号即可替换已挂载的视图，而无需替换按钮本身。
     public var revision: Int
-    /// Create a new, unattached view. The SDK lays it out in the entire item slot.
+    /// 创建新的未挂载视图。SDK 会将其布局到整个标签项区域。
     public var makeView: @MainActor () -> UIView
 
+    /// 创建标签栏自定义内容配置。
+    /// - Parameters:
+    ///   - revision: 内容版本号；版本变化会使 SDK 重新创建视图。
+    ///   - makeView: 创建未挂载 UIView 的工厂闭包。
     public init(revision: Int = 0, makeView: @escaping @MainActor () -> UIView) {
         self.revision = revision
         self.makeView = makeView
     }
 }
 
-/// Optional state updates for a custom view. Scene activity and Reduce Motion are host policies.
+/// 为自定义标签内容提供可选的状态更新回调。
 @MainActor
 public protocol ShellTabBarContentUpdating: AnyObject {
+    /// 自定义视图的可见性、选中、启用和高亮状态发生变化时调用。
+    /// - Parameter state: 当前内容状态。
     func tabBarContentDidChange(_ state: ShellTabBarCustomContent.State)
 }
 

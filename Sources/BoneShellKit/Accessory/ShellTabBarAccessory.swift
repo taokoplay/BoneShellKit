@@ -1,29 +1,34 @@
 import UIKit
 
-/// An extra action button attached to the tab bar. It never becomes a selected tab.
+/// 附加在标签栏上的操作按钮，不会成为可选中的标签目的地。
 ///
-/// Classic bars place actions inside the bar. Capsule bars place circular actions beside
-/// the visible capsule, using a standalone native tab bar on iOS 26 and later and the SDK
-/// renderer on older systems. Explicit system presentation uses UIKit's accessory slot
-/// on iOS 26 and later, or intercepted native tab items below iOS 26.
+/// 经典栏会把操作放在栏内；胶囊栏会把圆形操作放在可见胶囊旁边。iOS 26 及以上的
+/// 原生呈现使用系统附加操作区域，更早系统使用 SDK 的兼容实现或原生标签项拦截。
 public struct ShellTabBarAccessory {
+    /// 附加操作在标签栏中的位置。
     public enum Position: Equatable, Sendable {
+        /// 放在标签栏左侧或前侧。
         case leading
+        /// 放在标签栏右侧或后侧。
         case trailing
     }
 
-
+    /// 附加操作的稳定标识，用于刷新时识别同一操作。
     public let id: String
-    /// The standard glyph. A custom accessory does not need one.
+    /// 标准图标；使用自定义内容时可以为空。
     public var icon: ShellTabIcon?
-    /// Optional caption under the icon in self-drawn bars.
+    /// 经典栏中显示在图标下方的可选标题。
     public var title: String?
+    /// 附加操作在标签栏中的位置。
     public var position: Position
+    /// 当前操作是否允许触发。
     public var isEnabled: Bool
+    /// 无障碍元素使用的描述文本；为空时由标题回退。
     public var accessibilityLabel: String?
+    /// 操作被触发时执行的回调。
     public var handler: () -> Void
 
-    /// Replaces all visual content of the action. The SDK still handles the tap.
+    /// 替换操作的全部视觉内容；SDK 仍负责占位区域和点击行为。
     public var customContent: ShellTabBarCustomContent?
 
     struct Signature: Equatable {
@@ -54,6 +59,15 @@ public struct ShellTabBarAccessory {
                          isEnabled: isEnabled, accessibilityLabel: accessibilityLabel, contentRevision: customContent?.revision)
     }
 
+    /// 创建使用标准图标的标签栏附加操作。
+    /// - Parameters:
+    ///   - id: 附加操作的稳定标识。
+    ///   - icon: 要显示的标签图标。
+    ///   - title: 可选的标题；经典栏会显示该标题。
+    ///   - position: 操作在标签栏中的位置。
+    ///   - isEnabled: 是否允许触发操作。
+    ///   - accessibilityLabel: 无障碍描述文本；为空时回退为标题。
+    ///   - handler: 操作触发回调。
     public init(
         id: String,
         icon: ShellTabIcon,
@@ -72,6 +86,14 @@ public struct ShellTabBarAccessory {
         self.handler = handler
     }
 
+    /// 创建使用自定义视觉内容的标签栏附加操作。
+    /// - Parameters:
+    ///   - id: 附加操作的稳定标识。
+    ///   - customContent: 替换标准图标和标题的自定义内容。
+    ///   - position: 操作在标签栏中的位置。
+    ///   - isEnabled: 是否允许触发操作。
+    ///   - accessibilityLabel: 无障碍描述文本。
+    ///   - handler: 操作触发回调。
     public init(id: String, customContent: ShellTabBarCustomContent, position: Position, isEnabled: Bool = true,
                 accessibilityLabel: String, handler: @escaping () -> Void) {
         self.id = id

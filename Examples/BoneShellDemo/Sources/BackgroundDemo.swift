@@ -60,7 +60,7 @@ final class BackgroundDemoController: DemoStackController {
     override func configureScreen(_ screen: inout ScreenConfiguration) {
         screen.navigation.title = "背景与切页"
         DemoBackgroundAssets.assign(DemoBackgroundAssets.configuration(sourceIndex), scope: scopeIndex, screen: &screen)
-        screen.navigation.trailingActions = [NavigationAction(id: "background.next", title: "下一页", symbol: "arrow.right", priority: 20, handler: { [weak self] in self?.openDetail() })]
+        screen.navigation.trailingModules = [NavigationAction(id: "background.next", title: "下一页", symbol: "arrow.right", priority: 20, handler: { [weak self] in self?.openDetail() })].map(\.asNavigationModule)
     }
     override func buildDemo() {
         intro("一幅背景，贯穿全屏", "默认「全部」让导航、页面和标签共享一幅连续背景；选择「分区」可让三个区域各自呈现。图片、动图、MP4 和 HTML 使用同一套配置，动态背景默认最多同时播放一个。")

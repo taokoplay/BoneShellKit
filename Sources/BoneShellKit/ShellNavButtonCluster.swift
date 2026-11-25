@@ -11,24 +11,63 @@ final class ShellNavigationBarItem: UIBarButtonItem {
 struct ShellNavButtonRun {
     let first: NavigationAction
     private(set) var others: [NavigationAction] = []
+    let groupID: String?
+    let groupMaterial: ShellMaterial?
+    let itemSpacing: CGFloat
+    let moduleSpacingAfter: CGFloat
     var actions: [NavigationAction] { [first] + others }
 
-    static func collect(_ actions: [NavigationAction], layout: ShellNavButtonLayout) -> [Self] {
+    init(
+        first: NavigationAction,
+        groupID: String? = nil,
+        groupMaterial: ShellMaterial? = nil,
+        itemSpacing: CGFloat = 0,
+        moduleSpacingAfter: CGFloat = 0
+    ) {
+        self.first = first
+        self.groupID = groupID
+        self.groupMaterial = groupMaterial
+        self.itemSpacing = itemSpacing.isFinite ? max(0, itemSpacing) : 0
+        self.moduleSpacingAfter = moduleSpacingAfter.isFinite ? max(0, moduleSpacingAfter) : 0
+    }
+
+    private init(
+        actions: [NavigationAction],
+        groupID: String,
+        groupMaterial: ShellMaterial,
+        itemSpacing: CGFloat,
+        moduleSpacingAfter: CGFloat
+    ) {
+        precondition(!actions.isEmpty, "Navigation button groups must contain at least one action.")
+        self.init(first: actions[0], groupID: groupID, groupMaterial: groupMaterial,
+                  itemSpacing: itemSpacing, moduleSpacingAfter: moduleSpacingAfter)
+        self.others = Array(actions.dropFirst())
+    }
+
+
+    static func collect(_ modules: [NavigationModule], moduleSpacing: CGFloat) -> [Self] {
+        let spacing = moduleSpacing.isFinite ? max(0, moduleSpacing) : 0
         var runs: [Self] = []
-        for action in actions {
-            if case .grouped = layout, action.navButton != nil, action.role != .confirmation,
-               let previous = runs.last?.first, previous.navButton != nil,
-               previous.role == action.role, previous.priority == action.priority,
-               previous.visibility == action.visibility,
-               previous.axisBehavior == action.axisBehavior {
-                runs[runs.count - 1].others.append(action)
-            } else {
-                runs.append(Self(first: action))
+        for (index, module) in modules.enumerated() {
+            let after = index == modules.count - 1 ? 0 : spacing
+            switch module {
+            case .button(let action):
+                runs.append(Self(first: action, moduleSpacingAfter: after))
+            case .group(let group):
+                guard !group.actions.isEmpty else { continue }
+                runs.append(Self(
+                    actions: group.actions,
+                    groupID: group.id,
+                    groupMaterial: group.material,
+                    itemSpacing: group.itemSpacing,
+                    moduleSpacingAfter: after
+                ))
             }
         }
         return runs
     }
 }
+
 
 /// One native bar item (or one classic slot), even when it contains multiple actions.
 /// Only the child buttons are accessibility elements; the container never fires an action.
@@ -36,16 +75,47 @@ struct ShellNavButtonRun {
 final class ShellNavButtonCluster: UIView {
     private(set) var buttons: [ShellNavButtonHost] = []
     private var spacing: CGFloat = 0
+    private var moduleSpacingAfter: CGFloat = 0
     private var tracksNativePlacement = false
+    private var groupMaterial: ShellMaterial?
+    private let groupSurface = ShellGlassView(material: .solid)
     weak var navigationBar: UINavigationBar?
     private(set) var isVertical = false
     private var touchRects: [CGRect] = []
 
-    func update(buttons: [ShellNavButtonHost], spacing: CGFloat, tracksNativePlacement: Bool) {
+    override init(frame: CGRect = .zero) {
+        super.init(frame: frame)
+        groupSurface.isUserInteractionEnabled = false
+        groupSurface.isHidden = true
+        insertSubview(groupSurface, at: 0)
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        groupSurface.isUserInteractionEnabled = false
+        groupSurface.isHidden = true
+        insertSubview(groupSurface, at: 0)
+    }
+
+    func update(
+        buttons: [ShellNavButtonHost],
+        spacing: CGFloat,
+        tracksNativePlacement: Bool,
+        groupMaterial: ShellMaterial? = nil,
+        moduleSpacingAfter: CGFloat = 0
+    ) {
         for old in self.buttons where old.superview === self && !buttons.contains(old) { old.removeFromSuperview() }
         self.buttons = buttons
         self.spacing = spacing.isFinite ? max(0, spacing) : 0
+        self.moduleSpacingAfter = moduleSpacingAfter.isFinite ? max(0, moduleSpacingAfter) : 0
         self.tracksNativePlacement = tracksNativePlacement
+        self.groupMaterial = groupMaterial
+        if let groupMaterial {
+            groupSurface.material = ShellMaterials.currentResolution(for: groupMaterial).resolved
+            groupSurface.isHidden = buttons.isEmpty
+        } else {
+            groupSurface.isHidden = true
+        }
         if !tracksNativePlacement { isVertical = false }
         for button in buttons {
             if button.superview !== self { addSubview(button) }
@@ -74,23 +144,27 @@ final class ShellNavButtonCluster: UIView {
 
     override var intrinsicContentSize: CGSize {
         let m = metrics
-        let length = m.before + m.lengths.reduce(0, +) + CGFloat(max(0, buttons.count - 1)) * spacing + m.after
+        let length = m.before + m.lengths.reduce(0, +)
+            + CGFloat(max(0, buttons.count - 1)) * spacing
+            + m.after + moduleSpacingAfter
         let cross = max(44, m.cross.max() ?? 0)
         return isVertical ? CGSize(width: cross, height: length) : CGSize(width: length, height: cross)
     }
-
-    override func sizeThatFits(_ size: CGSize) -> CGSize {
-        let p = intrinsicContentSize
-        return CGSize(width: size.width > 0 ? min(size.width, p.width) : p.width,
-                      height: size.height > 0 ? min(size.height, p.height) : p.height)
-    }
-
     override func layoutSubviews() {
         super.layoutSubviews()
         refreshPlacement()
+        let groupLength = isVertical
+            ? max(0, bounds.height - moduleSpacingAfter)
+            : max(0, bounds.width - moduleSpacingAfter)
+        groupSurface.frame = isVertical
+            ? CGRect(x: bounds.minX, y: bounds.minY, width: bounds.width, height: groupLength)
+            : CGRect(x: bounds.minX, y: bounds.minY, width: groupLength, height: bounds.height)
+        groupSurface.layer.cornerRadius = min(groupSurface.bounds.width, groupSurface.bounds.height) / 2
         let m = metrics
         guard !buttons.isEmpty else { touchRects = []; return }
-        let available = isVertical ? bounds.height : bounds.width
+        let available = isVertical
+            ? max(0, bounds.height - moduleSpacingAfter)
+            : max(0, bounds.width - moduleSpacingAfter)
         let cross = isVertical ? bounds.width : bounds.height
         let pairs = CGFloat(buttons.count - 1)
         let gap = min(spacing, pairs > 0 ? available / pairs : 0)
@@ -117,6 +191,13 @@ final class ShellNavButtonCluster: UIView {
             return rect(p - left, length + left + right, min(cross, max(44, span)))
         }
     }
+
+    override func sizeThatFits(_ size: CGSize) -> CGSize {
+        let p = intrinsicContentSize
+        return CGSize(width: size.width > 0 ? min(size.width, p.width) : p.width,
+                      height: size.height > 0 ? min(size.height, p.height) : p.height)
+    }
+
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         guard !isHidden, alpha > 0.01, isUserInteractionEnabled, bounds.contains(point) else { return nil }

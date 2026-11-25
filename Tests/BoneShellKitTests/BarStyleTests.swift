@@ -136,11 +136,11 @@ private final class StyledActionFixture: BoneViewController {
         screen.navigation.style = ShellNavigationStyle(
             title: ShellTextStyle(size: 28, scalesWithDynamicType: false),
             buttons: ShellTextStyle(size: 24, scalesWithDynamicType: false))
-        screen.navigation.trailingActions = [
+        screen.navigation.trailingModules = [
             NavigationAction(id: "save", title: "保存", priority: 20, handler: {}),
             NavigationAction(id: "share", title: "分享完整内容", handler: {}),
             NavigationAction(id: "archive", title: "归档这条记录", handler: {})
-        ]
+        ].map(\.asNavigationModule)
     }
 }
 

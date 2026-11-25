@@ -243,7 +243,7 @@ private final class PresentationFixture: BoneViewController {
         screen.barPresentation = presentation
         screen.navigation.title = "类型与状态"
         screen.navigation.style = ShellNavigationStyle(title: ShellTextStyle(size: 20, color: .systemBlue, scalesWithDynamicType: false))
-        screen.navigation.trailingActions = [NavigationAction(id: "presentation.increment", title: "增加", symbol: "plus", priority: 20, handler: { [weak self] in self?.events += 1 })]
+        screen.navigation.trailingModules = [NavigationAction(id: "presentation.increment", title: "增加", symbol: "plus", priority: 20, handler: { [weak self] in self?.events += 1 })].map(\.asNavigationModule)
         if shared { screen.backgroundComposition = .unified; screen.background = ShellBackgroundConfiguration(source: .color(.cyan)) }
     }
     override func buildContent(in contentView: UIView) {

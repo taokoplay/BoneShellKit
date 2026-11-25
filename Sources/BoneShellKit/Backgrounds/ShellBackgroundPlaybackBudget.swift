@@ -1,16 +1,21 @@
 import UIKit
 
+/// 管理动态背景在各窗口场景中的并发播放预算。
 @MainActor
 public enum ShellBackgroundPlaybackBudget {
     private static var limit = 1
     private static let coordinator = ShellBackgroundPlaybackCoordinator()
 
+    /// 每个窗口场景最多同时播放的动态背景数量。
+    /// 设置值会被限制在 0 到 3 之间，并立即触发重新分配。
     public static var maximumActivePerScene: Int {
         get { limit }
         set { limit = min(3, max(0, newValue)); coordinator.rebalance() }
     }
 
-    /// A nil scene counts running backgrounds across all scenes, including legacy windows.
+    /// 统计指定场景中当前正在播放的背景数量。
+    /// - Parameter scene: 要统计的窗口场景；为空时统计所有场景及旧式窗口。
+    /// - Returns: 当前正在播放的背景数量。
     public static func activeCount(in scene: UIWindowScene? = nil) -> Int {
         coordinator.activeCount(in: scene)
     }
