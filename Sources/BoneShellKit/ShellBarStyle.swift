@@ -60,21 +60,25 @@ public struct ShellNavigationStyle {
     public var subtitle: ShellTextStyle
     /// 导航按钮文字的样式。
     public var buttons: ShellTextStyle
-
+    /// 导航栏背景颜色；可用于为系统玻璃叠加主题色和透明度。
+    /// 媒体背景存在时由独立背景配置接管此颜色。
+    public var backgroundColor: UIColor?
     /// 创建导航栏样式。
     /// - Parameters:
     ///   - title: 普通标题样式；为空时使用默认样式。
     ///   - largeTitle: 大标题样式；为空时使用默认样式。
     ///   - subtitle: 副标题样式；为空时使用默认样式。
     ///   - buttons: 按钮文字样式；为空时使用默认样式。
-    public init(title: ShellTextStyle? = nil, largeTitle: ShellTextStyle? = nil, subtitle: ShellTextStyle? = nil, buttons: ShellTextStyle? = nil) {
+    ///   - backgroundColor: 导航栏背景颜色；可携带透明度，玻璃材质会叠加该颜色。
+    public init(title: ShellTextStyle? = nil, largeTitle: ShellTextStyle? = nil, subtitle: ShellTextStyle? = nil, buttons: ShellTextStyle? = nil, backgroundColor: UIColor? = nil) {
         self.title = title ?? ShellTextStyle()
         self.largeTitle = largeTitle ?? ShellTextStyle()
         self.subtitle = subtitle ?? ShellTextStyle()
         self.buttons = buttons ?? ShellTextStyle()
+        self.backgroundColor = backgroundColor
     }
+    var isEmpty: Bool { title.isEmpty && largeTitle.isEmpty && subtitle.isEmpty && buttons.isEmpty && backgroundColor == nil }
 
-    var isEmpty: Bool { title.isEmpty && largeTitle.isEmpty && subtitle.isEmpty && buttons.isEmpty }
 }
 
 /// 标签栏文字、图标和标签标题显示方式的样式集合。
@@ -190,10 +194,17 @@ enum ShellBarStyling {
             appearance.configureWithOpaqueBackground()
             appearance.backgroundEffect = nil
             appearance.backgroundColor = .systemBackground
+        } else if material == .systemGlass {
+            // iOS 26 owns the Liquid Glass navigation surface; UIKit does not expose
+            // UIGlassEffect through UINavigationBarAppearance.backgroundEffect.
+            if let backgroundColor = style.backgroundColor {
+                appearance.backgroundColor = backgroundColor
+            }
         } else if material == .frostedGlass {
             appearance.configureWithDefaultBackground()
             appearance.backgroundEffect = UIBlurEffect(style: .systemMaterial)
-            appearance.backgroundColor = UIColor.secondarySystemBackground.withAlphaComponent(0.20)
+            appearance.backgroundColor = style.backgroundColor
+                ?? UIColor.secondarySystemBackground.withAlphaComponent(0.20)
         } else if scrollEdge && base == nil {
             // UIKit derives a transparent edge appearance when none was supplied.
             appearance.configureWithTransparentBackground()

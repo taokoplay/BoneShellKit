@@ -3,6 +3,7 @@
 适用于 **v0.9.0 验证版**；“标签文字显示策略”自 v0.9.0 提供，v0.8.0 不包含，运行与视觉验证见 [验证记录](Implementation-Status.md#090-标签文字显示策略与验证)。示例需 `import UIKit`、`import BoneShellKit`，并在主线程 / `@MainActor` 上使用。栏位形态与样式分别配置，四种呈现模式见 [栏位类型](Bar-Presentation.md)。
 
 导航栏和标签栏的文字通过 `ShellTextStyle` 设置，支持字号、字体、粗细、颜色及 Dynamic Type。导航提供普通标题、大标题、副标题与按钮四种角色；标签提供普通态和选中态的文字及图标颜色。标签图标可使用 SF Symbol、bundle 资源图片或 UIImage，并可在运行时替换。
+`ShellNavigationStyle.backgroundColor` 可传入带透明度的主题色；系统玻璃保留 `UIGlassEffect`，并将该颜色作为栏位色彩叠加，标题和按钮仍使用各自的文字样式。媒体背景存在时，栏位颜色由 `ShellBackgroundConfiguration` 接管。
 
 ## 导航栏字体与颜色
 

@@ -76,6 +76,7 @@ final class ShellNavButtonCluster: UIView {
     private(set) var buttons: [ShellNavButtonHost] = []
     private var spacing: CGFloat = 0
     private var moduleSpacingAfter: CGFloat = 0
+    private var moduleVisualOffset: CGFloat = 0
     private var tracksNativePlacement = false
     private var groupMaterial: ShellMaterial?
     private let groupSurface = ShellGlassView(material: .solid)
@@ -127,6 +128,12 @@ final class ShellNavButtonCluster: UIView {
         if bounds.isEmpty { bounds.size = intrinsicContentSize }
         setNeedsLayout()
     }
+    func setModuleVisualOffset(_ offset: CGFloat) {
+        let value = offset.isFinite ? offset : 0
+        guard moduleVisualOffset != value else { return }
+        moduleVisualOffset = value
+        setNeedsLayout()
+    }
 
     /// A small visual does not stretch to fill a 44 pt target. Neighbours divide their
     /// gap; free space at the two ends can complete the outermost targets.
@@ -150,15 +157,26 @@ final class ShellNavButtonCluster: UIView {
         let cross = max(44, m.cross.max() ?? 0)
         return isVertical ? CGSize(width: cross, height: length) : CGSize(width: length, height: cross)
     }
+    var moduleVisualBounds: CGRect {
+        if !groupSurface.isHidden { return groupSurface.frame }
+        var result = CGRect.null
+        for button in buttons {
+            result = result.union(button.convert(button.moduleVisualBounds, to: self))
+        }
+        return result.isNull ? bounds : result
+    }
     override func layoutSubviews() {
         super.layoutSubviews()
         refreshPlacement()
         let groupLength = isVertical
             ? max(0, bounds.height - moduleSpacingAfter)
             : max(0, bounds.width - moduleSpacingAfter)
-        groupSurface.frame = isVertical
+        let offset = isVertical ? CGPoint(x: 0, y: moduleVisualOffset) : CGPoint(x: moduleVisualOffset, y: 0)
+        func shifted(_ frame: CGRect) -> CGRect { frame.offsetBy(dx: offset.x, dy: offset.y) }
+        let groupFrame = isVertical
             ? CGRect(x: bounds.minX, y: bounds.minY, width: bounds.width, height: groupLength)
             : CGRect(x: bounds.minX, y: bounds.minY, width: groupLength, height: bounds.height)
+        groupSurface.frame = shifted(groupFrame)
         groupSurface.layer.cornerRadius = min(groupSurface.bounds.width, groupSurface.bounds.height) / 2
         groupSurface.layer.cornerCurve = .continuous
         groupSurface.layer.masksToBounds = true
@@ -186,12 +204,12 @@ final class ShellNavButtonCluster: UIView {
         touchRects = buttons.indices.map { i in
             let length = m.lengths[i] * scale
             let span = min(cross, m.cross[i])
-            buttons[i].frame = rect(p, length, span)
+            buttons[i].frame = shifted(rect(p, length, span))
             let need = max(0, 44 - length)
             let left = i == 0 ? min(p, max(need / 2, need - gap / 2)) : min(gap / 2, need / 2)
             let right = i == buttons.count - 1 ? min(max(0, available - p - length), need - left) : min(gap / 2, need - left)
             defer { p += length + gap }
-            return rect(p - left, length + left + right, min(cross, max(44, span)))
+            return shifted(rect(p - left, length + left + right, min(cross, max(44, span))))
         }
     }
 

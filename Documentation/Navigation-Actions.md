@@ -44,7 +44,7 @@ final class EditScreen: BoneViewController {
 
 - **尺寸**：默认按文字、图片的逻辑尺寸（pt）或自定义视图拟合；`size` 指按钮外框，`iconSize` 指图标，`contentInsets` 指内部留白。小图不必拉伸到点击区域大小。在分配的空间内尽可能提供 44 × 44 pt 的不重叠点击区域。标题字号不参与按钮测量。
 - **轴向与内容**：`Style.icon` 可为横栏与 iPhone Duo 分别指定图标，`iPhoneDuo` 样式只在实际侧边栏承载时生效。`axisBehavior.horizontalOnly` 关闭自动侧边栏迁移，`verticalPreferred` 允许并优先侧边栏。
-- **模块顺序与间距**：`leadingModules`、`trailingModules` 按声明顺序呈现。独立按钮使用 `.button`，多个按钮使用 `NavigationButtonGroup`；`itemSpacing` 控制组内间距，`NavigationConfiguration.moduleSpacing` 控制模块之间的期望间距。按钮组作为一个原子模块参与宽度预算、溢出和 Duo 位置计算。
+- **模块顺序与间距**：`leadingModules`、`trailingModules` 按声明顺序呈现。独立按钮使用 `.button`，多个按钮使用 `NavigationButtonGroup`；`itemSpacing` 控制组内间距，`NavigationConfiguration.moduleSpacing` 控制模块可见边界之间的固定间距，SDK 会校正系统栏位和按钮内边距产生的额外空间。按钮组作为一个原子模块参与宽度预算、溢出和 Duo 位置计算。
 - **材质**：组内按钮的按钮级 effect 自动解析为 `.none`，只使用 `NavigationButtonGroup.material`；独立按钮才使用自己的按钮材质。导航栏 `material` 仍负责整条导航栏背景。
 - **自定义内容**：`ShellNavButton` 可提供尺寸、图标、iPhone Duo 样式和完整自定义 UIView。组内自定义内容不要再自行绘制第二层导航表面。
 - **系统项与自定义项**：`navButton:` 的动作由 SDK 创建 `ShellNavButtonHost` 和 `ShellNavButtonCluster`，再把 cluster 作为 `UIBarButtonItem.customView`。SDK 不同时使用系统 item 的 `primaryAction`、标题或图标承载同一个自定义动作。宿主只需要提供 `NavigationAction.handler`。

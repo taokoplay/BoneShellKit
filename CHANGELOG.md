@@ -2,9 +2,12 @@
 
 已发布版本按 Git 标签记录。接入方式见 [README](README.md)，实际执行范围见 [验证记录](Documentation/Implementation-Status.md)。
 
-## 未发布
+## 0.13.3
 
-后续版本变更待补充。
+发布标签：[v0.13.3](https://github.com/taokoplay/BoneShellKit/tree/v0.13.3)。
+
+- 玻璃导航栏支持叠加主题颜色和透明度，同时保留系统玻璃及标题 / 按钮的不透明度。
+- 统一兼容、经典和 iOS 27 原生导航中的模块可见边界间距，校正 UIKit 与按钮内边距产生的额外空间。
 
 ## 0.13.2
 

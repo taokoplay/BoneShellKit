@@ -53,7 +53,7 @@
 | `NavigationAction(id:title:navButton:icon:priority:visibility:isEnabled:role:axisBehavior:handler:)` | v0.11.0+ 创建可按横栏 / 侧栏分别呈现的 NavButton；SDK 使用 cluster 作为系统 item 的自定义承载，confirmation 保留语义优先级但使用自定义按钮外观；`visibility` 自 v0.12.0+ 提供 |
 | `ShellTextStyle(font:color:scalesWithDynamicType:)` | 使用 UIFont 设置字体、文字颜色和动态字号 |
 | `ShellTextStyle(size:weight:color:scalesWithDynamicType:)` | 使用字号与字重创建系统字体样式，字号必须有限且大于 0 |
-| `ShellNavigationStyle(title:largeTitle:subtitle:buttons:)` | 创建导航栏各文字角色的样式 |
+| `ShellNavigationStyle(title:largeTitle:subtitle:buttons:backgroundColor:)` | 创建导航栏各文字角色与可选背景色 / 透明度的样式 |
 | `ShellTabBarStyle(normal:selected:normalIconColor:selectedIconColor:labelDisplayMode:)` | 创建标签栏普通态、选中态及文字显示样式 |
 | `ShellTab(id:title:symbol:selectedIconMode:labelDisplayMode:root:)` | 使用 SF Symbol 创建标签；ID、标题、图标名称和 root 必填 |
 | `ShellTab(id:title:icon:selectedIcon:selectedIconMode:labelDisplayMode:root:)` | 使用图标配置创建标签，可设置独立选中图；ID、标题、普通图标和 root 必填 |

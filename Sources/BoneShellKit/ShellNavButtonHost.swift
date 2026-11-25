@@ -231,6 +231,15 @@ final class ShellNavButtonHost: UIButton {
     }
 
     override var intrinsicContentSize: CGSize { preferredVisualSize }
+    var moduleVisualBounds: CGRect {
+        if !customSlot.isHidden, let view = customSlot.subviews.first {
+            return view.frame
+        }
+        let content = contentRect(forBounds: bounds)
+        if image(for: .normal) != nil { return imageRect(forContentRect: content) }
+        if title(for: .normal) != nil { return titleRect(forContentRect: content) }
+        return content
+    }
 
     override func sizeThatFits(_ size: CGSize) -> CGSize {
         let proposal = Self.size(size, fallback: preferredVisualSize)

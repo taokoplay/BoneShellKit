@@ -44,6 +44,35 @@ final class NavButtonLayoutTests: XCTestCase {
         })
         withExtendedLifetime(nav) {}
     }
+    func testModuleSpacingIsExactBetweenCompatibilityModuleFrames() throws {
+        let page = NavButtonPage()
+        page.modules = [
+            .group(NavigationButtonGroup(
+                id: "tools",
+                actions: [action("filter", width: 44), action("search", width: 44)],
+                itemSpacing: 5,
+                material: .systemGlass
+            )),
+            .button(action("more", width: 44))
+        ]
+        let nav = BoneNavigationController(rootViewController: page)
+        nav.barPresentation = .system
+        nav.loadViewIfNeeded()
+        nav.view.frame = CGRect(x: 0, y: 0, width: 640, height: 640)
+        page.loadViewIfNeeded()
+        page.view.frame = nav.view.bounds
+        page.refreshScreenConfiguration()
+        nav.view.layoutIfNeeded()
+        page.view.layoutIfNeeded()
+        guard !page.usesSystemNavigationActionLayout else { throw XCTSkip("Compatibility spacing test runs below iOS 27") }
+        let clusters = try XCTUnwrap(page.navigationItem.rightBarButtonItems?.compactMap { $0.customView as? ShellNavButtonCluster })
+        let frames = clusters.map { $0.convert($0.moduleVisualBounds, to: nav.navigationBar) }.sorted { $0.minX < $1.minX }
+        XCTAssertEqual(frames.count, 2)
+        guard frames.count == 2 else { XCTFail("Expected two module clusters"); return }
+        XCTAssertEqual(frames[1].minX - frames[0].maxX, 12, accuracy: 0.1)
+        withExtendedLifetime(nav) {}
+    }
+
     func testExplicitModulesSubmitOneNativeGroupPerModule() throws {
         guard #available(iOS 27.0, *) else { throw XCTSkip("Native module groups require iOS 27") }
         var filter = action("filter")

@@ -16,7 +16,7 @@ public struct NavigationConfiguration {
     public var leadingModules: [NavigationModule] = []
     /// 按声明顺序排列的后侧导航模块。
     public var trailingModules: [NavigationModule] = []
-    /// 相邻模块之间的期望间距；系统原生栏可能根据可用空间调整该值。
+    /// 相邻模块可见边界之间的固定间距，单位为点。SDK 会校正系统栏位和按钮内边距产生的额外空间。
     public var moduleSpacing: CGFloat = 8
     /// 导航栏背景材质。
     public var material: ShellMaterial = .automatic

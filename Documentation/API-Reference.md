@@ -30,7 +30,7 @@
 | `usesLargeTitle` | `Bool` | `false` | 是否请求大标题显示 |
 | `leadingModules` | `[NavigationModule]` | `[]` | 前侧有序模块；模块可以是独立按钮或按钮组 |
 | `trailingModules` | `[NavigationModule]` | `[]` | 后侧有序模块；模块顺序参与布局、溢出和 Duo 位置计算 |
-| `moduleSpacing` | `CGFloat` | `8` | 相邻模块之间的期望间距；系统原生栏可能根据空间调整 |
+| `moduleSpacing` | `CGFloat` | `8` | 相邻模块可见边界之间的固定间距；SDK 会校正系统栏位和按钮内边距产生的额外空间 |
 | `material` | `ShellMaterial` | `.automatic` | 导航材质，不改变栏位模式 |
 | `background` | `ShellBackgroundConfiguration?` | `nil` | 本页导航背景；`nil` 继承导航容器背景 |
 | `style` | `ShellNavigationStyle?` | `nil` | 本页导航字体与颜色；`nil` 继承导航容器样式 |
@@ -84,7 +84,7 @@
 
 ## 导航样式：ShellNavigationStyle
 
-通过 `screen.navigation.style` 或 `navigation.navigationStyle` 设置。以下字段均为 `ShellTextStyle`，默认 `ShellTextStyle()`。
+通过 `screen.navigation.style` 或 `navigation.navigationStyle` 设置。以下字段均为 `ShellTextStyle`，`backgroundColor` 除外；默认值均为空样式或 `nil`。
 
 | 字段 | 中文说明 |
 | --- | --- |
@@ -92,6 +92,7 @@
 | `largeTitle` | 大标题的字体和颜色 |
 | `subtitle` | 副标题的字体和颜色 |
 | `buttons` | 文字按钮、返回文字的字体和颜色，以及 SDK 操作 tint |
+| `backgroundColor` | 导航栏背景色，类型为 `UIColor?`，默认 `nil`；可携带主题透明度，玻璃材质会叠加该颜色，媒体背景存在时由背景配置接管 |
 
 ## 标签栏样式：ShellTabBarStyle
 

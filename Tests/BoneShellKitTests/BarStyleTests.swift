@@ -18,6 +18,32 @@ final class BarStyleTests: XCTestCase {
         XCTAssertEqual(fixed.resolvedFont(for: .headline, traits: normal)?.pointSize, 18)
     }
 
+    func testGlassAppearanceUsesThemeBackgroundAlpha() throws {
+        let themeColor = UIColor(red: 0.18, green: 0.42, blue: 0.76, alpha: 0.37)
+        let style = ShellNavigationStyle(backgroundColor: themeColor)
+        let traits = UITraitCollection(userInterfaceStyle: .light)
+        for material in [ShellMaterial.systemGlass, .frostedGlass] {
+            let appearance = try XCTUnwrap(ShellBarStyling.navigationAppearance(
+                base: nil,
+                fallback: nil,
+                scrollEdge: false,
+                style: style,
+                material: material,
+                mediaBackground: false,
+                traits: traits
+            ))
+            var red: CGFloat = 0
+            var green: CGFloat = 0
+            var blue: CGFloat = 0
+            var alpha: CGFloat = 0
+            XCTAssertTrue(appearance.backgroundColor?.getRed(&red, green: &green, blue: &blue, alpha: &alpha) == true)
+            XCTAssertEqual(alpha, 0.37, accuracy: 0.001)
+            if material == .frostedGlass {
+                XCTAssertNotNil(appearance.backgroundEffect)
+            }
+        }
+    }
+
     func testTemplateColorsProduceVisiblePixelsAndOriginalImagesKeepTheirColor() throws {
         let source = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4)).image { _ in
             UIColor.black.setFill()

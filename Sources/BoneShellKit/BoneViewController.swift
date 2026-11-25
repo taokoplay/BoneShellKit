@@ -56,6 +56,8 @@ open class BoneViewController: UIViewController {
     private weak var primaryScrollView: UIScrollView?
     private var lastActionLayoutKey: ActionLayoutKey?
     private var scrollsUnderFloatingTabBar = false
+    private var normalizingModuleSpacing = false
+    private var moduleSpacingNormalizationScheduled = false
     private var originalBottomEdgeEffectHidden: Bool?
     private let bottomContentFade = ShellScrollBottomFade()
     private var subtitleTitleView: ShellSubtitleTitleView?
@@ -174,8 +176,90 @@ open class BoneViewController: UIViewController {
         super.viewDidLayoutSubviews()
         updateLegacyKeyboardAvoidance()
         updateNavigationActions()
+        normalizeNavigationModuleSpacing()
+        scheduleNavigationModuleSpacingNormalization()
         standaloneUnifiedBackgroundHost?.layout()
         updateBottomContentFade()
+    }
+    private func scheduleNavigationModuleSpacingNormalization() {
+        guard !moduleSpacingNormalizationScheduled else { return }
+        moduleSpacingNormalizationScheduled = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.moduleSpacingNormalizationScheduled = false
+            self.normalizeNavigationModuleSpacing()
+        }
+    }
+
+
+    /// 按模块可见边界重新对齐系统、兼容和经典栏位，消除 UIKit 与按钮内边距插入的额外间距。
+    private func normalizeNavigationModuleSpacing() {
+        guard !normalizingModuleSpacing else { return }
+        let bar: UIView?
+        if resolvedBarPresentation == .classic {
+            bar = (navigationController as? BoneNavigationController)?.classicNavigationBarView
+        } else {
+            bar = navigationController?.navigationBar
+        }
+        guard let bar else { return }
+        let spacing = screenConfiguration.navigation.moduleSpacing
+        guard spacing.isFinite else { return }
+        let leading = navigationModuleClusters(leading: true)
+        let trailing = navigationModuleClusters(leading: false)
+        guard leading.count > 1 || trailing.count > 1 else { return }
+
+        normalizingModuleSpacing = true
+        defer { normalizingModuleSpacing = false }
+        bar.layoutIfNeeded()
+        let value = max(0, spacing)
+        normalizeModuleClusterFrames(leading, spacing: value, in: bar)
+        normalizeModuleClusterFrames(trailing, spacing: value, in: bar)
+    }
+
+    private func navigationModuleClusters(leading: Bool) -> [ShellNavButtonCluster] {
+        if #available(iOS 27.0, *), usesSystemNavigationActionLayout {
+            var groups = leading ? navigationItem.leadingItemGroups : navigationItem.trailingItemGroups
+            if !leading, let pinned = navigationItem.pinnedTrailingGroup { groups.append(pinned) }
+            return groups.flatMap { group in
+                group.barButtonItems.compactMap { $0.customView as? ShellNavButtonCluster }
+            }
+        }
+        let items = leading ? (navigationItem.leftBarButtonItems ?? []) : (navigationItem.rightBarButtonItems ?? [])
+        return items.compactMap { $0.customView as? ShellNavButtonCluster }
+    }
+
+    private func normalizeModuleClusterFrames(
+        _ clusters: [ShellNavButtonCluster],
+        spacing: CGFloat,
+        in bar: UIView
+    ) {
+        let visible = clusters.filter { !$0.isHidden && $0.superview != nil }
+        guard visible.count > 1 else { return }
+        let vertical = visible.contains { $0.isVertical }
+        visible.forEach { $0.setModuleVisualOffset(0) }
+        bar.layoutIfNeeded()
+        func frame(for cluster: ShellNavButtonCluster) -> CGRect {
+            cluster.convert(cluster.moduleVisualBounds, to: bar)
+        }
+        func start(_ frame: CGRect) -> CGFloat { vertical ? frame.minY : frame.minX }
+        func end(_ frame: CGRect) -> CGFloat { vertical ? frame.maxY : frame.maxX }
+        func moved(_ frame: CGRect, by delta: CGFloat) -> CGRect {
+            vertical ? frame.offsetBy(dx: 0, dy: delta) : frame.offsetBy(dx: delta, dy: 0)
+        }
+
+        let ordered = visible.sorted { start(frame(for: $0)) < start(frame(for: $1)) }
+        var edge: CGFloat?
+        for cluster in ordered {
+            let original = frame(for: cluster)
+            guard let currentEdge = edge else {
+                edge = end(original)
+                continue
+            }
+            let delta = currentEdge + spacing - start(original)
+            if abs(delta) > 0.01 { cluster.setModuleVisualOffset(delta) }
+            edge = end(moved(original, by: delta))
+        }
+        bar.layoutIfNeeded()
     }
 
     /// 安全区变化后重新计算栏位和页面内容布局。
@@ -663,7 +747,7 @@ open class BoneViewController: UIViewController {
                 spacing: run.itemSpacing,
                 tracksNativePlacement: usesSystemNavigationActionLayout && run.first.axisBehavior != .horizontalOnly,
                 groupMaterial: clusterMaterial(for: run),
-                moduleSpacingAfter: run.moduleSpacingAfter
+                moduleSpacingAfter: classic ? run.moduleSpacingAfter : 0
             )
             cluster.isUserInteractionEnabled = true
         }
