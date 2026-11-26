@@ -86,7 +86,9 @@ final class NavButtonLayoutTests: XCTestCase {
             material: .systemGlass
         )
         let page = NavButtonPage()
-        page.modules = [.group(group), .button(action("more"))]
+        var more = action("more")
+        more.navButton?.normal.effect = .liquidGlass
+        page.modules = [.group(group), .button(more)]
         let nav = BoneNavigationController(rootViewController: page)
         nav.barPresentation = .system
         nav.loadViewIfNeeded()
@@ -101,6 +103,12 @@ final class NavButtonLayoutTests: XCTestCase {
             button.subviews.compactMap { $0 as? UIVisualEffectView }.isEmpty
         })
         XCTAssertTrue(item.hidesSharedBackground)
+        let standaloneItem = try XCTUnwrap(page.navigationItem.trailingItemGroups[1].barButtonItems.first)
+        let standaloneCluster = try XCTUnwrap(standaloneItem.customView as? ShellNavButtonCluster)
+        XCTAssertTrue(standaloneItem.hidesSharedBackground)
+        XCTAssertTrue(standaloneCluster.buttons.allSatisfy { button in
+            button.subviews.contains { $0 is UIVisualEffectView }
+        })
         cluster.layoutIfNeeded()
         let surface = try XCTUnwrap(cluster.subviews.compactMap { $0 as? ShellGlassView }.first)
         XCTAssertGreaterThan(surface.layer.cornerRadius, 0)

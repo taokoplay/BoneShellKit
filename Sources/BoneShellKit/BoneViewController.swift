@@ -771,6 +771,10 @@ open class BoneViewController: UIViewController {
         guard let material = run.groupMaterial else { return nil }
         return material
     }
+    private func usesCustomGlass(_ action: NavigationAction) -> Bool {
+        guard let button = action.navButton else { return false }
+        return button.normal.effect == .liquidGlass || button.vertical?.effect == .liquidGlass
+    }
 
     private func makeBarButton(for run: ShellNavButtonRun, material: ShellMaterial) -> UIBarButtonItem {
         let action = run.first
@@ -819,6 +823,10 @@ open class BoneViewController: UIViewController {
             }
         } else {
             configureSharedBackground(for: item, material: material)
+            if #available(iOS 26.0, *), usesCustomGlass(action) {
+                // An independent glass button owns its surface; do not stack UIKit's shared surface.
+                item.hidesSharedBackground = true
+            }
         }
         if let cluster = state.cluster {
             if resolvedBarPresentation != .classic {

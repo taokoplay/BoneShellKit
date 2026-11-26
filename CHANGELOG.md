@@ -2,6 +2,11 @@
 
 已发布版本按 Git 标签记录。接入方式见 [README](README.md)，实际执行范围见 [验证记录](Documentation/Implementation-Status.md)。
 
+## 0.13.5
+
+发布标签：[v0.13.5](https://github.com/taokoplay/BoneShellKit/tree/v0.13.5)。
+
+- 区分按钮组玻璃表面和独立按钮玻璃表面；独立 Liquid Glass 按钮关闭 UIKit 共享背景，支持 iPhone Duo 原生侧栏。
 ## 0.13.4
 
 发布标签：[v0.13.4](https://github.com/taokoplay/BoneShellKit/tree/v0.13.4)。
