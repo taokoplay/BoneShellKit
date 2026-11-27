@@ -238,17 +238,11 @@ final class AnimatedTabAccessoryTests: XCTestCase {
     private func settle(_ tabs: BoneTabBarController) {
         tabs.view.setNeedsLayout()
         tabs.view.layoutIfNeeded()
-        // 原生 dock 在下一轮 run loop 发布量测到的胶囊几何；自绘栏的可见性来自
-        // `viewDidAppear` 里的 shellIsVisible。整套用例一起跑时窗口切换更慢，
-        // 固定等待会偶发失败，因此轮询到实际可见为止（超时后仍然继续，由断言暴露问题）。
-        let deadline = Date().addingTimeInterval(3)
-        while Date() < deadline {
-            RunLoop.main.run(until: Date().addingTimeInterval(0.02))
-            tabs.view.layoutIfNeeded()
-            let visible = ((tabs.classicTabBarView as? ShellClassicTabBar)?.controllerIsVisible ?? false)
-                || ((tabs.capsuleTabBarView as? ShellCapsuleTabBar)?.controllerIsVisible ?? false)
-            if visible || (tabs.classicTabBarView == nil && tabs.capsuleTabBarView == nil) { break }
-        }
+        // 原生 dock 在下一轮 run loop 发布量测到的胶囊几何，附加按钮的首次状态还要等
+        // `viewDidAppear`。整套用例一起跑时窗口切换更慢，0.08 s 不够，这里留出余量。
+        // 不用 `controllerIsVisible` 轮询：胶囊栏由系统原生承载时该标志不会置位。
+        RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+        tabs.view.layoutIfNeeded()
     }
 
     private func findButton(_ id: String, in view: UIView) -> UIButton? {
