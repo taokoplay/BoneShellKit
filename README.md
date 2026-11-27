@@ -80,7 +80,7 @@ func makeRootController() -> BoneNavigationController {
 | 导航操作 | 图片 / SF Symbol / 文字、稳定 ID、角色、整数优先级、自动或强制显示、禁用状态及按钮组级侧栏策略；iOS 27+ 使用系统布局，经典与旧系统保留 SDK 宽度预算 |
 | 字体与图标 | 页面 / 容器样式、Dynamic Type、普通 / 选中图标、颜色 / 原图选中策略、按 ID 更新条目 |
 | 普通标签自定义视图 | 开发版 `ShellTabItemConfiguration.customContent` 接收整项 `UIView`；可与标准图文混用。见[接入说明](Documentation/Bar-Presentation.md#普通标签的自定义视图) |
-| 标签附加动作 | `tabBarAccessories`；开发版支持 [自定义整项内容](Documentation/Bar-Presentation.md#自定义附加按钮未发布)，不改变当前选中标签 |
+| 标签附加动作 | `tabBarAccessories`；开发版支持 [自定义整项内容](Documentation/Bar-Presentation.md#自定义附加按钮)，不改变当前选中标签 |
 | 浮动栏下滚动 | 注册主滚动视图后延伸到底边，保留业务 `contentInset`；默认底部 80 pt 渐隐，设为 0 可关闭 |
 | 多媒体背景 | 图片、GIF / APNG、MP4、HTML；默认分区，`.unified` 共享完整容器画布 |
 | 缓存与播放 | 后台图像解码、尺寸桶、请求合并、预取；每 Scene 默认 1 个动态名额，进程统一上限可设为 0–3 |

@@ -4,7 +4,7 @@
 
 ## 0.14.0
 
-发布标签：未发布。
+发布标签：[v0.14.0](https://github.com/taokoplay/BoneShellKit/tree/v0.14.0)。
 
 ### 破坏性变更
 
