@@ -2,9 +2,9 @@
 
 UIKit 页面骨架 SDK。提供页面内容区域、原生容器封装、栏位模式与样式、标签栏附加动作，以及页面 / 导航 / 标签多媒体背景。
 
-最新版本为 **v0.12.1**，修复 iOS 26 导航共享玻璃、NavButton 自定义承载和 push / pop 返回后的按钮恢复，并继续提供 `ShellNavButton`、Duo 侧栏按钮样式、按钮级材质、导航标题 `UIView` 以及标签栏整项自定义 `UIView`。版本变化见 [更新记录](CHANGELOG.md)。
+最新版本为 **v0.14.0**，把导航动作的轴向偏好收敛为模块级 `sidebarBehavior`，统一栏位与按钮的玻璃绘制，并修复系统栏中的按钮压叠与间距归零错位。继续提供 `ShellNavButton`、iPhone Duo 侧栏竖排、按钮级材质、导航标题 `UIView` 以及标签栏整项自定义 `UIView`。版本变化见 [更新记录](CHANGELOG.md)。
 
-[导航动作与自适应](Documentation/Navigation-Actions.md) 包含导航动作、NavButton、系统共享玻璃、自定义按钮承载、标题视图和兼容策略。NavButton 等扩展自 v0.11.0 提供，导航动作强制显示自 v0.12.0 提供，v0.12.1 补充 iOS 26 返回恢复和自定义 confirmation 行为。
+[导航动作与自适应](Documentation/Navigation-Actions.md) 包含导航动作、NavButton、系统共享玻璃、自定义按钮承载、标题视图和兼容策略。NavButton 等扩展自 v0.11.0 提供，导航动作强制显示自 v0.12.0 提供，v0.12.1 补充 iOS 26 返回恢复和自定义 confirmation 行为，v0.14.0 将轴向偏好改为模块级 `sidebarBehavior` 并统一玻璃绘制。
 
 ## 构建与运行基线
 
@@ -14,7 +14,7 @@ UIKit 页面骨架 SDK。提供页面内容区域、原生容器封装、栏位�
 | Swift Package | tools version 5.9，Swift 5 语言模式，一个 `BoneShellKit` library 产品 |
 | 编译工具链 | 已验证 Xcode 27.1；源码使用 UIKit 26 / 27.1 API，需包含这些声明的编译 SDK，不能据部署目标推断旧 Xcode 可构建 |
 | 依赖 | Apple 系统框架，无第三方 Package 依赖 |
-| Demo | UIKit Universal App，0.12.1（Build 1），共享 Scheme `BoneShellDemo` |
+| Demo | UIKit Universal App，0.14.0（Build 1），共享 Scheme `BoneShellDemo` |
 
 最低部署目标与实际运行验证分开记录。导航动作已在 iPhone Duo / iOS 27.1 与 iPhone 16 Pro / iOS 18.6 模拟器执行相关回归；此前 iOS 26 的功能验证独立保留，完整系统 / 姿态矩阵见 [实现与验证记录](Documentation/Implementation-Status.md)。
 
@@ -26,13 +26,13 @@ UIKit 页面骨架 SDK。提供页面内容区域、原生容器封装、栏位�
 .package(path: "../BoneShellKit")
 ```
 
-远程接入 v0.12.1：
+远程接入 v0.14.0：
 
 ```swift
-.package(url: "https://github.com/taokoplay/BoneShellKit.git", exact: "0.12.1")
+.package(url: "https://github.com/taokoplay/BoneShellKit.git", exact: "0.14.0")
 ```
 
-按精确标签锁定所需能力：`v0.12.1` 包含 iOS 26 导航共享玻璃修复、NavButton 返回恢复、导航动作强制显示、NavButton、Duo 侧栏样式、按钮材质、导航标题视图和标签栏整项自定义视图；`v0.12.0` 包含导航动作强制显示和此前的 NavButton 能力；更早版本能力见对应发布说明。分支接入的可用功能以实际修订为准，不能将默认分支等同于发布标签。
+按精确标签锁定所需能力：`v0.14.0` 包含模块级侧栏策略、统一的玻璃绘制、Duo 侧栏整组竖排，以及此前的 NavButton、导航标题视图和标签栏整项自定义视图；`v0.12.1` 包含 iOS 26 导航共享玻璃修复与 NavButton 返回恢复；更早版本能力见对应发布说明。分支接入的可用功能以实际修订为准，不能将默认分支等同于发布标签。
 
 ## 最小接入
 
@@ -77,7 +77,7 @@ func makeRootController() -> BoneNavigationController {
 | 页面内容 | `BoneViewController` + `ScreenConfiguration`；默认 `.safeArea`，`avoidsKeyboard = false`；键盘避让需按页开启 |
 | 原生容器 | `BoneNavigationController`、`BoneTabBarController`、`BoneSplitViewController`；分栏的业务选择和数据由宿主管理 |
 | 栏位呈现 | `.automatic / .classic / .capsule / .system`；SDK 默认 `.system`，Demo 默认 `.automatic`；导航只有系统与经典两种外观 |
-| 导航操作 | 图片 / SF Symbol / 文字、稳定 ID、角色、整数优先级、自动或强制显示、禁用状态及轴向偏好；iOS 27+ 使用系统布局，经典与旧系统保留 SDK 宽度预算 |
+| 导航操作 | 图片 / SF Symbol / 文字、稳定 ID、角色、整数优先级、自动或强制显示、禁用状态及按钮组级侧栏策略；iOS 27+ 使用系统布局，经典与旧系统保留 SDK 宽度预算 |
 | 字体与图标 | 页面 / 容器样式、Dynamic Type、普通 / 选中图标、颜色 / 原图选中策略、按 ID 更新条目 |
 | 普通标签自定义视图 | 开发版 `ShellTabItemConfiguration.customContent` 接收整项 `UIView`；可与标准图文混用。见[接入说明](Documentation/Bar-Presentation.md#普通标签的自定义视图) |
 | 标签附加动作 | `tabBarAccessories`；开发版支持 [自定义整项内容](Documentation/Bar-Presentation.md#自定义附加按钮未发布)，不改变当前选中标签 |
@@ -151,7 +151,7 @@ Scheme 包含 `BoneShellDemoTests` 和 `BoneShellDemoUITests`；前者同时编�
 - [版本更新记录](CHANGELOG.md)
 - [SDK 当前范围与后续规划](Documentation/SDK-Plan.md)
 - [Demo 入口、自动化与待验收矩阵](Documentation/Demo-Test-Plan.md)
-- [导航动作与自适应栏位（v0.12.1+）](Documentation/Navigation-Actions.md)
+- [导航动作与自适应栏位（v0.14.0）](Documentation/Navigation-Actions.md)
 - [自动、经典、胶囊与系统栏位](Documentation/Bar-Presentation.md)
 - [字体、颜色、图标与运行时更新](Documentation/Bar-Styling.md)
 - [多媒体背景、缓存与播放生命周期](Documentation/Backgrounds.md)

@@ -64,7 +64,8 @@ final class BarDemoIntegrationTests: XCTestCase {
             try select("spacing", index + 1)
             XCTAssertEqual(groups(from: page.screenConfiguration.navigation.trailingModules).first?.itemSpacing, CGFloat(gap))
         }
-        for (index, effect) in [ShellNavButton.Effect.none, .blur, .liquidGlass].enumerated() {
+        let effects: [ShellNavButton.Effect] = [.none, .material(.systemDefault), .material(.systemGlass)]
+        for (index, effect) in effects.enumerated() {
             try select("effect", index)
             let configuredActions = actions(from: page.screenConfiguration.navigation.trailingModules)
             XCTAssertEqual(configuredActions.map(\.id), ["nav.share", "nav.mark", "nav.detail", "nav.text"])
@@ -194,24 +195,24 @@ final class BarDemoIntegrationTests: XCTestCase {
         }
     }
 
-    func testNavigationIconAndAxisPickersApplyConfigurationAndResolveImages() throws {
+    func testNavigationIconAndSidebarPickersApplyConfigurationAndResolveImages() throws {
         let (tabs, navigation, page) = navigationScene()
         let icons = try XCTUnwrap(view(withIdentifier: "nav.icon", in: page.view) as? UISegmentedControl)
-        let axes = try XCTUnwrap(view(withIdentifier: "nav.axis", in: page.view) as? UISegmentedControl)
+        let sidebars = try XCTUnwrap(view(withIdentifier: "nav.sidebar", in: page.view) as? UISegmentedControl)
         let status = try XCTUnwrap(view(withIdentifier: "nav.status", in: page.view) as? UILabel)
         let source = try XCTUnwrap(UIImage(named: "BarStyle-Orbit", in: .main, compatibleWith: page.traitCollection))
         let imageData = try XCTUnwrap(source.pngData())
         let iconNames = ["符号", "本地图片", "UIImage"]
-        let axisNames = ["自动", "仅横向", "优先侧边"]
-        let behaviors: [ShellNavigationActionAxisBehavior] = [.automatic, .horizontalOnly, .verticalPreferred]
+        let sidebarNames = ["系统默认", "不启用", "优先侧栏"]
+        let behaviors: [ShellNavigationSidebarBehavior] = [.system, .disabled, .preferred]
         XCTAssertEqual(icons.numberOfSegments, 3)
-        XCTAssertEqual(axes.numberOfSegments, 3)
+        XCTAssertEqual(sidebars.numberOfSegments, 3)
         XCTAssertEqual(icons.selectedSegmentIndex, 0)
-        XCTAssertEqual(axes.selectedSegmentIndex, 0)
+        XCTAssertEqual(sidebars.selectedSegmentIndex, 0)
 
         for index in 0..<3 {
             XCTAssertEqual(icons.titleForSegment(at: index), iconNames[index])
-            XCTAssertEqual(axes.titleForSegment(at: index), axisNames[index])
+            XCTAssertEqual(sidebars.titleForSegment(at: index), sidebarNames[index])
             icons.selectedSegmentIndex = index
             icons.sendActions(for: .valueChanged)
             let detail = try XCTUnwrap(actions(from: page.screenConfiguration.navigation.trailingModules).first { $0.id == "nav.detail" })
@@ -234,26 +235,26 @@ final class BarDemoIntegrationTests: XCTestCase {
                 XCTAssertEqual(try XCTUnwrap(resolved.pngData()), imageData)
             }
 
-            axes.selectedSegmentIndex = index
-            axes.sendActions(for: .valueChanged)
+            sidebars.selectedSegmentIndex = index
+            sidebars.sendActions(for: .valueChanged)
             let updated = try XCTUnwrap(actions(from: page.screenConfiguration.navigation.trailingModules).first { $0.id == "nav.detail" })
-            XCTAssertEqual(updated.axisBehavior, behaviors[index])
-            XCTAssertTrue(status.text?.contains("图标：\(iconNames[index]) / 方向：\(axisNames[index])") == true)
+            XCTAssertEqual(updated.sidebarBehavior, behaviors[index])
+            XCTAssertTrue(status.text?.contains("图标：\(iconNames[index]) / 侧栏：\(sidebarNames[index])") == true)
         }
         XCTAssertTrue(tabs.selectedViewController === navigation)
     }
 
-    func testNavigationResetRestoresIconAndAxisWithoutReplacingContentOrStack() throws {
+    func testNavigationResetRestoresIconAndSidebarWithoutReplacingContentOrStack() throws {
         let (_, navigation, page) = navigationScene()
         navigation.setViewControllers([UIViewController(), page], animated: false)
         let stack = navigation.viewControllers
         let content = page.contentView
         let rows = page.stack.arrangedSubviews
         let icons = try XCTUnwrap(view(withIdentifier: "nav.icon", in: page.view) as? UISegmentedControl)
-        let axes = try XCTUnwrap(view(withIdentifier: "nav.axis", in: page.view) as? UISegmentedControl)
+        let sidebars = try XCTUnwrap(view(withIdentifier: "nav.sidebar", in: page.view) as? UISegmentedControl)
         for (identifier, index) in [
             ("nav.title-size", 3), ("nav.title-color", 2), ("nav.subtitle", 0), ("nav.large-title", 1),
-            ("nav.button-size", 3), ("nav.presentation", 2), ("nav.material", 4), ("nav.icon", 2), ("nav.axis", 2)
+            ("nav.button-size", 3), ("nav.presentation", 2), ("nav.material", 4), ("nav.icon", 2), ("nav.sidebar", 2)
         ] {
             let picker = try XCTUnwrap(view(withIdentifier: identifier, in: page.view) as? UISegmentedControl)
             picker.selectedSegmentIndex = index
@@ -261,7 +262,7 @@ final class BarDemoIntegrationTests: XCTestCase {
         }
         page.note("重置前")
         XCTAssertEqual(icons.selectedSegmentIndex, 2)
-        XCTAssertEqual(axes.selectedSegmentIndex, 2)
+        XCTAssertEqual(sidebars.selectedSegmentIndex, 2)
         let reset = try XCTUnwrap(view(withIdentifier: "nav.reset", in: page.view) as? UIButton)
         reset.sendActions(for: .touchUpInside)
 
@@ -277,18 +278,18 @@ final class BarDemoIntegrationTests: XCTestCase {
         XCTAssertNil(page.message)
         XCTAssertNil(page.screenConfiguration.navigation.style?.title.font)
         XCTAssertEqual(icons.selectedSegmentIndex, 0)
-        XCTAssertEqual(axes.selectedSegmentIndex, 0)
+        XCTAssertEqual(sidebars.selectedSegmentIndex, 0)
         let detail = try XCTUnwrap(actions(from: page.screenConfiguration.navigation.trailingModules).first { $0.id == "nav.detail" })
-        XCTAssertEqual(detail.axisBehavior, .automatic)
+        XCTAssertEqual(detail.sidebarBehavior, .system)
         guard case .systemSymbol(let name)? = detail.icon else {
             return XCTFail("Reset must restore the original symbol")
         }
         XCTAssertEqual(name, "arrow.right")
         let status = try XCTUnwrap(view(withIdentifier: "nav.status", in: page.view) as? UILabel)
-        XCTAssertTrue(status.text?.contains("图标：符号 / 方向：自动") == true)
+        XCTAssertTrue(status.text?.contains("图标：符号 / 侧栏：系统默认") == true)
         XCTAssertTrue(page.contentView === content)
         XCTAssertTrue(view(withIdentifier: "nav.icon", in: page.view) === icons)
-        XCTAssertTrue(view(withIdentifier: "nav.axis", in: page.view) === axes)
+        XCTAssertTrue(view(withIdentifier: "nav.sidebar", in: page.view) === sidebars)
         XCTAssertEqual(page.stack.arrangedSubviews.count, rows.count)
         for (before, after) in zip(rows, page.stack.arrangedSubviews) { XCTAssertTrue(before === after) }
         XCTAssertEqual(navigation.viewControllers.count, stack.count)

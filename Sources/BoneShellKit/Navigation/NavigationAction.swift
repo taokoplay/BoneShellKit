@@ -14,14 +14,18 @@ public enum ShellNavigationActionRole: String, CaseIterable, Sendable {
     case confirmation
 }
 
-/// 导航动作在横向栏和 iPhone Duo 侧边栏之间的放置策略。
-public enum ShellNavigationActionAxisBehavior: String, CaseIterable, Sendable {
-    /// 由系统根据动作内容和设备环境选择横向栏或侧边栏。
-    case automatic
-    /// 只允许横向导航栏；用于关闭 iPhone Duo 的默认侧边栏迁移。
-    case horizontalOnly
-    /// 横向和侧边栏都支持；有侧边栏时优先放入侧边栏。
-    case verticalPreferred
+/// 导航模块在横向栏和 iPhone Duo 侧栏之间的呈现策略。
+///
+/// 该策略属于模块：声明在 `NavigationButtonGroup` 上时对整个组生效，组内动作的
+/// 同名值被忽略；只有独立声明的 `.button(_:)` 模块才使用动作自身的值。旧系统
+/// 可以声明该值，但没有竖向栏位时按横向栏位呈现。
+public enum ShellNavigationSidebarBehavior: String, CaseIterable, Sendable {
+    /// 交给系统按动作内容和设备环境决定，SDK 不限制轴向。
+    case system
+    /// 只使用横向栏位；SDK 同时停止该模块的侧栏样式与侧栏位置判断。
+    case disabled
+    /// 横向和侧栏都允许；两者同时存在时优先侧栏。
+    case preferred
 }
 
 /// 导航动作是否允许在空间不足时进入溢出区域。
@@ -53,8 +57,8 @@ public struct NavigationAction {
     public var navButton: ShellNavButton? = nil
     /// 动作角色，决定取消、普通或确认语义。
     public var role: ShellNavigationActionRole
-    /// 动作在横向导航栏和 iPhone Duo 侧边栏之间的放置偏好。
-    public var axisBehavior: ShellNavigationActionAxisBehavior
+    /// 独立按钮在这一动作上声明的侧栏策略；动作属于按钮组时以组声明为准。
+    public var sidebarBehavior: ShellNavigationSidebarBehavior
     /// 动作触发时执行的回调。
     public var handler: () -> Void
 
@@ -67,7 +71,7 @@ public struct NavigationAction {
     ///   - visibility: 是否允许动作进入溢出菜单。
     ///   - isEnabled: 是否允许触发动作。
     ///   - role: 动作角色。
-    ///   - axisBehavior: 横向和侧边栏的放置偏好。
+    ///   - sidebarBehavior: 横向栏和 iPhone Duo 侧栏的呈现策略。
     ///   - handler: 动作触发回调。
     public init(
         id: String,
@@ -77,7 +81,7 @@ public struct NavigationAction {
         visibility: ShellNavigationActionVisibility = .automatic,
         isEnabled: Bool = true,
         role: ShellNavigationActionRole = .normal,
-        axisBehavior: ShellNavigationActionAxisBehavior = .automatic,
+        sidebarBehavior: ShellNavigationSidebarBehavior = .system,
         handler: @escaping () -> Void
     ) {
         self.id = id
@@ -88,7 +92,7 @@ public struct NavigationAction {
         self.isEnabled = isEnabled
         self.icon = nil
         self.role = role
-        self.axisBehavior = axisBehavior
+        self.sidebarBehavior = sidebarBehavior
         self.handler = handler
     }
 
@@ -101,7 +105,7 @@ public struct NavigationAction {
     ///   - visibility: 是否允许动作进入溢出菜单。
     ///   - isEnabled: 是否允许触发动作。
     ///   - role: 动作角色。
-    ///   - axisBehavior: 横向和侧边栏的放置偏好。
+    ///   - sidebarBehavior: 横向栏和 iPhone Duo 侧栏的呈现策略。
     ///   - handler: 动作触发回调。
     public init(
         id: String,
@@ -111,11 +115,11 @@ public struct NavigationAction {
         visibility: ShellNavigationActionVisibility = .automatic,
         isEnabled: Bool = true,
         role: ShellNavigationActionRole = .normal,
-        axisBehavior: ShellNavigationActionAxisBehavior = .automatic,
+        sidebarBehavior: ShellNavigationSidebarBehavior = .system,
         handler: @escaping () -> Void
     ) {
         self.init(id: id, title: title, priority: priority, visibility: visibility, isEnabled: isEnabled,
-                  role: role, axisBehavior: axisBehavior, handler: handler)
+                  role: role, sidebarBehavior: sidebarBehavior, handler: handler)
         self.icon = icon
     }
 
@@ -129,7 +133,7 @@ public struct NavigationAction {
     ///   - visibility: 是否允许动作进入溢出菜单。
     ///   - isEnabled: 是否允许触发动作。
     ///   - role: 动作角色。
-    ///   - axisBehavior: 横向和侧边栏的放置偏好。
+    ///   - sidebarBehavior: 横向栏和 iPhone Duo 侧栏的呈现策略。
     ///   - handler: 动作触发回调。
     public init(
         id: String,
@@ -140,11 +144,11 @@ public struct NavigationAction {
         visibility: ShellNavigationActionVisibility = .automatic,
         isEnabled: Bool = true,
         role: ShellNavigationActionRole = .normal,
-        axisBehavior: ShellNavigationActionAxisBehavior = .verticalPreferred,
+        sidebarBehavior: ShellNavigationSidebarBehavior = .system,
         handler: @escaping () -> Void
     ) {
         self.init(id: id, title: title, icon: icon, priority: priority, visibility: visibility,
-                  isEnabled: isEnabled, role: role, axisBehavior: axisBehavior, handler: handler)
+                  isEnabled: isEnabled, role: role, sidebarBehavior: sidebarBehavior, handler: handler)
         self.navButton = navButton
     }
 

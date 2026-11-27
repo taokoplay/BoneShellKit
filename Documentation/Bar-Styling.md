@@ -5,6 +5,21 @@
 导航栏和标签栏的文字通过 `ShellTextStyle` 设置，支持字号、字体、粗细、颜色及 Dynamic Type。导航提供普通标题、大标题、副标题与按钮四种角色；标签提供普通态和选中态的文字及图标颜色。标签图标可使用 SF Symbol、bundle 资源图片或 UIImage，并可在运行时替换。
 `ShellNavigationStyle.backgroundColor` 可传入带透明度的主题色；系统玻璃保留 `UIGlassEffect`，并将该颜色作为栏位色彩叠加，标题和按钮仍使用各自的文字样式。媒体背景存在时，栏位颜色由 `ShellBackgroundConfiguration` 接管。
 
+## 材质表面由谁绘制
+
+`ShellMaterial` 只表达请求，实际绘制分两类：
+
+| 承载 | 绘制者 | 裁剪规则 |
+| --- | --- | --- |
+| 导航栏、标签栏本体 | UIKit（`UINavigationBarAppearance` / `UITabBarAppearance`，SDK 只叠加颜色） | 系统决定 |
+| 导航按钮、按钮组、兼容胶囊栏、标签附加按钮 | SDK 的 `ShellGlassView` 或等价绘制层 | `.systemGlass` 不裁剪溢出层，保留系统玻璃的边缘高光；回退材质继续用圆角遮罩 |
+
+因此 `ShellMaterial.systemGlass` 只描述“要系统玻璃”。请求被 `ShellMaterials` 解析为 `.solid`（开启“减少透明度”）或回退磨砂（iOS 15–25）时，裁剪与描边恢复为回退材质的行为。SDK 自己绘制的玻璃关闭 `UIGlassEffect.isInteractive`：这些表面层不参与命中测试，按压反馈由承载控件自身负责。
+
+按钮组始终只画一块覆盖整个模块的表面，系统玻璃与回退材质共用同一个 `ShellGlassView`，区别只在效果与裁剪。系统分组玻璃本身也是一整块无分隔线的连续表面；尝试过给组内每个按钮各配一个玻璃元素再用 `UIGlassContainerEffect` 合并，两枚胶囊相接时并集轮廓会在接缝处凹下去（44 pt 高、8 pt 净距时凹陷约 9 pt），重叠时又会因双重折射出现暗带，因此不再采用。组与相邻模块之间保持独立表面，与“组是原子模块”的语义一致。
+
+主题色有两条同源通道：栏位用 `ShellNavigationStyle.backgroundColor`，按钮表面用 `ShellNavButton.Style.tintColor`，按钮组用 `NavigationButtonGroup.tintColor`。系统玻璃把它们交给 `UIGlassEffect.tintColor`，回退磨砂把它们作为叠加色。
+
 ## 导航栏字体与颜色
 
 ```swift

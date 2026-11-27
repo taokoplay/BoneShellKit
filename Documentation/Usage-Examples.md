@@ -1,6 +1,6 @@
 # SDK 方法说明
 
-适用于 **v0.12.1**。导航动作、NavButton、Duo 侧栏样式、按钮材质、标题视图和标签栏整项自定义视图均包含在当前接口范围。导航动作强制显示策略自 v0.12.0 提供，iOS 26 共享玻璃和 NavButton 返回恢复自 v0.12.1 提供。下面按类型列出 SDK 的业务接入方法、参数、返回值和用途；可设置的属性见 [字段中文说明](API-Reference.md)。使用时导入 `UIKit`、`BoneShellKit`，并在主线程 / `@MainActor` 调用。
+适用于 **v0.14.0**。导航动作、模块级侧栏策略、NavButton、Duo 侧栏竖排、按钮材质、标题视图和标签栏整项自定义视图均包含在当前接口范围。导航动作强制显示策略自 v0.12.0 提供，iOS 26 共享玻璃和 NavButton 返回恢复自 v0.12.1 提供，模块级 `sidebarBehavior` 与统一的玻璃绘制自 v0.14.0 提供。下面按类型列出 SDK 的业务接入方法、参数、返回值和用途；可设置的属性见 [字段中文说明](API-Reference.md)。使用时导入 `UIKit`、`BoneShellKit`，并在主线程 / `@MainActor` 调用。
 
 ## 页面：BoneViewController
 
@@ -48,9 +48,10 @@
 | --- | --- |
 | `ScreenConfiguration()` | 创建页面默认配置，通常由 SDK 创建后传入页面配置方法 |
 | `NavigationConfiguration()` | 创建导航默认配置 |
-| `NavigationAction(id:title:symbol:priority:visibility:isEnabled:role:axisBehavior:handler:)` | 创建文字或 SF Symbol 动作；`visibility: .always` 可要求动作保留在导航栏；role / axisBehavior 自 v0.10.0 增加，有兼容默认值 |
-| `NavigationAction(id:title:icon:priority:visibility:isEnabled:role:axisBehavior:handler:)` | v0.10.0+ 图片动作；`visibility` 自 v0.12.0+ 提供；icon 参数必传，可为 nil，ID / 标题 / 点击回调必填；完整示例见 [导航动作](Navigation-Actions.md) |
-| `NavigationAction(id:title:navButton:icon:priority:visibility:isEnabled:role:axisBehavior:handler:)` | v0.11.0+ 创建可按横栏 / 侧栏分别呈现的 NavButton；SDK 使用 cluster 作为系统 item 的自定义承载，confirmation 保留语义优先级但使用自定义按钮外观；`visibility` 自 v0.12.0+ 提供 |
+| `NavigationAction(id:title:symbol:priority:visibility:isEnabled:role:sidebarBehavior:handler:)` | 创建文字或 SF Symbol 动作；`visibility: .always` 可要求动作保留在导航栏；role 自 v0.10.0 增加；`sidebarBehavior` 自 v0.14.0 增加，默认 `.system` |
+| `NavigationAction(id:title:icon:priority:visibility:isEnabled:role:sidebarBehavior:handler:)` | v0.10.0+ 图片动作；`visibility` 自 v0.12.0+ 提供；`sidebarBehavior` 自 v0.14.0 提供；icon 参数必传，可为 nil，ID / 标题 / 点击回调必填；完整示例见 [导航动作](Navigation-Actions.md) |
+| `NavigationAction(id:title:navButton:icon:priority:visibility:isEnabled:role:sidebarBehavior:handler:)` | v0.11.0+ 创建可按横栏 / 侧栏分别呈现的 NavButton；SDK 使用 cluster 作为系统 item 的自定义承载，confirmation 保留语义优先级但使用自定义按钮外观；`visibility` 自 v0.12.0+、`sidebarBehavior` 自 v0.14.0+ 提供 |
+| `NavigationButtonGroup(id:actions:itemSpacing:material:sidebarBehavior:tintColor:)` | 创建原子按钮组；组的 `sidebarBehavior` 决定整个组的侧栏策略、`tintColor` 决定组表面着色，组内动作的同名声明被忽略 |
 | `ShellTextStyle(font:color:scalesWithDynamicType:)` | 使用 UIFont 设置字体、文字颜色和动态字号 |
 | `ShellTextStyle(size:weight:color:scalesWithDynamicType:)` | 使用字号与字重创建系统字体样式，字号必须有限且大于 0 |
 | `ShellNavigationStyle(title:largeTitle:subtitle:buttons:backgroundColor:)` | 创建导航栏各文字角色与可选背景色 / 透明度的样式 |

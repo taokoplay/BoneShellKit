@@ -238,9 +238,17 @@ final class AnimatedTabAccessoryTests: XCTestCase {
     private func settle(_ tabs: BoneTabBarController) {
         tabs.view.setNeedsLayout()
         tabs.view.layoutIfNeeded()
-        // The native dock publishes measured capsule geometry on the next run-loop turn.
-        RunLoop.main.run(until: Date().addingTimeInterval(0.08))
-        tabs.view.layoutIfNeeded()
+        // 原生 dock 在下一轮 run loop 发布量测到的胶囊几何；自绘栏的可见性来自
+        // `viewDidAppear` 里的 shellIsVisible。整套用例一起跑时窗口切换更慢，
+        // 固定等待会偶发失败，因此轮询到实际可见为止（超时后仍然继续，由断言暴露问题）。
+        let deadline = Date().addingTimeInterval(3)
+        while Date() < deadline {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.02))
+            tabs.view.layoutIfNeeded()
+            let visible = ((tabs.classicTabBarView as? ShellClassicTabBar)?.controllerIsVisible ?? false)
+                || ((tabs.capsuleTabBarView as? ShellCapsuleTabBar)?.controllerIsVisible ?? false)
+            if visible || (tabs.classicTabBarView == nil && tabs.capsuleTabBarView == nil) { break }
+        }
     }
 
     private func findButton(_ id: String, in view: UIView) -> UIButton? {

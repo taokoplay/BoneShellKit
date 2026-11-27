@@ -12,10 +12,18 @@ final class NavigationBarDemoController: DemoStackController {
     private(set) var presentationIndex = 0
     private(set) var materialIndex = 0
     private(set) var iconIndex = 0
-    private(set) var axisIndex = 0
+    private(set) var sidebarIndex = NavigationBarDemoController.initialSidebarIndex(ProcessInfo.processInfo.arguments)
     private(set) var message: String?
     private var showsCustomTitle = false
     private var selectedTitle = "全部来源"
+
+    /// 侧栏策略的初始档位。
+    ///
+    /// Demo 的 NavButton 页面在 Duo 上用于观察侧栏承载，两个测试钩子（`-navbutton`、
+    /// `-navbutton-vertical-capsule`）显式选择「优先侧栏」，避免依赖 SDK 默认策略。
+    static func initialSidebarIndex(_ arguments: [String]) -> Int {
+        arguments.contains("-navbutton") || arguments.contains("-navbutton-vertical-capsule") ? 2 : 0
+    }
 
     private struct NavButtonSettings {
         var mode = 0
@@ -43,7 +51,7 @@ final class NavigationBarDemoController: DemoStackController {
                 guard let index = arguments.firstIndex(of: key), arguments.indices.contains(index + 1) else { return nil }
                 return arguments[index + 1]
             }
-            if let effect = option("-navbutton-effect"), let index = ["none", "blur", "liquidGlass"].firstIndex(of: effect) {
+            if let effect = option("-navbutton-effect"), let index = ["none", "blur", "glass"].firstIndex(of: effect) {
                 settings.effect = index
             }
             if let gap = option("-navbutton-gap"), let index = ["0", "8", "16"].firstIndex(of: gap) {
@@ -71,8 +79,8 @@ final class NavigationBarDemoController: DemoStackController {
     private let presentationNames = ["跟随标签", "系统", "经典", "胶囊", "自动"]
     private let materialNames = ["自动", "系统默认", "系统玻璃", "模糊玻璃", "实色"]
     private let iconNames = ["符号", "本地图片", "UIImage"]
-    private let axisNames = ["自动", "仅横向", "优先侧边"]
-    private let axisBehaviors: [ShellNavigationActionAxisBehavior] = [.automatic, .horizontalOnly, .verticalPreferred]
+    private let sidebarNames = ["系统默认", "不启用", "优先侧栏"]
+    private let sidebarBehaviors: [ShellNavigationSidebarBehavior] = [.system, .disabled, .preferred]
 
     private let sizePicker = UISegmentedControl(items: ["系统", "16", "20", "24"])
     private let colorPicker = UISegmentedControl(items: ["系统", "蓝", "橙"])
@@ -82,11 +90,11 @@ final class NavigationBarDemoController: DemoStackController {
     private let presentationPicker = UISegmentedControl(items: ["跟随标签", "系统", "经典", "胶囊", "自动"])
     private let materialPicker = UISegmentedControl(items: ["自动", "系统默认", "系统玻璃", "模糊玻璃", "实色"])
     private let iconPicker = UISegmentedControl(items: ["符号", "本地图片", "UIImage"])
-    private let axisPicker = UISegmentedControl(items: ["自动", "仅横向", "优先侧边"])
+    private let sidebarPicker = UISegmentedControl(items: ["系统默认", "不启用", "优先侧栏"])
     private let customTitlePicker = UISegmentedControl(items: ["文字", "自定义"])
     private let navModePicker = UISegmentedControl(items: ["标准", "NavButton"])
     private let navSizePicker = UISegmentedControl(items: ["拟合", "56 × 44", "72 × 44"])
-    private let navEffectPicker = UISegmentedControl(items: ["无", "模糊", "液态玻璃"])
+    private let navEffectPicker = UISegmentedControl(items: ["无", "系统默认", "系统玻璃"])
     private let navVerticalPicker = UISegmentedControl(items: ["沿用横栏", "44 × 72"])
     private let navGroupWidthPicker = UISegmentedControl(items: ["不显示", "44 pt", "400 pt"])
     private let navOrderPicker = UISegmentedControl(items: ["标记在前", "分享在前"])
@@ -181,7 +189,7 @@ final class NavigationBarDemoController: DemoStackController {
                 self?.note("完成")
             },
             NavigationAction(id: "nav.detail", title: "详情", icon: detailIcon, priority: 20,
-                             axisBehavior: axisBehaviors[axisIndex]) { [weak self] in
+                             sidebarBehavior: sidebarBehaviors[sidebarIndex]) { [weak self] in
                 self?.openDetail()
             }
         ].map(\.asNavigationModule)
@@ -192,23 +200,27 @@ final class NavigationBarDemoController: DemoStackController {
         ].map(\.asNavigationModule)
     }
 
+    /// 按钮表面只声明材质，绘制与回退由 SDK 统一解析：系统玻璃在旧系统回退为磨砂。
+    private let effects: [ShellNavButton.Effect] = [.none, .material(.systemDefault), .material(.systemGlass)]
+
     private func customModules() -> [NavigationModule] {
         func normalStyle(width: CGFloat?, iconSize: CGSize? = nil) -> ShellNavButton.Style {
             .init(size: width.map { .preferred(CGSize(width: $0, height: 44)) } ?? .fitting,
                   iconSize: iconSize, contentInsets: .init(top: 0, leading: 4, bottom: 0, trailing: 4),
-                  effect: [.none, .blur, .liquidGlass][navButtons.effect])
+                  effect: effects[navButtons.effect])
         }
         let widths: [CGFloat?] = [nil, 56, 72]
         let vertical: ShellNavButton.Style? = navButtons.vertical == 0 ? nil
             : .init(size: .preferred(CGSize(width: 44, height: 72)), icon: .systemSymbol("checkmark"), contentInsets: .zero)
         let done = NavigationAction(id: "nav.text", title: "完成",
                                     navButton: .init(normal: normalStyle(width: widths[navButtons.size]), vertical: vertical),
-                                    priority: 30, role: .confirmation) { [weak self] in self?.recordNavButton("完成") }
+                                    priority: 30, role: .confirmation,
+                                    sidebarBehavior: sidebarBehaviors[sidebarIndex]) { [weak self] in self?.recordNavButton("完成") }
         let detail = NavigationAction(
             id: "nav.detail", title: "详情",
             navButton: .init(normal: normalStyle(width: 44, iconSize: CGSize(width: 20, height: 20))),
             icon: .systemSymbol("arrow.right"), priority: 20,
-            axisBehavior: axisBehaviors[axisIndex]
+            sidebarBehavior: sidebarBehaviors[sidebarIndex]
         ) { [weak self] in self?.openDetail() }
         guard navButtons.groupWidth != 0 else { return [.button(detail), .button(done)] }
 
@@ -226,8 +238,15 @@ final class NavigationBarDemoController: DemoStackController {
             id: "nav.mark-share",
             actions: actions,
             itemSpacing: [0, 8, 16][max(0, min(2, navButtons.spacing))],
-            material: .systemGlass
+            material: .systemGlass,
+            sidebarBehavior: sidebarBehaviors[sidebarIndex]
         )
+        // QA 钩子：侧轨容量有限，只留按钮组以核对组员是否竖向堆叠。
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-navbutton-single-group") {
+            return [.group(group)]
+        }
+        #endif
         return [.group(group), .button(detail), .button(done)]
     }
 
@@ -289,14 +308,14 @@ final class NavigationBarDemoController: DemoStackController {
             self.iconIndex = index
             self.apply()
         }
-        bind(axisPicker, id: "nav.axis") { [weak self] index in
+        bind(sidebarPicker, id: "nav.sidebar") { [weak self] index in
             guard let self = self else { return }
-            self.axisIndex = index
+            self.sidebarIndex = index
             self.apply()
         }
         card([DemoStyle.label("详情图标", style: .headline), iconPicker,
-              DemoStyle.label("详情按钮方向", style: .subheadline), axisPicker,
-              DemoStyle.label("切换“详情”的图标来源，UIImage 保留原色。方向选项在支持的系统上生效，实际位置由系统决定。", style: .footnote, color: .secondaryLabel)])
+              DemoStyle.label("侧栏策略", style: .subheadline), sidebarPicker,
+              DemoStyle.label("切换“详情”的图标来源，UIImage 保留原色。侧栏策略同时作用于独立按钮和整个按钮组，实际位置仍由系统决定。", style: .footnote, color: .secondaryLabel)])
 
         bind(presentationPicker, id: "nav.presentation") { [weak self] index in
             guard let self = self else { return }
@@ -323,7 +342,7 @@ final class NavigationBarDemoController: DemoStackController {
         card([DemoStyle.label("导航按钮", style: .headline), navModePicker,
               DemoStyle.label("完成 · 横栏尺寸（pt）", style: .subheadline), navSizePicker,
               DemoStyle.label("完成 · 侧栏尺寸（pt）", style: .subheadline), navVerticalPicker,
-              DemoStyle.label("按钮背景", style: .subheadline), navEffectPicker])
+              DemoStyle.label("按钮表面（系统玻璃在旧系统回退为磨砂）", style: .subheadline), navEffectPicker])
         card([DemoStyle.label("标记与分享 · 单项宽度", style: .headline), navGroupWidthPicker,
               DemoStyle.label("动作顺序", style: .subheadline), navOrderPicker,
               DemoStyle.label("组内净距", style: .subheadline), navSpacingPicker])
@@ -355,7 +374,7 @@ final class NavigationBarDemoController: DemoStackController {
         presentationIndex = 0
         materialIndex = 0
         iconIndex = 0
-        axisIndex = 0
+        sidebarIndex = Self.initialSidebarIndex(ProcessInfo.processInfo.arguments)
         showsCustomTitle = false
         selectedTitle = "全部来源"
         navButtons = NavButtonSettings()
@@ -405,14 +424,13 @@ final class NavigationBarDemoController: DemoStackController {
         presentationPicker.selectedSegmentIndex = presentationIndex
         materialPicker.selectedSegmentIndex = materialIndex
         iconPicker.selectedSegmentIndex = iconIndex
-        axisPicker.selectedSegmentIndex = axisIndex
+        sidebarPicker.selectedSegmentIndex = sidebarIndex
         customTitlePicker.selectedSegmentIndex = showsCustomTitle ? 1 : 0
         for (picker, _, key) in navButtonPickers { picker.selectedSegmentIndex = navButtons[keyPath: key] }
         let custom = navButtons.mode == 1
         for picker in [navSizePicker, navVerticalPicker, navEffectPicker, navGroupWidthPicker] { picker.isEnabled = custom }
         for picker in [navOrderPicker, navSpacingPicker] { picker.isEnabled = custom && navButtons.groupWidth != 0 }
         iconPicker.isEnabled = !custom
-        axisPicker.isEnabled = !custom
     }
 
     private func updateStatus() {
@@ -421,7 +439,7 @@ final class NavigationBarDemoController: DemoStackController {
         let buttons = buttonSize.map { "\(Int($0)) pt" } ?? "系统"
         let subtitle = showsSubtitle ? "开" : "关"
         let large = usesLargeTitle ? "开" : "关"
-        let text = "标题：\(size) / \(colorNames[colorIndex])\n按钮：\(buttons)\n图标：\(iconNames[iconIndex]) / 方向：\(axisNames[axisIndex])\n副标题：\(subtitle) / 大标题：\(large)\n形态：\(presentationNames[presentationIndex])\n材质：\(materialNames[materialIndex])"
+        let text = "标题：\(size) / \(colorNames[colorIndex])\n按钮：\(buttons)\n图标：\(iconNames[iconIndex]) / 侧栏：\(sidebarNames[sidebarIndex])\n副标题：\(subtitle) / 大标题：\(large)\n形态：\(presentationNames[presentationIndex])\n材质：\(materialNames[materialIndex])"
         let titleMode = showsCustomTitle ? "\n自定义标题：\(selectedTitle)" : ""
         let count = navButtons.mode == 1 ? "\nNavButton 点击：\(navButtonTapCount) 次" : ""
         let full = text + titleMode + count + (message.map { "\n" + $0 } ?? "")

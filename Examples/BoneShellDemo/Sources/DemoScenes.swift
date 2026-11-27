@@ -123,7 +123,7 @@ class FormDemoController: DemoStackController {
         screen.navigation.trailingModules = [NavigationAction(id: "save", title: "保存", symbol: "checkmark", priority: 20, role: .confirmation, handler: { [weak self] in
             guard let self = self else { return }
             self.view.endEditing(true)
-            self.status.text = "已保存：\(self.input.text ?? \"\")"
+            self.status.text = "已保存：\(self.input.text ?? "")"
         })].map(\.asNavigationModule)
         if showsCloseButton {
             screen.navigation.leadingModules = [NavigationAction(id: "close", title: "关闭", symbol: "xmark", role: .cancellation, handler: { [weak self] in self?.dismiss(animated: true) })].map(\.asNavigationModule)

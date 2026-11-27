@@ -2,6 +2,51 @@
 
 已发布版本按 Git 标签记录。接入方式见 [README](README.md)，实际执行范围见 [验证记录](Documentation/Implementation-Status.md)。
 
+## 0.14.0
+
+发布标签：未发布。
+
+### 破坏性变更
+
+- `NavigationAction.axisBehavior` 与 `ShellNavigationActionAxisBehavior` 移除，改为模块级 `sidebarBehavior: ShellNavigationSidebarBehavior`（`.system` / `.disabled` / `.preferred`）。
+  - 独立按钮用 `NavigationAction.sidebarBehavior`，按钮组用新增的 `NavigationButtonGroup.sidebarBehavior`；组声明优先，组内动作的同名声明被忽略。
+  - 修复此前只读取组内首个动作、其余声明被静默忽略的问题。
+  - `.disabled` 同时停止该模块的 iPhone Duo 侧栏样式解析与侧栏位置判断，`.preferred` 映射系统优先竖向；`.system` 为所有初始化器的新默认值（`navButton:` 版本原为 `.verticalPreferred`）。
+- `ShellNavButton.Effect` 收敛为 `.inherited` / `.none` / `.material(ShellMaterial)`，删除 `.blur` 与 `.liquidGlass`。按钮表面与栏位共用 `ShellMaterials` 的解析与回退；旧系统写 `.material(.systemGlass)` 自动回退为磨砂。
+
+### 新增
+
+- `ShellNavButton.Style.tintColor`、`NavigationButtonGroup.tintColor` 与 `ShellGlassView.glassTintColor`：按钮表面的主题色与栏位 `ShellNavigationStyle.backgroundColor` 同源。
+- `ShellMaterialRendering.clipsContent(_:)`：统一判断“系统玻璃是否需要宿主裁剪”，`ShellGlassView`、按钮组、独立 NavButton、兼容胶囊与标签附加按钮共用同一入口。
+- `ShellNavButtonCluster` 在 iOS 26 且组材质解析为 `.systemGlass` 时使用 `UIGlassContainerEffect` 合并组内玻璃；**该实现因接缝凹陷与双重折射暗带已撤回**，组表面恢复为一整块 `ShellGlassView`。
+
+### 变更
+
+- 独立 NavButton 的表面改为复用 `ShellGlassView`，与按钮组、胶囊栏使用同一份绘制实现。
+- SDK 自绘玻璃关闭 `UIGlassEffect.isInteractive`：表面层不参与命中测试，按压反馈由承载控件负责；标准图标 / 文字按钮补齐按压透明度反馈。
+- 按钮自绘玻璃的表面高度跟随系统栏位条目（Duo 横栏 48 pt、普通 iPhone 44 pt），与返回键等高；槽位与点击区域不变。
+- iPhone Duo 侧栏中，按钮组整体改为竖排：承载视图不拆分，组内按钮上下堆叠，组表面是一枚竖胶囊。
+  - 侧栏内所有条目玻璃同宽：按「槽位 + 4 pt」（Duo 实测槽位 44 → 玻璃 47.7）居中绘制，组、独立按钮与系统返回键宽度一致。
+  - 竖排时组表面绘制的模块，每枚按钮与组玻璃同宽且为正方形（48 × 48），不加额外内边距；图标大小完全由 `iconSize` / `contentInsets` 控制，组高 = 边长 × 数量 + 组内净距。独立按钮保持自身声明尺寸（例如 44 × 72）。
+  - 侧轨按每项 44 pt 分配槽位且容量约 3 项：整组竖排占用相当于两项的高度，同侧动作更多时系统会把放不下的项移出侧轨。
+
+### 修复
+
+- 系统栏中按钮与相邻模块压叠：间距归一化此前把已进入「更多」菜单的模块也计入参考位置，产生越界偏移，把可见按钮推到相邻条目上、文字跑出按钮边界。现在只统计真正落在栏内的模块，并限制单次偏移幅度。
+- 模块间距归一化的两处缺陷：按钮组的胶囊此前完全不应用模块偏移（不参与归一化），且多出的间隙全部推给后继模块导致偏移逐级累积，末位按钮的胶囊被推出自身槽位。现在组表面与组内图标一起平移，剩余量在两侧均分。
+- 模块间距归零时表面、图标、标题三者错位：按钮表面现在跟随模块视觉偏移，`moduleVisualBounds` 按表面计算；`titleRect(forContentRect:)` 也应用同一偏移，文字按钮不再被推出表面贴住一侧边缘。表面尺寸改用实际布局到的 `bounds`。
+- 系统玻璃不再被宿主裁剪，保留画到视图边界之外的边缘高光；回退材质仍用圆角遮罩。
+- 修好 UIKit 在首次布局时把 `imageView` 插入索引 0、导致玻璃盖住图标与文字的层级问题。
+- 侧栏判定由「整块外框在轨道内」改为「模块中心在轨道内」：比轨道更宽的组否则永远认不出自己在侧栏。
+- 修复 Demo 输入页状态文字中的非法字符串转义，该问题导致 Demo 目标无法编译。
+
+### Demo 与测试
+
+- 「导航栏」页的方向选择改为 `nav.sidebar` 三档（系统默认 / 不启用 / 优先侧栏），同时作用于独立按钮和按钮组；按钮表面选择改为「无 / 系统默认 / 系统玻璃」。
+- 新增 DEBUG 参数 `-navbutton-single-group`，只保留按钮组以核对侧栏竖排效果。
+- `NavButtonUITests` 与 `NavigationAdaptiveUITests` 随侧栏与材质改动更新；新增侧栏竖排、玻璃宽度、系统条目等高与溢出模块不干扰的单元用例。
+- Demo 版本升至 0.14.0（Build 1）。
+
 ## 0.13.5
 
 发布标签：[v0.13.5](https://github.com/taokoplay/BoneShellKit/tree/v0.13.5)。

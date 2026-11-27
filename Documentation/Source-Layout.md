@@ -69,11 +69,11 @@ Sources/BoneShellKit/
 | 导航栈容器和经典导航栏 | `Containers/BoneNavigationController.swift` |
 | 标签目的地、标签栏模式、附加操作 | `Containers/BoneTabBarController.swift`、`Containers/ShellTab.swift` |
 | 分栏容器 | `Containers/BoneSplitViewController.swift` |
-| 动作语义、角色、可见性和轴向 | `Navigation/NavigationAction.swift` |
+| 动作语义、角色、可见性和侧栏策略 | `Navigation/NavigationAction.swift` |
 | 标题、导航模块、材质和背景配置 | `Navigation/NavigationConfiguration.swift` |
 | 页面内容、栏位和背景组合 | `Navigation/ScreenConfiguration.swift` |
 | 兼容导航宽度筛选 | `Navigation/ShellActionLayout.swift` |
-| 按钮组、按钮材质和 iPhone Duo 样式 | `NavigationModules.swift`、`ShellNavButton.swift` |
+| 按钮组、组侧栏策略、按钮材质和 iPhone Duo 样式 | `NavigationModules.swift`、`ShellNavButton.swift` |
 | 动态背景资源、缓存和播放预算 | `Backgrounds/` |
 | 经典栏、胶囊栏和 dock 渲染 | `Classic/`、`Capsule/` |
 

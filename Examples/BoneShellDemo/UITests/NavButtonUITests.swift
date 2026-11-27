@@ -24,7 +24,7 @@ final class NavButtonUITests: XCTestCase {
 
     func testMaterialsAndSizeOnBarRecordEachTapOnce() {
         XCUIDevice.shared.orientation = .portrait
-        for effect in ["none", "blur", "liquidGlass"] {
+        for effect in ["none", "blur", "glass"] {
             openSettings(["-navbutton", "-navbutton-horizontal-bar", "-navbutton-effect", effect])
             assertHorizontalDone(width: 72)
             capture("NavButton-material-\(effect)", button: done)

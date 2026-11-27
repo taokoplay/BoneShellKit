@@ -240,10 +240,8 @@ final class ShellCapsuleBackdrop: UIView {
         backgroundColor = solid ? .secondarySystemBackground : .clear
         highlight.isHidden = !solid || showsMediaBackground
         let wantsGlass = material == .systemGlass && !reduce
-        // A native glass effect draws beyond its surface to form the system shadow.
-        // Only fallback blur/solid surfaces need an outer clipping mask.
-        if #available(iOS 26.0, *) { clipsToBounds = !wantsGlass }
-        else { clipsToBounds = true }
+        // 系统玻璃会绘制到视图边界之外形成边缘高光，只有回退材质需要宿主裁剪。
+        clipsToBounds = ShellMaterialRendering.clipsContent(solid ? .solid : (wantsGlass ? .systemGlass : .frostedGlass))
         if solid {
             effectView.effect = nil
             blurStyle = nil

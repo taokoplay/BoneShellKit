@@ -176,7 +176,9 @@ final class TabIconContentTests: XCTestCase {
     private func settle(_ tabs: BoneTabBarController) {
         tabs.view.setNeedsLayout()
         tabs.view.layoutIfNeeded()
-        RunLoop.main.run(until: Date().addingTimeInterval(0.08))
+        // 自绘标签栏的可见性来自 viewDidAppear；整套用例一起跑时窗口切换更慢，
+        // 固定 0.08 s 会让下一个用例读到 controllerIsVisible == false。
+        RunLoop.main.run(until: Date().addingTimeInterval(0.25))
         tabs.view.layoutIfNeeded()
     }
 

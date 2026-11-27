@@ -337,14 +337,9 @@ final class ShellTabAccessoryButton: UIButton {
         backdrop.frame = bounds
         layer.cornerRadius = bounds.height / 2
         layer.cornerCurve = .continuous
-        // Native glass owns its rounded contour and shadow. Clipping the button cuts that
-        // shadow off; older blur surfaces still need a rounded mask.
-        if #available(iOS 26.0, *) {
-            clipsToBounds = (material != .systemGlass || UIAccessibility.isReduceTransparencyEnabled)
-                && !castsCompatibilityShadow
-        } else {
-            clipsToBounds = !castsCompatibilityShadow
-        }
+        // 系统玻璃自己画出圆角轮廓和边缘高光，裁剪会把它们切掉；回退材质仍需圆角遮罩。
+        let resolved = material == .solid || UIAccessibility.isReduceTransparencyEnabled ? .solid : material
+        clipsToBounds = ShellMaterialRendering.clipsContent(resolved) && !castsCompatibilityShadow
         backdrop.layer.cornerRadius = bounds.height / 2
         backdrop.layer.cornerCurve = .continuous
         layer.shadowPath = UIBezierPath(roundedRect: bounds, cornerRadius: bounds.height / 2).cgPath

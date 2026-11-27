@@ -1,6 +1,6 @@
 # 导航动作与自适应栏位
 
-本文适用于 **v0.12.1**。导航动作强制显示策略自 v0.12.0 提供，iOS 26 导航共享玻璃、NavButton 返回恢复和自定义 confirmation 行为自 v0.12.1 提供，NavButton、Duo 侧栏样式、按钮材质及标题视图自 v0.11.0 提供，最低部署目标仍为 iOS 15，编译使用 Xcode 27.1。
+本文适用于 **v0.14.0**。模块级侧栏策略自 v0.14.0 提供，替换 v0.10.0 的动作级 `axisBehavior`；导航动作强制显示策略自 v0.12.0 提供，iOS 26 导航共享玻璃、NavButton 返回恢复和自定义 confirmation 行为自 v0.12.1 提供，NavButton、Duo 侧栏样式、按钮材质及标题视图自 v0.11.0 提供，最低部署目标仍为 iOS 15，编译使用 Xcode 27.1。
 
 ## 一次声明，按容器环境呈现
 
@@ -9,7 +9,7 @@
 | 环境 | 布局与溢出 |
 | --- | --- |
 | iOS 27+、导航解析为 `.system` | 全部唯一动作提交给原生分组；UIKit 按空间、优先级、可见性和轴向安排，`.always` 动作保留在栏位结构中 |
-| iOS 27.1+ 原生导航 | 额外映射 `axisBehavior`；实际是否竖排仍由系统姿态与容器环境决定 |
+| iOS 27.1+ 原生导航 | 额外把模块的 `sidebarBehavior` 映射为系统 `axisBehavior`；实际是否竖排仍由系统姿态与容器环境决定 |
 | iOS 15–26 原生导航 | 保留 SDK 按可用宽度、字体、可见性与优先级选择按钮及 `UIMenu` 的兼容路径 |
 | `.classic` 导航 | 保留 SDK 横向布局与宽度预算；经典模式继续禁用系统竖向栏位 |
 
@@ -31,9 +31,9 @@ final class EditScreen: BoneViewController {
         let share = NavigationAction(id: "share", title: "分享", navButton: .init(),
                                      icon: .systemSymbol("square.and.arrow.up")) { /* 分享 */ }
         let done = NavigationAction(id: "done", title: "完成", navButton: .init(
-            normal: .init(size: .preferred(CGSize(width: 72, height: 44)), effect: .liquidGlass),
+            normal: .init(size: .preferred(CGSize(width: 72, height: 44)), effect: .material(.systemGlass)),
             iPhoneDuo: .init(size: .preferred(CGSize(width: 44, height: 72)), icon: .systemSymbol("checkmark"))
-        ) { /* 完成 */ }
+        )) { /* 完成 */ }
         screen.navigation.trailingModules = [
             .group(NavigationButtonGroup(id: "editing", actions: [edit, share], itemSpacing: 8, material: .systemGlass)),
             .button(done)
@@ -43,9 +43,10 @@ final class EditScreen: BoneViewController {
 ```
 
 - **尺寸**：默认按文字、图片的逻辑尺寸（pt）或自定义视图拟合；`size` 指按钮外框，`iconSize` 指图标，`contentInsets` 指内部留白。小图不必拉伸到点击区域大小。在分配的空间内尽可能提供 44 × 44 pt 的不重叠点击区域。标题字号不参与按钮测量。
-- **轴向与内容**：`Style.icon` 可为横栏与 iPhone Duo 分别指定图标，`iPhoneDuo` 样式只在实际侧边栏承载时生效。`axisBehavior.horizontalOnly` 关闭自动侧边栏迁移，`verticalPreferred` 允许并优先侧边栏。
+- **侧栏与内容**：`Style.icon` 可为横栏与 iPhone Duo 分别指定图标，`iPhoneDuo` 样式只在实际侧边栏承载时生效。侧栏策略声明在模块上：`sidebarBehavior: .disabled` 只允许横栏并停止侧栏样式解析，`.preferred` 允许两侧并优先侧栏，`.system` 交给系统。组内动作的 `sidebarBehavior` 不生效。
 - **模块顺序与间距**：`leadingModules`、`trailingModules` 按声明顺序呈现。独立按钮使用 `.button`，多个按钮使用 `NavigationButtonGroup`；`itemSpacing` 控制组内间距，`NavigationConfiguration.moduleSpacing` 控制模块可见边界之间的固定间距，SDK 会校正系统栏位和按钮内边距产生的额外空间。按钮组作为一个原子模块参与宽度预算、溢出和 Duo 位置计算。
-- **材质**：组内按钮的按钮级 effect 自动解析为 `.none`，只使用 `NavigationButtonGroup.material`；独立按钮才使用自己的按钮材质。导航栏 `material` 仍负责整条导航栏背景。
+- **与系统条目等高**：按钮自绘玻璃时，表面高度会跟随系统栏位条目的可视高度（Duo 横栏 58 pt 栏高 → 48 pt 表面，普通 iPhone 44 pt 栏高 → 44 pt），因此与返回键等高；槽位与点击区域不变。侧栏不使用该规则（轨道宽度固定 44 pt）。
+- **材质**：组内按钮的按钮级 effect 自动解析为 `.none`，只使用 `NavigationButtonGroup.material`；独立按钮才使用自己的按钮表面。按钮表面写成 `.material(.systemGlass)` 时与栏位共用同一套解析和回退，`.systemGlass` 不用的旧系统会回退为磨砂。系统玻璃不裁剪溢出层，边缘高光会保留；组只画一整块覆盖整个模块的表面（与系统分组玻璃一致，无分隔线），独立玻璃按钮各画自己的胶囊。SDK 用单个自定义承载项提交整组，UIKit 看不到组内结构，因此不会参与系统的共享玻璃。主题色用 `ShellNavButton.Style.tintColor` 与 `NavigationButtonGroup.tintColor`，语义同 `ShellNavigationStyle.backgroundColor`。绘制规则见 [材质表面由谁绘制](Bar-Styling.md#材质表面由谁绘制)。
 - **自定义内容**：`ShellNavButton` 可提供尺寸、图标、iPhone Duo 样式和完整自定义 UIView。组内自定义内容不要再自行绘制第二层导航表面。
 - **系统项与自定义项**：`navButton:` 的动作由 SDK 创建 `ShellNavButtonHost` 和 `ShellNavButtonCluster`，再把 cluster 作为 `UIBarButtonItem.customView`。SDK 不同时使用系统 item 的 `primaryAction`、标题或图标承载同一个自定义动作。宿主只需要提供 `NavigationAction.handler`。
 - **确认动作**：`role: .confirmation` 仍参与原生优先级、固定位置和兼容宽度预算。自定义 confirmation 使用自定义按钮的文字与材质，不叠加 UIKit `.done` 的系统突出外观；未使用 `navButton:` 的 confirmation 继续使用系统 `.done` 样式。
@@ -53,6 +54,21 @@ final class EditScreen: BoneViewController {
 - **刷新与返回**：页面在 `viewWillAppear`、`viewDidAppear` 和布局变化时可能重新提交动作。SDK 按稳定 ID 复用 item、cluster 和按钮，并在 pop 完成后重新写入分组内容。宿主更新动作后仍需调用 `refreshScreenConfiguration()`。
 - **iOS 15–26 宽度预算**：当 leading 没有动作时，兼容路径把可用侧向空间交给 trailing；当 trailing 没有动作时，把空间交给 leading。放不下的普通动作进入 `UIMenu`，确认动作按其角色优先保留。
 - **整项 UIView**：可用 `.init(content: .custom(revision: 0, makeView: { MyView() }))` 替换按钮的全部视觉内容，工厂提供未挂载的视图。相同 ID 和内容版本复用，需更换内容时修改 `revision`。视觉内容不要再注册一套动作；栏上、辅助激活和溢出菜单均使用 `NavigationAction.handler`。
+
+### 按钮组字段
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `id` | `String` | 必填 | 组的稳定标识，刷新时据此识别同一组 |
+| `actions` | `[NavigationAction]` | 必填 | 组内动作，数组顺序决定按钮与菜单顺序 |
+| `itemSpacing` | `CGFloat` | `8` | 组内相邻按钮视觉外框之间的间距，单位为点 |
+| `material` | `ShellMaterial` | `.automatic` | 组表面材质；组内按钮的按钮级 effect 被忽略 |
+| `tintColor` | `UIColor?` | `nil` | 叠加在组表面上的主题色，语义同 `ShellNavigationStyle.backgroundColor` |
+| `sidebarBehavior` | `ShellNavigationSidebarBehavior` | `.system` | 组的侧栏策略；组内动作的同名声明被忽略 |
+
+组是布局、溢出和 Duo 位置计算的原子单位，因此侧栏策略也只声明一次。要让组内单个按钮走不同轴向，把它从组里拆成独立 `.button(_:)` 模块。
+
+侧栏里组会被整体改为竖排：组内每个按钮成为与组玻璃同宽的正方形，组内净距保持 `itemSpacing`，按钮自身的 `size` 不再决定外形（图标大小仍由 `iconSize` 控制）。
 
 ## 标题菜单与自定义按钮
 
@@ -123,7 +139,7 @@ final class ActionsController: BoneViewController {
         }
         let bookmark = NavigationAction(id: "bookmark", title: "收藏",
                                          icon: .asset("Bookmark", bundle: .main),
-                                         priority: 10, axisBehavior: .verticalPreferred) { }
+                                         priority: 10, sidebarBehavior: .preferred) { }
         let save = NavigationAction(id: "save", title: "保存", symbol: "checkmark",
                                     priority: 20, role: .confirmation) { }
         screen.navigation.leadingModules = [.button(close)]
@@ -134,7 +150,7 @@ final class ActionsController: BoneViewController {
 
 示例资源 `Bookmark` 和保存 / 收藏业务由宿主提供。修改页面状态后调用 `refreshScreenConfiguration()`，保留业务内容和导航栈。
 
-## 角色、优先级、可见性和轴向
+## 角色、优先级、可见性和侧栏策略
 
 | 字段 | 值 | 行为 |
 | --- | --- | --- |
@@ -144,11 +160,11 @@ final class ActionsController: BoneViewController {
 | `priority` | 任意 `Int`，默认 `0` | 同角色下较大的值优先保留；原生映射为 `UIBarButtonItemVisibilityPriority`，不以此重排声明顺序 |
 | `visibility` | `.automatic`（默认） | 允许兼容布局按空间与优先级将动作移入溢出菜单 |
 | `visibility` | `.always` | 兼容布局保留动作；iOS 27+ trailing 动作放入 `pinnedTrailingGroup`，leading 动作使用最高可见性优先级 |
-| `axisBehavior` | `.automatic`（默认） | 系统根据图标、文字及环境推断 |
-| `axisBehavior` | `.horizontalOnly` | iOS 27.1+ 仅支持横向栏位；没有可用横向栏时不保证直接可见，可通过系统菜单访问 |
-| `axisBehavior` | `.verticalPreferred` | iOS 27.1+ 允许横向及竖向，在两者均存在时优先竖向 |
+| `sidebarBehavior` | `.system`（默认） | 系统根据图标、文字及环境推断，SDK 不干预 |
+| `sidebarBehavior` | `.disabled` | iOS 27.1+ 仅支持横向栏位；没有可用横向栏时不保证直接可见，可通过系统菜单访问。SDK 同时停止该模块的侧栏样式与侧栏位置判断 |
+| `sidebarBehavior` | `.preferred` | iOS 27.1+ 允许横向及竖向，在两者均存在时优先竖向 |
 
-轴向偏好在旧系统可声明但不会调用不可用的 UIKit API。优先竖向不是强制竖排；应同时提供合适图标和标题。图标与文字互相切换、或文字承载关键信息时，应选择稳定的横向行为。
+`sidebarBehavior` 属于模块而不是单个动作：独立按钮用 `NavigationAction.sidebarBehavior`，按钮组用 `NavigationButtonGroup.sidebarBehavior`，组的值覆盖组内动作。旧系统可以声明该值，但不会调用不可用的 UIKit API。优先竖向不是强制竖排；应同时提供合适图标和标题。图标与文字互相切换、或文字承载关键信息时，应保留 `.system` 或 `.disabled`。
 
 原生动作采用单动作固定分组，保持可在系统菜单中访问。首个确认操作和 trailing 侧的 `.always` 动作放入 `pinnedTrailingGroup`，直接保留在栏位末端。leading 侧的 `.always` 动作使用最高可见性优先级。返回动作继续由系统导航栈管理。
 
@@ -166,6 +182,12 @@ final class ActionsController: BoneViewController {
 
 ## 范围与验收
 
-v0.12.1 提供标准动作、强制显示策略、自定义图片、角色、轴向偏好、NavButton、自定义标题视图和 iOS 26 导航恢复行为。自定义 NavButton 的系统承载、confirmation 外观、共享玻璃和返回恢复规则见上文。加载 / badge 声明、菜单树和自定义经典竖向 renderer 仍未提供。
+v0.14.0 提供标准动作、强制显示策略、自定义图片、角色、模块级侧栏策略、NavButton、自定义标题视图和 iOS 26 导航恢复行为。
 
-Demo“导航栏”页提供符号 / 本地图片 / UIImage 与自动 / 仅横向 / 优先侧边切换；“导航与多按钮”页用于观察优先级及实际溢出。已执行的设备、用例与截图分别记录在 [实现与验证记录](Implementation-Status.md)，不以 API 编译通过代替 Duo 全姿态验收。
+**侧栏与按钮组**：模块进入 iPhone Duo 侧轨后会整体改为竖排——承载视图不拆分，按钮组内部上下堆叠，组表面仍是一枚竖胶囊。侧栏里所有条目（含系统返回键）的玻璃同宽：槽位 44 pt、系统玻璃实测 47.7 pt，SDK 按「槽位 + 4 pt」居中绘制，因此组、独立按钮与返回键宽度一致。判断宽度要以玻璃为准，不能用无障碍命中框——侧栏返回键的 AX frame 是 38 pt，与玻璃相差 10 pt。
+
+竖排时由组表面统一绘制的模块，每个按钮都是**与组玻璃同宽的正方形**（Duo：48 × 48），且不加任何额外内边距——按钮自己的 `size` 不再决定外形，图标大小完全由 `iconSize` / `contentInsets` 控制。因此组高 = 按钮正方形边长 × 数量 + 组内净距（Duo 两枚、净距 8 → 104 pt）。独立按钮自带玻璃，仍按自身声明尺寸绘制（例如竖排的 44×72）。模块检测到自己落在侧轨后，把自身高度收敛为竖排高度并让页面重新提交条目（UIKit 只在提交时量测自定义视图）；宽度仍由系统槽位决定，玻璃按 48 pt 居中绘制到槽位之外。
+
+侧轨按「每项 44 pt」分配槽位并只容纳约 3 项：整组竖排后会占用相当于两项的高度，若同一侧还有其它动作，系统会把放不下的项移出侧轨（进「更多」或不显示）。需要在侧轨稳定呈现时，同一侧保留的模块数量应控制在 1–2 个。加载 / badge 声明、菜单树和自定义经典竖向 renderer 仍未提供。
+
+Demo“导航栏”页提供符号 / 本地图片 / UIImage 与系统默认 / 不启用 / 优先侧栏三档切换，切换同时作用于独立按钮和按钮组；“导航与多按钮”页用于观察优先级及实际溢出。已执行的设备、用例与截图分别记录在 [实现与验证记录](Implementation-Status.md)，不以 API 编译通过代替 Duo 全姿态验收。

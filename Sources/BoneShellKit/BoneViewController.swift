@@ -57,6 +57,7 @@ open class BoneViewController: UIViewController {
     private var lastActionLayoutKey: ActionLayoutKey?
     private var scrollsUnderFloatingTabBar = false
     private var normalizingModuleSpacing = false
+
     private var moduleSpacingNormalizationScheduled = false
     private var originalBottomEdgeEffectHidden: Bool?
     private let bottomContentFade = ShellScrollBottomFade()
@@ -233,7 +234,10 @@ open class BoneViewController: UIViewController {
         spacing: CGFloat,
         in bar: UIView
     ) {
-        let visible = clusters.filter { !$0.isHidden && $0.superview != nil }
+        // 只考虑真正落在栏内的模块：进入溢出菜单的模块仍留在 item group 里，但可能被移出
+        // 栏位或压成零尺寸。算进来会按一个幽灵位置求偏移，把可见模块整体推走
+        //（「完成」被推到返回键上、文字越出按钮边界）。
+        let visible = clusters.filter { $0.isVisibleInBar(bar) }
         guard visible.count > 1 else { return }
         let vertical = visible.contains { $0.isVertical }
         visible.forEach { $0.setModuleVisualOffset(0) }
@@ -243,21 +247,23 @@ open class BoneViewController: UIViewController {
         }
         func start(_ frame: CGRect) -> CGFloat { vertical ? frame.minY : frame.minX }
         func end(_ frame: CGRect) -> CGFloat { vertical ? frame.maxY : frame.maxX }
-        func moved(_ frame: CGRect, by delta: CGFloat) -> CGRect {
-            vertical ? frame.offsetBy(dx: 0, dy: delta) : frame.offsetBy(dx: delta, dy: 0)
-        }
-
         let ordered = visible.sorted { start(frame(for: $0)) < start(frame(for: $1)) }
-        var edge: CGFloat?
-        for cluster in ordered {
-            let original = frame(for: cluster)
-            guard let currentEdge = edge else {
-                edge = end(original)
-                continue
+        let frames = ordered.map { frame(for: $0) }
+        let widths = frames.map { end($0) - start($0) }
+        let span = end(frames[frames.count - 1]) - start(frames[0])
+        // 系统栏位给每个 item 的触控补偿会把它撑到超过 44 pt，可见边界之间因此多出空隙。
+        // 校正只调整模块内部间距，剩余量在两侧均分；若把它全部推给后继模块，偏移会逐级累积，
+        // 末位模块的胶囊会整体越出自身槽位（「完成」看起来贴到按钮边上）。
+        let desired = widths.reduce(0, +) + spacing * CGFloat(ordered.count - 1)
+        var cursor = start(frames[0]) + (span - desired) / 2
+        for (index, cluster) in ordered.enumerated() {
+            let delta = cursor - start(frames[index])
+            // 超过一个模块宽度量级的偏移只可能来自错误的参考位置，直接跳过，
+            // 避免把模块推出栏位。
+            if abs(delta) > 0.01, abs(delta) <= widths[index] + spacing {
+                cluster.setModuleVisualOffset(delta)
             }
-            let delta = currentEdge + spacing - start(original)
-            if abs(delta) > 0.01 { cluster.setModuleVisualOffset(delta) }
-            edge = end(moved(original, by: delta))
+            cursor += widths[index] + spacing
         }
         bar.layoutIfNeeded()
     }
@@ -727,6 +733,14 @@ open class BoneViewController: UIViewController {
             let head = actionState(for: run.first)
             let cluster = head.cluster ?? ShellNavButtonCluster()
             cluster.navigationBar = navigationController?.navigationBar
+            // 模块进入或离开侧栏时重新提交条目：横竖两种承载的布局方式不同。
+            // 轴向变化后 UIKit 需要按新的横竖尺寸重新量测，否则竖排模块仍按其横排尺寸摆放。
+            // 组不拆分：仍由同一个 cluster 整体竖排。
+            cluster.onAxisChange = { [weak self] _ in
+                guard let self else { return }
+                self.lastActionLayoutKey = nil
+                self.updateNavigationActions()
+            }
             head.cluster = cluster
             if classic, head.item.customView === cluster { head.item.customView = nil }
             if !classic, cluster.superview is ShellClassicNavigationBar { cluster.removeFromSuperview() }
@@ -745,8 +759,9 @@ open class BoneViewController: UIViewController {
             cluster.update(
                 buttons: buttons,
                 spacing: run.itemSpacing,
-                tracksNativePlacement: usesSystemNavigationActionLayout && run.first.axisBehavior != .horizontalOnly,
+                tracksNativePlacement: usesSystemNavigationActionLayout && run.sidebarBehavior != .disabled,
                 groupMaterial: clusterMaterial(for: run),
+                groupTintColor: run.groupTintColor,
                 moduleSpacingAfter: classic ? run.moduleSpacingAfter : 0
             )
             cluster.isUserInteractionEnabled = true
@@ -773,7 +788,9 @@ open class BoneViewController: UIViewController {
     }
     private func usesCustomGlass(_ action: NavigationAction) -> Bool {
         guard let button = action.navButton else { return false }
-        return button.normal.effect == .liquidGlass || button.vertical?.effect == .liquidGlass
+        return [button.normal, button.vertical].compactMap { $0?.effect.material }.contains {
+            ShellMaterials.currentResolution(for: $0).resolved == .systemGlass
+        }
     }
 
     private func makeBarButton(for run: ShellNavButtonRun, material: ShellMaterial) -> UIBarButtonItem {
@@ -806,10 +823,10 @@ open class BoneViewController: UIViewController {
                 : UIBarButtonItemVisibilityPriority(rawValue: action.priority)
         }
         if #available(iOS 27.1, *) {
-            switch action.axisBehavior {
-            case .automatic: item.axisBehavior = .automatic
-            case .horizontalOnly: item.axisBehavior = .horizontalOnly
-            case .verticalPreferred: item.axisBehavior = .verticalPreferred
+            switch run.sidebarBehavior {
+            case .system: item.axisBehavior = .automatic
+            case .disabled: item.axisBehavior = .horizontalOnly
+            case .preferred: item.axisBehavior = .verticalPreferred
             }
         }
         item.accessibilityLabel = action.title

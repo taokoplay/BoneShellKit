@@ -223,22 +223,45 @@ final class NavigationActionTests: XCTestCase {
         }
     }
 
-    func testAxisOverrideUpdatesAndReturnsToAutomaticOnSameItem() throws {
-        guard #available(iOS 27.1, *) else { throw XCTSkip("Axis preferences require iOS 27.1") }
+    func testSidebarOverrideUpdatesAndReturnsToSystemOnSameItem() throws {
+        guard #available(iOS 27.1, *) else { throw XCTSkip("Sidebar preferences require iOS 27.1") }
         let page = ActionFixture()
-        page.trailing = [NavigationAction(id: "axis", title: "方向", symbol: "star", priority: Int.min) {}]
+        page.trailing = [NavigationAction(id: "sidebar", title: "方向", symbol: "star", priority: Int.min) {}]
         host(page)
         let item = try XCTUnwrap(items(page).first)
-        let pairs: [(ShellNavigationActionAxisBehavior, UIBarButtonItem.AxisBehavior)] = [
-            (.horizontalOnly, .horizontalOnly), (.verticalPreferred, .verticalPreferred), (.automatic, .automatic)
+        let pairs: [(ShellNavigationSidebarBehavior, UIBarButtonItem.AxisBehavior)] = [
+            (.disabled, .horizontalOnly), (.preferred, .verticalPreferred), (.system, .automatic)
         ]
         for (declared, expected) in pairs {
-            page.trailing[0].axisBehavior = declared
+            page.trailing[0].sidebarBehavior = declared
             page.refreshScreenConfiguration()
             XCTAssertTrue(items(page).first === item)
             XCTAssertEqual(item.axisBehavior, expected)
             XCTAssertEqual(item.visibilityPriority.rawValue, Int.min)
         }
+    }
+
+    func testGroupSidebarBehaviorOverridesMemberActions() throws {
+        guard #available(iOS 27.1, *) else { throw XCTSkip("Sidebar preferences require iOS 27.1") }
+        let page = ActionFixture()
+        let member = NavigationAction(id: "member", title: "组内动作", navButton: .init(),
+                                      icon: .systemSymbol("star"), sidebarBehavior: .preferred) {}
+        page.trailingGroups = [NavigationButtonGroup(id: "tools", actions: [member], sidebarBehavior: .disabled)]
+        page.trailing = [NavigationAction(id: "single", title: "独立动作", symbol: "plus",
+                                          sidebarBehavior: .preferred) {}]
+        host(page)
+        let groupItem = try XCTUnwrap(items(page).first { $0.accessibilityIdentifier == "action.member" })
+        let singleItem = try XCTUnwrap(items(page).first { $0.accessibilityIdentifier == "action.single" })
+        XCTAssertEqual(groupItem.axisBehavior, .horizontalOnly)
+        XCTAssertEqual(singleItem.axisBehavior, .verticalPreferred)
+        let cluster = try XCTUnwrap(groupItem.customView as? ShellNavButtonCluster)
+        XCTAssertFalse(cluster.tracksNativeSidebarPlacement, "A disabled module must not follow the sidebar")
+
+        page.trailingGroups = [NavigationButtonGroup(id: "tools", actions: [member], sidebarBehavior: .preferred)]
+        page.refreshScreenConfiguration()
+        let preferredItem = try XCTUnwrap(items(page).first { $0.accessibilityIdentifier == "action.member" })
+        XCTAssertEqual(preferredItem.axisBehavior, .verticalPreferred)
+        XCTAssertTrue(try XCTUnwrap(preferredItem.customView as? ShellNavButtonCluster).tracksNativeSidebarPlacement)
     }
 
     func testSizeClassChangesPreserveNativeActionAndMenuIdentity() throws {
@@ -321,12 +344,13 @@ final class NavigationActionTests: XCTestCase {
 private final class ActionFixture: BoneViewController {
     var leading: [NavigationAction] = []
     var trailing: [NavigationAction] = []
+    var trailingGroups: [NavigationButtonGroup] = []
     var presentation: ShellBarPresentation = .system
     override func configureScreen(_ screen: inout ScreenConfiguration) {
         screen.barPresentation = presentation
         screen.navigation.title = "动作适配"
         screen.navigation.leadingModules = leading.map { .button($0) }
-        screen.navigation.trailingModules = trailing.map { .button($0) }
+        screen.navigation.trailingModules = trailing.map { .button($0) } + trailingGroups.map { .group($0) }
     }
 }
 

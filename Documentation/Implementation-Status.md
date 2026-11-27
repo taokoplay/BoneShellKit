@@ -1,6 +1,6 @@
 # 当前实现与验证基线
 
-最新发布版本和 Demo 版本为 **v0.12.1 / 0.12.1（Build 1）**。iOS 26 导航共享玻璃、NavButton 自定义 cluster 承载、confirmation 外观、返回恢复和兼容宽度预算已随 v0.12.1 发布，导航动作强制显示策略已随 v0.12.0 发布，NavButton、自定义导航标题与整项自定义标签内容已随 v0.11.0 发布。文字策略功能源码基线为 `bd7a7f6`；0.8 既有功能代码基线为 `9f758a1`。版本变化见 [更新记录](../CHANGELOG.md)。
+最新源码版本为 **v0.14.0**（未发布），Demo 为 0.14.0（Build 1）。模块级侧栏策略、统一的玻璃绘制与系统栏按钮布局修复在 v0.14.0 提供；iOS 26 导航共享玻璃、NavButton 自定义 cluster 承载、confirmation 外观、返回恢复和兼容宽度预算随 v0.12.1 发布，导航动作强制显示策略随 v0.12.0 发布，NavButton、自定义导航标题与整项自定义标签内容随 v0.11.0 发布。文字策略功能源码基线为 `bd7a7f6`；0.8 既有功能代码基线为 `9f758a1`。版本变化见 [更新记录](../CHANGELOG.md)。
 ## 未发布源码结构调整
 
 当前未发布工作树已将容器类型拆入 `Sources/BoneShellKit/Containers/`，将导航声明和兼容布局拆入 `Sources/BoneShellKit/Navigation/`；公开类型、模块导入方式和宿主接入方式保持不变。源码分区和维护入口见 [源码结构说明](Source-Layout.md)。
@@ -16,6 +16,41 @@
 - iOS 15–26 兼容宽度预算在一侧没有 action 时把剩余空间交给另一侧。页面重新出现后重新提交按钮与分组，避免 push / pop 后出现空玻璃容器或按钮消失。
 - iOS 26.0 模拟器上的 Demo push / pop 返回回归通过。BoneShellDemo 通用测试构建通过，iPhone 13 Pro / iOS 26.5 的真机构建、安装和启动通过；完整 Xcode 真机测试需要设备保持解锁。
 
+
+## 材质表面统一（v0.14.0）
+
+- 判断裁剪的唯一入口是 `ShellMaterialRendering.clipsContent(_:)`：iOS 26+ 的 `.systemGlass` 返回 false，其余返回 true。`ShellGlassView`、`ShellNavButtonCluster` 的组表面、兼容胶囊栏、标签附加按钮都改用它，不再各自写 `#available` 判断。
+- `ShellGlassView` 在取消裁剪时用 `UICornerConfiguration.uniformCorners(radius:)` 让效果层自己画出同一半径的轮廓；业务内容仍在 `contentView` 内按圆角裁剪。新增 `glassTintColor`，`.systemGlass` 映射到 `UIGlassEffect.tintColor`，磨砂回退把它作为叠加色。
+- `ShellNavButtonHost` 不再自己管理 `UIVisualEffectView`，改为持有一个 `ShellGlassView`；`ShellNavButton.Effect` 变为 `.inherited` / `.none` / `.material(ShellMaterial)`，`liquidGlass` 名称删除。
+- 修复一处层级缺陷：UIKit 在首次布局时把 `imageView` 插入索引 0，导致后加的表面视图盖住图标与文字（截图确认图标消失）。`layoutSubviews` 现在把表面移回最底层。
+- 验证（Xcode 27.1、iPhone Duo / iOS 27.1）：`NavButtonAppearanceTests` 8 项、`NavButtonLayoutTests` 5 项、`CapsuleBarTests` 12 项、`BarStyleTests` 6 项通过；新增 `testGlassSurfaceCarriesTintAndSkipsClipping`。`BoneShellDemoUITests/NavButtonUITests/testMaterialsAndSizeOnBarRecordEachTapOnce`（无 / 系统默认 / 系统玻璃三档，Duo 横栏）通过，截图确认图标恢复、玻璃胶囊保留边缘高光。
+- 按钮组表面保持“一整块覆盖整个模块”的绘制（与系统分组玻璃一致，组内无分隔线）。曾尝试用 `UIGlassContainerEffect` 给组内每枚按钮各配玻璃元素再合并：两枚胶囊仅相接时并集轮廓在接缝处凹陷约 9 pt（44 pt 高、8 pt 净距，几何已计算验证），改为重叠后重叠区因双重折射出现 8 pt 暗带，缩小重叠到 1 pt 又完全不合并。系统分组的观感本就是连续表面，因此撤回该实现，保留单一 `ShellGlassView`。
+- 修复间距归一化的两处结构缺陷，两者共同造成「完成」胶囊越出自身槽位、看起来贴到按钮边上：① `ShellNavButtonCluster.layoutSubviews` 里 `groupSurface.frame` 完全不应用 `moduleVisualOffset`，组的胶囊根本不参与归一化，而独立按钮会整体平移，两类模块规则不一致；② 归一化把每个间隙多出的空间全部推给后继模块，偏移逐级累积（实测组 0 / 详情 −4 / 完成 −8 pt）。现在组表面与组内图标一起按偏移平移，剩余量在可见范围两侧均分。
+- 修复模块视觉偏移只移动图形、不移动表面的缺陷：`normalizeNavigationModuleSpacing` 按模块可见边界归零间距时，自带表面的按钮会把图标挤出圆心（Duo 截图中「详情」箭头明显偏向圆左侧）。现在 `ShellNavButtonHost` 让表面、图标和标题一起偏移，`moduleVisualBounds` 在按钮自带表面时返回表面外框。
+- 同一缺陷的另一半：`titleRect(forContentRect:)` 原先完全不参与偏移，文字按钮（如「完成」）会被推到表面之外、贴住一侧边缘。现在标题与图标共用 `offsetContent`，自绘表面时整体平移，透明按钮仍按槽位裁剪；表面尺寸改用实际 `bounds`，不再可能比系统给的槽位更宽。
+- 像素核对（iPhone 18 Pro / iOS 27.0，402 pt 宽，组 + 详情 + 完成三个模块）：可见胶囊 146..250 / 258..302 / 310..382，间隙 8 / 8 pt，图标与文字中心相对各自胶囊中心偏差 ≤0.2 pt；系统返回键作为尺度参照（实测 42.7×43.7，理论 44×44）用于校正阈值测量偏差。Duo 侧栏 44×72 竖胶囊：图标中心 (21.8, 35.8) 对按钮中心 (22, 36)。
+- Duo 侧栏 UI 用例曾因默认策略统一而回归：Demo 的 `-navbutton` / `-navbutton-vertical-capsule` 原先依赖 `navButton:` 初始化器默认的 `.verticalPreferred` 才进入侧轨，改为 `.system` 后系统把按钮留在顶部栏。SDK 默认值保持 `.system`，由 Demo 的这两个测试钩子显式声明「优先侧栏」（`initialSidebarIndex`）。
+- 验证（Xcode 27.1）：`NavButtonAppearanceTests` 的 `testSurfaceMovesWithModuleOffsetSoTheGlyphStaysCentered`、`testTitleAndIconStayInsideTheirSurfaceAtEveryOffset` 与真实导航栏用例 `testEveryTitleAndGlyphStayCenteredInTheirSurfaceInsideARealBar`（含组/独立按钮、触发间距归一化）断言表面中心、标题中心、图标中心三者重合，标题在其 label 内居中且宽度完整；`NavButtonLayoutTests.testSystemGlassGroupIsOneContinuousSurfaceAcrossItsWholeModule` 断言组只有一块表面、覆盖整个模块、圆角等于厚度一半、组内按钮左右对称。iPad Pro 13-inch / iOS 26 与 iPhone 18 Pro / iOS 27.0 截图确认组轮廓是一条直线、无接缝，箭头居中。
+- Duo 实测（Xcode 27.1，iPhone Duo / iOS 27.1，折叠外屏 466×678）：
+  - 横栏（`-navbutton-horizontal-bar`）：只有「完成」留在栏上，按钮组与「详情」由 UIKit 收进原生「更多」菜单——这是系统对「优先侧栏」轴向在无竖向栏位时的处理。修复前该项与返回键互相压叠，且胶囊只有 44 pt 高（返回键 48 pt）。
+  - 侧栏：返回 / 完成 / 详情竖向排列；按钮组进入侧轨后**不拆组**，由同一个承载视图整体竖排——实测两枚按钮同列（396,239）与（396,299），组表面为一枚竖胶囊。
+  - 侧栏玻璃宽度统一：像素实测系统返回键玻璃 47.7 pt、槽位 44 pt，而它的无障碍 frame 只有 38 pt。最初按 AX frame 取 38，导致组比返回键窄 10 pt（即「侧栏宽度不一致」）。现在 SDK 绘制的玻璃一律按「槽位 + 4 pt」取宽并居中，实测返回键 / 完成 / 详情 / 按钮组全部为 47.7 pt、中心 x 均为 417.8。
+  - 组内按钮几何：竖排时由组表面统一绘制的模块，每枚按钮是与组玻璃同宽的正方形（48 × 48），不加额外内边距，组高 = 48 × 数量 + 组内净距（两枚、净距 8 → 104）。图标仍按调用方 `iconSize`（Demo 20 × 20）绘制，不随按钮变大而拉伸。曾试过把按钮收到 40 pt 留 4 pt 边距，会让 icon 可用区域被强行收窄，与「图标大小由调用方控制」的意图相反，已改回正方形铺满。
+  - 该几何实现时踩过两个坑：① `intrinsicContentSize` 若反向依赖运行时 `bounds`，会让布局自我触发；现在侧轨槽位用常量 44 而非实时 bounds。② `frame` 只收敛高度，不强行改宽（改宽会与系统量测互相触发）。
+  - 侧轨按每项 44 pt 分配槽位，容量约 3 项：Demo 默认一侧有「组 + 详情 + 完成」三项，组竖排占两项高度后系统会把放不下的项移出侧轨。以 `-navbutton-single-group` 只保留按钮组时实测正常。
+- 本轮修复的四个缺陷：
+  - **间距归一化把溢出模块也算进去**：进入「更多」菜单的模块仍留在 item group 里，但已不在栏位可见范围。归一化按其幽灵位置求偏移，产生 −137 pt 的偏移，把可见模块推到返回键上、文字跑出按钮（AX 实测按钮在 194…266，其标题标签却在 57…121）。现在归一化只考虑真正落在栏内的模块，并给偏移加上「不超过一个模块宽度」的上限。
+  - **表面高度与系统条目不一致**：按钮自绘玻璃时表面高度改为跟随系统条目可视高度（栏高 58 → 48，栏高 44 → 44），与返回键等高；槽位和点击区域不变。
+  - **侧栏里的按钮组无法竖排**：UIKit 只在提交条目时量测自定义视图，104 pt 宽的横排模块挂上 44 pt 宽侧轨后不会重新量测。现在模块检测到自己在侧轨时把自身尺寸收敛为竖排尺寸（宽 = 槽位 44、高 = 按钮高度和 + 净距）并通知页面重新提交条目；组不拆分，`layoutSubviews` 按竖轴排布按钮，表面按侧栏系统按钮的 38 pt 宽度居中绘制。侧栏判定由「整块外框都在轨道内」改为「模块中心在轨道内」，否则比轨道更宽的组永远认不出自己在侧栏。曾尝试拆成逐项条目（可用但违背「组是原子模块」的语义），已改回整组竖排。
+- 真机、iPad 与 Duo 完整姿态矩阵仍未执行。
+
+## 模块级侧栏策略（v0.14.0）
+
+- `NavigationAction` 的动作级 `axisBehavior` 已移除，改为 `sidebarBehavior`；按钮组新增同名声明，`ShellNavButtonRun` 在收集模块时按「组优先、独立按钮取自身」解析一次，系统轴向映射和侧栏样式追踪都读取这一份结果。
+- `.disabled` 使 `tracksNativePlacement` 为假，`ShellNavButtonCluster` 不再检测侧栏位置，`iPhoneDuo` 样式随之不再应用；`.preferred` / `.system` 保持既有 `isMountedInSideBar` 检测。
+- 验证环境 Xcode 27.1、iPhone Duo / iOS 27.1 模拟器（`8E80DEE0-7F4D-4F53-B869-FE49733D17A1`）：`NavigationActionTests.testSidebarOverrideUpdatesAndReturnsToSystemOnSameItem` 与 `testGroupSidebarBehaviorOverridesMemberActions` 通过；`BarDemoIntegrationTests` 的 `nav.icon` / `nav.sidebar` 配置与重置用例通过。
+- 同一环境下 `NavigationActionTests` 另有 8 项、`BarDemoIntegrationTests` 另有 3 项失败；以相同命令在改动前的 `HEAD` 上复跑得到完全相同的失败集合（起始 13/18 项、失败项与断言一致），因此不是本次改动引入。失败集合未修复，包含经典宽度预算、角色固定顺序、重复 ID 与 NavButton 组宽恢复；需单独排查。
+- 未执行真机、iPad 或 Duo 完整内外屏 / 半折姿态矩阵；`.preferred` 的实际竖排仍以系统姿态为准。
 
 ## NavButton 与 Duo 侧栏
 

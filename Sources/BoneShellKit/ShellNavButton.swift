@@ -13,16 +13,23 @@ public struct ShellNavButton {
         case preferred(CGSize)
     }
 
-    /// 按钮自身背景材质效果。
+    /// 按钮自身的背景表面。
+    ///
+    /// 这里只表达“请求什么表面”，由 `ShellMaterials` 与 `ShellGlassView` 决定实际绘制结果，
+    /// 不再提供独立的玻璃名称；`ShellMaterial.systemGlass` 在旧系统同样回退为磨砂。
     public enum Effect: Equatable {
-        /// 继承容器或 SDK 默认效果。
+        /// 继承容器或 SDK 默认效果：不绘制按钮自身表面。
         case inherited
-        /// 透明按钮背景。
+        /// 不绘制任何按钮表面。
         case none
-        /// 使用系统模糊背景。
-        case blur
-        /// iOS 26 及以上使用系统液态玻璃，旧系统回退为模糊。
-        case liquidGlass
+        /// 请求一个 `ShellMaterial` 表面，解析与回退规则与导航栏材质完全一致。
+        case material(ShellMaterial)
+
+        /// 请求的材质；`.inherited` 与 `.none` 返回 nil。
+        var material: ShellMaterial? {
+            if case .material(let material) = self { return material }
+            return nil
+        }
     }
 
     /// 按钮内容来源。
@@ -46,8 +53,10 @@ public struct ShellNavButton {
         public var icon: ShellNavigationIcon?
         /// 内容内边距；为空时使用默认内边距。
         public var contentInsets: NSDirectionalEdgeInsets?
-        /// 按钮自身的背景效果。
+        /// 按钮自身的背景表面。
         public var effect: Effect
+        /// 叠加在按钮表面上的可选着色，与导航栏 `backgroundColor` 使用同一语义。
+        public var tintColor: UIColor?
         /// 标准内容或自定义内容。
         public var content: Content
 
@@ -57,17 +66,19 @@ public struct ShellNavButton {
         ///   - iconSize: 图标绘制区域尺寸。
         ///   - icon: 该轴向使用的图标。
         ///   - contentInsets: 内容内边距。
-        ///   - effect: 按钮背景效果。
+        ///   - effect: 按钮背景表面。
+        ///   - tintColor: 叠加在表面上的着色。
         ///   - content: 标准内容或自定义内容。
         public init(size: Size = .inherited, iconSize: CGSize? = nil,
                     icon: ShellNavigationIcon? = nil,
                     contentInsets: NSDirectionalEdgeInsets? = nil, effect: Effect = .inherited,
-                    content: Content = .inherited) {
+                    tintColor: UIColor? = nil, content: Content = .inherited) {
             self.size = size
             self.iconSize = iconSize
             self.icon = icon
             self.contentInsets = contentInsets
             self.effect = effect
+            self.tintColor = tintColor
             self.content = content
         }
     }
@@ -105,6 +116,7 @@ public struct ShellNavButton {
             result.iconSize = vertical.iconSize ?? result.iconSize
             result.contentInsets = vertical.contentInsets ?? result.contentInsets
             if vertical.effect != .inherited { result.effect = vertical.effect }
+            result.tintColor = vertical.tintColor ?? result.tintColor
             switch vertical.content {
             case .inherited: break
             case .standard, .custom: result.content = vertical.content
@@ -115,6 +127,7 @@ public struct ShellNavButton {
             result.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
         }
         if result.effect == .inherited { result.effect = .none }
+        if result.effect == .none { result.tintColor = nil }
         if case .inherited = result.content { result.content = .standard }
         return result
     }

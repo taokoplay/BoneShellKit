@@ -9,7 +9,6 @@ final class ShellNavButtonHost: UIButton {
         let view: UIView?
         let initialSize: CGSize
     }
-    private enum Material { case none, blur, glass, solid }
 
     private(set) var isVertical = false
     private(set) var preferredVisualSize: CGSize = .zero
@@ -27,8 +26,8 @@ final class ShellNavButtonHost: UIButton {
     private var insets = NSDirectionalEdgeInsets.zero
     private var iconBox = CGSize.zero
     private var titleFittingWidth: CGFloat = 0
-    private var material = Material.none
-    private var materialView: UIVisualEffectView?
+    /// 按钮自身的材质表面；与栏位、胶囊、标签附件共用同一套绘制规则。
+    private let surface = ShellGlassView(material: .solid)
     private var moduleVisualOffset: CGFloat = 0
     private var moduleVisualOffsetVertical = false
     // Keep invalid or unbounded input out of UIKit geometry, without imposing a 44 pt visual minimum.
@@ -44,6 +43,9 @@ final class ShellNavButtonHost: UIButton {
         customSlot.accessibilityElementsHidden = true
         customSlot.clipsToBounds = true
         customSlot.isHidden = true
+        surface.isUserInteractionEnabled = false
+        surface.isHidden = true
+        addSubview(surface)
         addSubview(customSlot)
         addTarget(self, action: #selector(activateAction), for: .primaryActionTriggered)
         NotificationCenter.default.addObserver(self, selector: #selector(transparencyChanged),
@@ -239,20 +241,59 @@ final class ShellNavButtonHost: UIButton {
         setNeedsLayout()
     }
 
-    private func shiftedVisualBounds(_ rect: CGRect) -> CGRect {
-        let shifted = moduleVisualOffsetVertical
+    /// 按钮自己绘制表面时，表面随模块视觉偏移一起移动，图形始终与表面同心。
+    private var paintsOwnSurface: Bool { !surface.isHidden }
+
+    private func shiftedRect(_ rect: CGRect) -> CGRect {
+        moduleVisualOffsetVertical
             ? rect.offsetBy(dx: 0, dy: moduleVisualOffset)
             : rect.offsetBy(dx: moduleVisualOffset, dy: 0)
-        return shifted.intersection(bounds)
+    }
+
+    private func shiftedVisualBounds(_ rect: CGRect) -> CGRect {
+        shiftedRect(rect).intersection(bounds)
+    }
+
+    /// 绘制用的内容外框。
+    ///
+    /// 自绘表面时表面整体偏移，内容必须跟着走、且不能按槽位裁剪，否则会被压窄或与表面错位；
+    /// 透明按钮没有表面可跟随，可见边界就是内容本身，因此保留原有的槽位内裁剪。
+    private func offsetContent(_ rect: CGRect) -> CGRect {
+        paintsOwnSurface ? shiftedRect(rect) : shiftedVisualBounds(rect)
+    }
+
+    /// 系统栏位条目自身的玻璃尺寸（横栏取高度，侧栏取宽度）；由 `ShellNavButtonCluster` 写入。
+    ///
+    /// 系统玻璃会比我们拿到的槽位更大：Duo 横栏 48 pt 对 44 pt 槽位，侧栏 48 pt 对 44 pt 槽位。
+    /// 不跟着取同尺寸，同一个栏里就会出现两种宽/高的胶囊。
+    var barItemCross: CGFloat = 0
+
+    /// 表面在按钮坐标中的外框。
+    ///
+    /// 尺寸取实际布局到的 `bounds`（系统可能把请求宽度压小），位置跟随模块视觉偏移；
+    /// 表面、图标和标题因此共用同一份几何，任一项都不会相对其他项错位。
+    private var surfaceFrame: CGRect {
+        var size = bounds.size
+        if !moduleVisualOffsetVertical, barItemCross > size.height, size.height > 0 {
+            size.height = barItemCross
+        } else if moduleVisualOffsetVertical, barItemCross > size.width, size.width > 0 {
+            size.width = barItemCross
+        }
+        let centered = CGRect(x: (bounds.width - size.width) / 2,
+                              y: (bounds.height - size.height) / 2,
+                              width: size.width, height: size.height)
+        return shiftedRect(centered)
     }
 
     var moduleVisualBounds: CGRect {
+        // 自带表面的按钮，可见边界就是表面本身而不是内部图形，否则间距归零会把图标挤出圆心。
+        if paintsOwnSurface { return surfaceFrame }
         if !customSlot.isHidden, let view = customSlot.subviews.first {
             return shiftedVisualBounds(view.frame)
         }
         let content = contentRect(forBounds: bounds)
         if image(for: .normal) != nil { return imageRect(forContentRect: content) }
-        if title(for: .normal) != nil { return shiftedVisualBounds(titleRect(forContentRect: content)) }
+        if title(for: .normal) != nil { return titleRect(forContentRect: content) }
         return shiftedVisualBounds(content)
     }
 
@@ -281,26 +322,39 @@ final class ShellNavButtonHost: UIButton {
         guard let image = image(for: .normal), image.size.width > 0, image.size.height > 0 else { return .zero }
         let scale = min(min(rect.width, iconBox.width) / image.size.width, min(rect.height, iconBox.height) / image.size.height)
         let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-        return shiftedVisualBounds(CGRect(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2, width: size.width, height: size.height))
+        return offsetContent(CGRect(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2,
+                                    width: size.width, height: size.height))
     }
 
-    override func titleRect(forContentRect rect: CGRect) -> CGRect { rect }
+    override func titleRect(forContentRect rect: CGRect) -> CGRect { offsetContent(rect) }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        layer.cornerRadius = material == .none ? 0 : min(bounds.width, bounds.height) / 2
-        materialView?.frame = bounds
+        // UIKit 会在首次布局时才把 imageView、titleLabel 插到索引 0，表面必须保持在最底层，
+        // 否则玻璃会盖住图标和文字。
+        if let index = subviews.firstIndex(of: surface), index != 0 { sendSubviewToBack(surface) }
+        let radius = min(bounds.width, bounds.height) / 2
+        layer.cornerRadius = surface.isHidden ? 0 : radius
+        surface.layer.cornerRadius = radius
+        surface.layer.cornerCurve = .continuous
+        surface.frame = surface.isHidden ? bounds : surfaceFrame
+        surface.synchronizeCornerRadius()
         guard !customSlot.isHidden, let view = customSlot.subviews.first else { return }
         customSlot.frame = contentRect(forBounds: bounds)
         view.bounds.size = customSlot.bounds.size
-        view.center = CGPoint(x: customSlot.bounds.midX, y: customSlot.bounds.midY)
+        view.center = CGPoint(x: customSlot.bounds.midX + shiftedRect(.zero).minX,
+                              y: customSlot.bounds.midY + shiftedRect(.zero).minY)
     }
 
     override var isEnabled: Bool { didSet { updateCustomState() } }
     override var isHighlighted: Bool { didSet { updateCustomState() } }
 
     private func updateCustomState() {
-        customSlot.alpha = !isEnabled ? 0.4 : (isHighlighted ? 0.55 : 1)
+        let alpha: CGFloat = !isEnabled ? 0.4 : (isHighlighted ? 0.55 : 1)
+        customSlot.alpha = alpha
+        // 标准内容没有自定义视图时也要有按压反馈，与自定义内容保持一致的透明度变化。
+        imageView?.alpha = alpha
+        titleLabel?.alpha = alpha
     }
 
     private func updateTitleColor() {
@@ -324,31 +378,27 @@ final class ShellNavButtonHost: UIButton {
         updateMaterial(reduceTransparency: UIAccessibility.isReduceTransparencyEnabled)
     }
 
-    // Explicit input also allows deterministic testing without changing the device's accessibility settings.
+    /// 按显式输入刷新按钮表面。显式参数便于在不改变设备辅助功能设置的前提下做确定性测试。
+    /// - Parameter reduceTransparency: 是否按“减少透明度”解析材质。
     func updateMaterial(reduceTransparency: Bool) {
-        let next: Material
-        if style.effect == .none || style.effect == .inherited { next = .none }
-        else if reduceTransparency { next = .solid }
-        else if style.effect == .liquidGlass, #available(iOS 26.0, *) { next = .glass }
-        else { next = .blur }
-        guard next != material else { return }
-        material = next
-        backgroundColor = next == .solid ? .secondarySystemBackground : .clear
-        if next == .blur || next == .glass {
-            let view = materialView ?? UIVisualEffectView(effect: nil)
-            if materialView == nil {
-                view.isUserInteractionEnabled = false
-                view.accessibilityElementsHidden = true
-                if #available(iOS 26.0, *) { view.cornerConfiguration = .capsule() }
-                insertSubview(view, at: 0)
-                materialView = view
-            }
-            if next == .glass, #available(iOS 26.0, *) { view.effect = UIGlassEffect(style: .regular) }
-            else { view.effect = UIBlurEffect(style: .systemMaterial) }
-        } else {
-            materialView?.removeFromSuperview()
-            materialView = nil
+        guard let requested = style.effect.material else {
+            surface.isHidden = true
+            clipsToBounds = true
+            backgroundColor = .clear
+            setNeedsLayout()
+            return
         }
+        let resolution = ShellMaterials.resolve(
+            requested,
+            supportsSystemGlass: ShellMaterials.supportsSystemGlass,
+            reduceTransparency: reduceTransparency
+        )
+        surface.glassTintColor = style.tintColor
+        surface.apply(resolution)
+        surface.isHidden = false
+        backgroundColor = .clear
+        // 系统玻璃自己画出边缘高光，宿主不能再裁剪；回退材质继续用圆角遮罩。
+        clipsToBounds = ShellMaterialRendering.clipsContent(resolution.resolved)
         setNeedsLayout()
     }
 }

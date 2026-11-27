@@ -25,14 +25,14 @@ final class NavigationAdaptiveUITests: XCTestCase {
         XCUIDevice.shared.orientation = .portrait
     }
 
-    func testCustomImagesAndAxisKeepNavigationAndInputAfterRotation() {
+    func testCustomImagesAndSidebarKeepNavigationAndInputAfterRotation() {
         openScene("navigation-bars")
         let icons = app.segmentedControls["nav.icon"]
         reveal(icons)
         icons.buttons.element(boundBy: 1).tap()
-        let axis = app.segmentedControls["nav.axis"]
-        reveal(axis)
-        axis.buttons.element(boundBy: 2).tap()
+        let sidebar = app.segmentedControls["nav.sidebar"]
+        reveal(sidebar)
+        sidebar.buttons.element(boundBy: 2).tap()
         keepActionScreenshot("Navigation asset image vertical preference", actionID: "action.nav.detail")
         reveal(icons)
         icons.buttons.element(boundBy: 2).tap()

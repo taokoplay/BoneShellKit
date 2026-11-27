@@ -1,6 +1,6 @@
 # SDK 可设置字段与中文说明
 
-适用于 **v0.12.1**。NavButton、导航标题视图和标签栏整项自定义视图自 v0.11.0 提供，导航动作强制显示自 v0.12.0 提供，iOS 26 导航共享玻璃、NavButton 返回恢复和自定义 confirmation 行为自 v0.12.1 提供；导航图片、动作角色、轴向偏好及系统动作布局自 v0.10.0 提供，v0.9.1 不包含。方法和创建入口见 [SDK 方法说明](Usage-Examples.md)，源码分区和类型维护入口见 [源码结构说明](Source-Layout.md)。页面字段在 `configureScreen(_:)` 中设置；容器字段直接赋值。标注“创建时设置”的值不能在创建后直接修改，只读结果单列在文末。
+适用于 **v0.14.0**。模块级侧栏策略自 v0.14.0 提供并替换 v0.10.0 的动作级 `axisBehavior`；NavButton、导航标题视图和标签栏整项自定义视图自 v0.11.0 提供，导航动作强制显示自 v0.12.0 提供，iOS 26 导航共享玻璃、NavButton 返回恢复和自定义 confirmation 行为自 v0.12.1 提供；导航图片、动作角色及系统动作布局自 v0.10.0 提供，v0.9.1 不包含。方法和创建入口见 [SDK 方法说明](Usage-Examples.md)，源码分区和类型维护入口见 [源码结构说明](Source-Layout.md)。页面字段在 `configureScreen(_:)` 中设置；容器字段直接赋值。标注“创建时设置”的值不能在创建后直接修改，只读结果单列在文末。
 
 ## 页面配置：ScreenConfiguration
 
@@ -44,8 +44,8 @@
 | `symbol` | `String` | `""` | SF Symbol 图标名称；空字符串显示文字按钮 |
 | `icon`（v0.10.0+） | `ShellNavigationIcon?` | `nil` | 非 nil 时覆盖 symbol；支持系统符号、资源图片和 UIImage，解析失败显示标题 |
 | `navButton`（v0.11.0+） | `ShellNavButton?` | `nil` | 自定义按钮的横栏样式、iPhone Duo 样式及整项内容；SDK 将组内按钮材质解析为组材质 |
+| `sidebarBehavior`（v0.14.0+） | `ShellNavigationSidebarBehavior` | `.system` | 独立按钮的侧栏策略：`.system` / `.disabled` / `.preferred`；动作属于按钮组时以组的声明为准 |
 | `role`（v0.10.0+） | `ShellNavigationActionRole` | `.normal` | `.cancellation` 放在前侧；`.confirmation` 放在后侧，原生布局固定首个确认动作；带 `navButton` 的 confirmation 保留语义优先级但使用自定义按钮外观 |
-| `axisBehavior`（v0.10.0+） | `ShellNavigationActionAxisBehavior` | `.automatic` | 自动 / `.horizontalOnly` 仅横向 / `.verticalPreferred` 优先竖向，iOS 27.1+ 映射到系统 |
 | `visibility`（v0.12.0+） | `ShellNavigationActionVisibility` | `.automatic` | `.automatic` 允许动作按空间与优先级进入溢出；`.always` 要求动作保留在导航栏中 |
 | `priority` | `Int` | `0` | 保留在栏上的优先级，越大越优先，不改变显示顺序 |
 | `isEnabled` | `Bool` | `true` | 是否允许点击 |
@@ -53,7 +53,12 @@
 
 自 v0.10.0 起，iOS 27+ 原生导航将完整唯一动作交给系统分组、优先级及溢出；经典和旧系统保留 SDK 宽度算法。图片渲染、多个确认动作及诊断语义见 [导航动作与自适应](Navigation-Actions.md)。
 
-`ShellNavButton(normal:iPhoneDuo:)` 支持分轴配置按钮尺寸、图标尺寸、方向性内边距、整项视图工厂和背景。`iPhoneDuo` 仅在实际侧边栏生效；`axisBehavior.horizontalOnly` 可关闭默认侧边栏迁移。完整示例见[导航动作与自适应](Navigation-Actions.md)。
+`ShellNavButton(normal:iPhoneDuo:)` 支持分轴配置按钮尺寸、图标尺寸、方向性内边距、整项视图工厂和背景。`iPhoneDuo` 仅在实际侧边栏生效；`sidebarBehavior: .disabled` 关闭该模块的默认侧边栏迁移，同时也停止 `iPhoneDuo` 样式解析。完整示例见[导航动作与自适应](Navigation-Actions.md)。
+
+`NavigationButtonGroup` 的 `sidebarBehavior` 是该模块唯一的侧栏声明：组内动作的同名值被忽略，SDK 用组的值决定系统轴向映射和侧栏样式追踪。
+
+`ShellNavButton.Style.effect` 只表达请求的表面：`.inherited`（不绘制）、`.none`（不绘制）、`.material(ShellMaterial)`（交给材质解析）。它与 `ShellMaterial` 共用回退规则，不再有独立的“液态玻璃”名称；`.material(.systemGlass)` 在 iOS 15–25 回退为磨砂。`ShellNavButton.Style.tintColor` 与 `NavigationButtonGroup.tintColor` 把主题色叠加到按钮表面，语义等同于栏位的 `ShellNavigationStyle.backgroundColor`。绘制与裁剪规则见 [栏位字体、颜色与图标](Bar-Styling.md#材质表面由谁绘制)。
+
 自定义 NavButton 不与系统 `UIBarButtonItem` 的 `primaryAction`、`title`、`image` 或单独 `customView` 内容混用。系统栏位负责位置、分组、溢出和共享玻璃，SDK cluster 负责自定义按钮的内容、材质和点击区域。页面 push / pop 返回时，SDK 按稳定 ID 重新提交按钮和分组。
 
 ## 容器字段

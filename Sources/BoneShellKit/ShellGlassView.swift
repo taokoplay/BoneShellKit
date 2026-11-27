@@ -1,10 +1,22 @@
 import UIKit
 
 /// 可承载内容的材质背景视图，统一处理系统玻璃、磨砂玻璃和不透明回退。
+///
+/// 栏位和控件共用的系统玻璃表面都由此视图绘制：系统玻璃不裁剪溢出层，
+/// 以便保留边缘高光；回退材质继续用圆角遮罩裁出边缘。
 @MainActor
 public final class ShellGlassView: UIView {
     /// 请求使用的背景材质；修改后会立即刷新视图。
     public var material: ShellMaterial {
+        get { storedMaterial }
+        set {
+            storedMaterial = newValue
+            refreshMaterial()
+        }
+    }
+    /// 叠加在玻璃或磨砂表面的可选着色，与导航栏 `backgroundColor` 使用同一语义。
+    /// 系统玻璃使用 `UIGlassEffect.tintColor`；回退磨砂把它作为叠加色。
+    public var glassTintColor: UIColor? {
         didSet { refreshMaterial() }
     }
     /// 玻璃效果视图内部的内容容器。
@@ -12,12 +24,13 @@ public final class ShellGlassView: UIView {
     /// 当前材质经过系统能力解析后的结果，只读。
     public private(set) var resolution: ShellMaterialResolution
 
+    private var storedMaterial: ShellMaterial
     private let effectView = UIVisualEffectView(effect: nil)
 
     /// 创建使用指定材质的玻璃视图。
     /// - Parameter material: 请求使用的背景材质。
     public init(material: ShellMaterial = .automatic) {
-        self.material = material
+        self.storedMaterial = material
         self.resolution = ShellMaterials.currentResolution(for: material)
         super.init(frame: .zero)
         setUp()
@@ -26,7 +39,7 @@ public final class ShellGlassView: UIView {
     /// 从归档恢复玻璃视图。
     /// - Parameter coder: 用于解码视图的归档对象。
     public required init?(coder: NSCoder) {
-        material = .automatic
+        storedMaterial = .automatic
         resolution = ShellMaterials.currentResolution(for: .automatic)
         super.init(coder: coder)
         setUp()
@@ -35,7 +48,6 @@ public final class ShellGlassView: UIView {
     private func setUp() {
         layer.cornerRadius = 18
         layer.cornerCurve = .continuous
-        clipsToBounds = true
         effectView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(effectView)
         NSLayoutConstraint.activate([
@@ -55,12 +67,21 @@ public final class ShellGlassView: UIView {
 
     /// 按当前材质和辅助功能设置刷新背景效果及解析结果。
     public func refreshMaterial() {
-        resolution = ShellMaterials.currentResolution(for: material)
+        apply(ShellMaterials.currentResolution(for: material))
+    }
+
+    /// 用已经解析好的材质刷新绘制，不再重复咨询辅助功能设置。
+    /// - Parameter resolution: 材质请求及其解析结果；SDK 内部与确定性测试使用。
+    func apply(_ resolution: ShellMaterialResolution) {
+        storedMaterial = resolution.requested
+        self.resolution = resolution
         backgroundColor = .clear
         effectView.backgroundColor = .clear
         contentView.backgroundColor = .clear
         layer.borderWidth = 0
         layer.borderColor = nil
+        // 系统玻璃自己画出圆角轮廓和边缘高光，宿主再裁剪会把高光切掉。
+        clipsToBounds = ShellMaterialRendering.clipsContent(resolution.resolved)
 
         switch resolution.resolved {
         case .solid:
@@ -70,7 +91,10 @@ public final class ShellGlassView: UIView {
         case .systemGlass:
             if #available(iOS 26.0, *) {
                 let glass = UIGlassEffect(style: .regular)
-                glass.isInteractive = true
+                // 材质层不参与命中测试：按压形态由承载控件自己反馈，避免开启一个
+                // 永远收不到触摸的交互玻璃。系统栏按钮的形态由 UIKit 负责。
+                glass.isInteractive = false
+                glass.tintColor = glassTintColor
                 effectView.effect = glass
             } else {
                 // The capability resolver excludes this branch on old systems.
@@ -78,9 +102,9 @@ public final class ShellGlassView: UIView {
             }
         case .frostedGlass:
             effectView.effect = UIBlurEffect(style: .systemUltraThinMaterial)
-            contentView.backgroundColor = traitCollection.userInterfaceStyle == .dark
+            contentView.backgroundColor = glassTintColor ?? (traitCollection.userInterfaceStyle == .dark
                 ? UIColor.white.withAlphaComponent(0.04)
-                : UIColor.white.withAlphaComponent(0.16)
+                : UIColor.white.withAlphaComponent(0.16))
 
             layer.borderWidth = 1 / max(1, traitCollection.displayScale)
             layer.borderColor = (traitCollection.userInterfaceStyle == .dark
@@ -99,9 +123,15 @@ public final class ShellGlassView: UIView {
 
     func synchronizeCornerRadius() {
         let radius = layer.cornerRadius
+        let clips = ShellMaterialRendering.clipsContent(resolution.resolved)
         effectView.layer.cornerRadius = radius
         effectView.layer.cornerCurve = .continuous
-        effectView.layer.masksToBounds = true
+        effectView.layer.masksToBounds = clips
+        if #available(iOS 26.0, *), !clips {
+            // 取消裁剪后由效果层自己按同一半径画出轮廓。
+            effectView.cornerConfiguration = .uniformCorners(radius: .fixed(radius))
+        }
+        // 业务内容始终限制在圆角内，避免超出栏位表面。
         effectView.contentView.layer.cornerRadius = radius
         effectView.contentView.layer.cornerCurve = .continuous
         effectView.contentView.layer.masksToBounds = true

@@ -89,3 +89,15 @@ public enum ShellMaterials {
         )
     }
 }
+
+/// 材质在宿主视图上的绘制约束。
+@MainActor
+enum ShellMaterialRendering {
+    /// 系统玻璃会绘制到视图 bounds 之外形成边缘高光与投影；套一层宿主裁剪会切掉这部分。
+    /// 只有回退材质需要宿主用圆角遮罩裁出边缘。
+    /// - Parameter resolved: 已经过能力与辅助功能解析的材质。
+    static func clipsContent(_ resolved: ShellMaterial) -> Bool {
+        if #available(iOS 26.0, *) { return resolved != .systemGlass }
+        return true
+    }
+}
