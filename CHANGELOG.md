@@ -2,6 +2,12 @@
 
 已发布版本按 Git 标签记录。接入方式见 [README](README.md)，实际执行范围见 [验证记录](Documentation/Implementation-Status.md)。
 
+## 0.14.4
+
+发布标签为 [v0.14.4](https://github.com/taokoplay/BoneShellKit/tree/v0.14.4)。
+
+- 修复兼容导航根页只有右侧动作时重复扣除动作宽度的问题。标题在栏位空间足够时可完整显示，避免 ParsingBook 的「全部书架」折成两行。
+
 ## 0.14.3
 
 发布标签为 [v0.14.3](https://github.com/taokoplay/BoneShellKit/tree/v0.14.3)。

@@ -169,6 +169,30 @@ final class NavigationTitleViewTests: XCTestCase {
         XCTAssertTrue(host.superview === navigation.classicNavigationBarView)
     }
 
+    func testCompatibilityTitleKeepsItsWidthBesideTrailingModulesOnRoot() throws {
+        if #available(iOS 27.0, *) { throw XCTSkip("iOS 27 及以上由 UIKit 分配原生栏位宽度") }
+        let page = NavigationTitleFixture()
+        let button = ResizableTitleButton()
+        button.preferredWidth = 100
+        page.customTitle = button
+        func action(_ id: String) -> NavigationAction {
+            let style = ShellNavButton.Style(size: .preferred(CGSize(width: 46, height: 44)))
+            return NavigationAction(id: id, title: id, navButton: .init(normal: style),
+                                    icon: .systemSymbol("star"), priority: 10) {}
+        }
+        let group = NavigationButtonGroup(id: "tools", actions: [action("filter"), action("search")], itemSpacing: 5)
+        page.trailingModules = [.group(group), .button(action("more"))]
+        let navigation = show(page, presentation: .system)
+        let host = try XCTUnwrap(page.navigationItem.titleView as? ShellNavigationTitleHost)
+
+        XCTAssertEqual(host.intrinsicContentSize.width, 100, accuracy: 0.5)
+        XCTAssertEqual(host.bounds.width, 100, accuracy: 0.5)
+        XCTAssertEqual(button.bounds.width, 100, accuracy: 0.5)
+        XCTAssertTrue(button.isDescendant(of: navigation.navigationBar))
+        XCTAssertEqual(page.visibleActionIDs, ["filter", "search", "more"])
+        XCTAssertTrue(page.overflowActionIDs.isEmpty)
+    }
+
     /// 模拟原生转场移除标题宿主，验证页面显示完成后复用并恢复原有标题。
     func testSystemTitleReattachesAfterAppearanceCompletes() throws {
         let page = NavigationTitleFixture()
@@ -309,11 +333,13 @@ private final class ResizableTitleButton: UIButton {
 private final class NavigationTitleFixture: BoneViewController {
     var customTitle: UIView?
     var usesLargeTitle = false
+    var trailingModules: [NavigationModule] = []
 
     override func configureScreen(_ screen: inout ScreenConfiguration) {
         screen.navigation.title = "Semantic title"
         screen.navigation.subtitle = "Standard subtitle"
         screen.navigation.usesLargeTitle = usesLargeTitle
         screen.navigation.titleView = customTitle
+        screen.navigation.trailingModules = trailingModules
     }
 }

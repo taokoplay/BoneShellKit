@@ -1,6 +1,6 @@
 # 导航动作与自适应栏位
 
-本文适用于 **v0.14.3**。模块级侧栏策略自 v0.14.0 提供，替换 v0.10.0 的动作级 `axisBehavior`。导航动作强制显示策略自 v0.12.0 提供，iOS 26 导航共享玻璃、NavButton 返回恢复和自定义 confirmation 行为自 v0.12.1 提供，NavButton、Duo 侧栏样式、按钮材质及标题视图自 v0.11.0 提供。最低部署目标仍为 iOS 15，编译使用 Xcode 27.1。
+本文适用于 **v0.14.4**。模块级侧栏策略自 v0.14.0 提供，替换 v0.10.0 的动作级 `axisBehavior`。导航动作强制显示策略自 v0.12.0 提供，iOS 26 导航共享玻璃、NavButton 返回恢复和自定义 confirmation 行为自 v0.12.1 提供，NavButton、Duo 侧栏样式、按钮材质及标题视图自 v0.11.0 提供。最低部署目标仍为 iOS 15，编译使用 Xcode 27.1。
 
 ## 一次声明，按容器环境呈现
 
@@ -53,7 +53,7 @@ final class EditScreen: BoneViewController {
 - **确认动作**：`role: .confirmation` 仍参与原生优先级、固定位置和兼容宽度预算。自定义 confirmation 使用自定义按钮的文字与材质，不叠加 UIKit `.done` 的系统突出外观；未使用 `navButton:` 的 confirmation 继续使用系统 `.done` 样式。
 - **系统玻璃**：`ShellMaterial.systemGlass` 保留 UIKit 的共享玻璃背景。不要通过 `hidesSharedBackground` 关闭玻璃，再在每个自定义按钮上重复绘制一层系统表面。
 - **刷新与返回**：页面在 `viewWillAppear`、`viewDidAppear` 和布局变化时可能重新提交动作。SDK 按稳定 ID 复用 item、cluster 和按钮，并在 pop 完成后重新写入分组内容。宿主更新动作后仍需调用 `refreshScreenConfiguration()`。
-- **iOS 15–26 宽度预算**：当 leading 没有动作时，兼容路径把可用侧向空间交给 trailing；当 trailing 没有动作时，把空间交给 leading。放不下的普通动作进入 `UIMenu`，确认动作按其角色优先保留。
+- **iOS 15–26 宽度预算**：当 leading 没有动作时，兼容路径把可用侧向空间交给 trailing；当 trailing 没有动作时，把空间交给 leading。v0.14.4 起，根页仅有 trailing 模块时，标题预算只扣除一次右侧主操作与溢出入口的预留宽度。放不下的普通动作进入 `UIMenu`，确认动作按其角色优先保留。
 - **整项 UIView**：可用 `.init(content: .custom(revision: 0, makeView: { MyView() }))` 替换按钮的全部视觉内容，工厂提供未挂载的视图。相同 ID 和内容版本复用，需更换内容时修改 `revision`。视觉内容不要再注册一套动作；栏上、辅助激活和溢出菜单均使用 `NavigationAction.handler`。
 
 ### 按钮组字段

@@ -669,7 +669,10 @@ open class BoneViewController: UIViewController {
         // actions overflow, reserve both its touch target and the menu's target.
         let primaryWidth = trailingRuns.map(\.first).filter { $0.priority > 0 || $0.role == .confirmation }.map(navigationActionWidth).max()
         let primaryReserve: CGFloat = primaryWidth.map { $0 + (allActions.count > 1 ? 44 : 0) } ?? 0
-        let titleBudget = min(preferredTitleBudget, max(44, usableWidth - 24 - primaryReserve * 2))
+        // 根页只有 trailing 模块时，整份动作空间都分给右侧，只需预留一次。
+        let hasLeadingControls = backTitle != nil || !leadingRuns.isEmpty
+        let reservedActionWidth = hasLeadingControls ? primaryReserve * 2 : primaryReserve
+        let titleBudget = min(preferredTitleBudget, max(44, usableWidth - 24 - reservedActionWidth))
         subtitleTitleView?.maximumWidth = titleBudget
         customNavigationTitle?.maximumWidth = max(44, titleBudget)
         let backWidth = backTitle.map {
