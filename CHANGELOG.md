@@ -2,6 +2,13 @@
 
 已发布版本按 Git 标签记录。接入方式见 [README](README.md)，实际执行范围见 [验证记录](Documentation/Implementation-Status.md)。
 
+## 0.14.3
+
+发布标签为 [v0.14.3](https://github.com/taokoplay/BoneShellKit/tree/v0.14.3)。
+
+- 自定义标题的文字或字体变化后，SDK 自动按栏位预算更新已挂载视图的宽度，保留同一视图和菜单。
+- 「导航栏」Demo 和接入示例的可点击标题采用透明背景与 0 pt 圆角，保留来源选择菜单。
+
 ## 0.14.2
 
 发布标签为 [v0.14.2](https://github.com/taokoplay/BoneShellKit/tree/v0.14.2)。

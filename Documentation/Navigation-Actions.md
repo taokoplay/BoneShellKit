@@ -1,6 +1,6 @@
 # 导航动作与自适应栏位
 
-本文适用于 **v0.14.2**。模块级侧栏策略自 v0.14.0 提供，替换 v0.10.0 的动作级 `axisBehavior`。导航动作强制显示策略自 v0.12.0 提供，iOS 26 导航共享玻璃、NavButton 返回恢复和自定义 confirmation 行为自 v0.12.1 提供，NavButton、Duo 侧栏样式、按钮材质及标题视图自 v0.11.0 提供。最低部署目标仍为 iOS 15，编译使用 Xcode 27.1。
+本文适用于 **v0.14.3**。模块级侧栏策略自 v0.14.0 提供，替换 v0.10.0 的动作级 `axisBehavior`。导航动作强制显示策略自 v0.12.0 提供，iOS 26 导航共享玻璃、NavButton 返回恢复和自定义 confirmation 行为自 v0.12.1 提供，NavButton、Duo 侧栏样式、按钮材质及标题视图自 v0.11.0 提供。最低部署目标仍为 iOS 15，编译使用 Xcode 27.1。
 
 ## 一次声明，按容器环境呈现
 
@@ -73,9 +73,11 @@ final class EditScreen: BoneViewController {
 
 ## 标题菜单与自定义按钮
 
-可在 `configureScreen(_:)` 设置 `screen.navigation.titleView`，传入完整且可交互的 `UIView`。原生导航交给 `UINavigationItem.titleView` 承载，经典导航在返回键和两侧按钮之间布局。SDK 不向自定义标题叠加文字、副标题或大标题，也不代管按钮事件。
+可在 `configureScreen(_:)` 设置 `screen.navigation.titleView`，传入完整且可交互的 `UIView`。原生导航交给 `UINavigationItem.titleView` 承载，经典导航在返回键和两侧按钮之间布局。标题的背景、圆角、点击行为和无障碍标签由传入视图提供。SDK 只负责承载与布局。
 
 从 v0.14.1 起，原生导航会在页面显示完成后重新挂载脱离窗口的原标题视图，保留点击回调和菜单。
+
+下面的菜单示例使用 v0.14.3 提供的自动宽度调整。
 
 ```swift
 import UIKit
@@ -85,6 +87,9 @@ import BoneShellKit
 final class SourcesController: BoneViewController {
     private lazy var sourceButton: UIButton = {
         var config = UIButton.Configuration.plain()
+        config.background = .clear()
+        config.background.cornerRadius = 0
+        config.cornerStyle = .fixed
         config.title = "全部来源"
         config.image = UIImage(systemName: "chevron.down")
         config.imagePlacement = .trailing
@@ -106,13 +111,14 @@ final class SourcesController: BoneViewController {
 
     private func selectSource(_ name: String) {
         sourceButton.configuration?.title = name
-        refreshScreenConfiguration()
     }
 }
 ```
 
 - 每个页面持有独立的视图实例；首次提供时不要挂在其他父视图上，刷新时复用同一实例。通过内在尺寸、`sizeThatFits(_:)`、内部约束或初始宽度提供理想尺寸；实际大小以栏位空间为准。
+- 自 v0.14.3 起，已挂载标题的固有宽度或布局约束变化后，SDK 会自动更新栏位尺寸。文字、字体或图片变化走视图正常的布局流程即可。用 `refreshScreenConfiguration()` 重新提交页面配置，例如替换整个标题视图。
 - 标题内容自行处理触摸和无障碍。可以用 `UIButton.menu`，也可以用点击回调打开宿主自己的选源面板。返回键和两侧 `NavigationAction` 不受替换。
+- 用 `UIButton.Configuration.plain()` 制作菜单标题时，可显式设置透明背景和 0 pt 固定圆角，让标题外观与上面的示例一致。
 - 设回 `nil` 并刷新页面声明，恢复现有文字、副标题和 `usesLargeTitle`。只需要系统文字标题菜单时，iOS 16+ 的原生导航仍可使用 UIKit `navigationItem.titleMenuProvider`。
 - 此接口替换的是内联标题。原生栏位的摆放由 UIKit 决定，不保证所有 iPad / Duo 竖栏姿态都有标题空间。
 

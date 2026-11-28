@@ -2,7 +2,7 @@
 
 UIKit 页面骨架 SDK。提供页面内容区域、原生容器封装、栏位模式与样式、标签栏附加动作，以及页面 / 导航 / 标签多媒体背景。
 
-最新版本 **v0.14.2** 让默认尺寸的独立纯图标 NavButton 自绘圆形表面，并根据横栏和 Duo 侧栏调整直径。v0.14.1 修复原生导航转场后自定义标题偶发消失的问题。版本变化见 [更新记录](CHANGELOG.md)。
+最新版本 **v0.14.3** 支持自定义导航标题随文字或字体变化自动调整宽度。v0.14.2 让默认尺寸的独立纯图标 NavButton 自绘圆形表面。版本变化见 [更新记录](CHANGELOG.md)。
 
 [导航动作与自适应](Documentation/Navigation-Actions.md) 包含导航动作、NavButton、系统共享玻璃、自定义按钮承载、标题视图和兼容策略。NavButton 等扩展自 v0.11.0 提供，导航动作强制显示自 v0.12.0 提供，v0.12.1 补充 iOS 26 返回恢复和自定义 confirmation 行为，v0.14.0 将轴向偏好改为模块级 `sidebarBehavior` 并统一玻璃绘制。
 
@@ -26,10 +26,10 @@ UIKit 页面骨架 SDK。提供页面内容区域、原生容器封装、栏位�
 .package(path: "../BoneShellKit")
 ```
 
-通过 SwiftPM 锁定 `v0.14.2`。
+通过 SwiftPM 锁定 `v0.14.3`。
 
 ```swift
-.package(url: "https://github.com/taokoplay/BoneShellKit.git", exact: "0.14.2")
+.package(url: "https://github.com/taokoplay/BoneShellKit.git", exact: "0.14.3")
 ```
 
 按精确标签锁定所需能力：`v0.14.0` 包含模块级侧栏策略、统一的玻璃绘制、Duo 侧栏整组竖排，以及此前的 NavButton、导航标题视图和标签栏整项自定义视图；`v0.12.1` 包含 iOS 26 导航共享玻璃修复与 NavButton 返回恢复；更早版本能力见对应发布说明。分支接入的可用功能以实际修订为准，不能将默认分支等同于发布标签。
@@ -151,7 +151,7 @@ Scheme 包含 `BoneShellDemoTests` 和 `BoneShellDemoUITests`；前者同时编�
 - [版本更新记录](CHANGELOG.md)
 - [SDK 当前范围与后续规划](Documentation/SDK-Plan.md)
 - [Demo 入口、自动化与待验收矩阵](Documentation/Demo-Test-Plan.md)
-- [导航动作与自适应栏位（v0.14.2）](Documentation/Navigation-Actions.md)
+- [导航动作与自适应栏位（v0.14.3）](Documentation/Navigation-Actions.md)
 - [自动、经典、胶囊与系统栏位](Documentation/Bar-Presentation.md)
 - [字体、颜色、图标与运行时更新](Documentation/Bar-Styling.md)
 - [多媒体背景、缓存与播放生命周期](Documentation/Backgrounds.md)

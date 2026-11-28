@@ -1,6 +1,6 @@
 # SDK 可设置字段与中文说明
 
-适用于 **v0.14.0**。模块级侧栏策略自 v0.14.0 提供并替换 v0.10.0 的动作级 `axisBehavior`；NavButton、导航标题视图和标签栏整项自定义视图自 v0.11.0 提供，导航动作强制显示自 v0.12.0 提供，iOS 26 导航共享玻璃、NavButton 返回恢复和自定义 confirmation 行为自 v0.12.1 提供；导航图片、动作角色及系统动作布局自 v0.10.0 提供，v0.9.1 不包含。方法和创建入口见 [SDK 方法说明](Usage-Examples.md)，源码分区和类型维护入口见 [源码结构说明](Source-Layout.md)。页面字段在 `configureScreen(_:)` 中设置；容器字段直接赋值。标注“创建时设置”的值不能在创建后直接修改，只读结果单列在文末。
+适用于 **v0.14.3**。模块级侧栏策略自 v0.14.0 提供并替换 v0.10.0 的动作级 `axisBehavior`；NavButton、导航标题视图和标签栏整项自定义视图自 v0.11.0 提供，导航动作强制显示自 v0.12.0 提供，iOS 26 导航共享玻璃、NavButton 返回恢复和自定义 confirmation 行为自 v0.12.1 提供；导航图片、动作角色及系统动作布局自 v0.10.0 提供，v0.9.1 不包含。方法和创建入口见 [SDK 方法说明](Usage-Examples.md)，源码分区和类型维护入口见 [源码结构说明](Source-Layout.md)。页面字段在 `configureScreen(_:)` 中设置；容器字段直接赋值。标注“创建时设置”的值不能在创建后直接修改，只读结果单列在文末。
 
 ## 页面配置：ScreenConfiguration
 
@@ -26,7 +26,7 @@
 | --- | --- | --- | --- |
 | `title` | `String` | `""` | 导航标题 |
 | `subtitle` | `String?` | `nil` | 导航副标题；`nil` 不显示 |
-| `titleView`（v0.11.0+） | `UIView?` | `nil` | 完整可交互的内联标题；替换文字与副标题，自定义时不显示大标题。设回 `nil` 恢复标准配置 |
+| `titleView`（v0.11.0+） | `UIView?` | `nil` | 完整可交互的内联标题。背景和圆角由传入视图决定。自 v0.14.3 起，SDK 随已挂载视图的固有宽度或约束变化调整尺寸。自定义时替换文字与副标题并关闭大标题，设回 `nil` 恢复标准配置 |
 | `usesLargeTitle` | `Bool` | `false` | 是否请求大标题显示 |
 | `leadingModules` | `[NavigationModule]` | `[]` | 前侧有序模块；模块可以是独立按钮或按钮组 |
 | `trailingModules` | `[NavigationModule]` | `[]` | 后侧有序模块；模块顺序参与布局、溢出和 Duo 位置计算 |

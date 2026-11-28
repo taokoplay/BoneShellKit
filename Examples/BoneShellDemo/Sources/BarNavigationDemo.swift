@@ -108,6 +108,9 @@ final class NavigationBarDemoController: DemoStackController {
 
     private lazy var titleButton: UIButton = {
         var configuration = UIButton.Configuration.plain()
+        configuration.background = .clear()
+        configuration.background.cornerRadius = 0
+        configuration.cornerStyle = .fixed
         configuration.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 6, bottom: 0, trailing: 6)
         configuration.title = selectedTitle
         configuration.titleLineBreakMode = .byTruncatingTail

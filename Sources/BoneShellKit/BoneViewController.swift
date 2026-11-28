@@ -511,11 +511,18 @@ open class BoneViewController: UIViewController {
         if customNavigationTitle?.content !== configuration.titleView {
             if let previous = customNavigationTitle {
                 if navigationItem.titleView === previous { navigationItem.titleView = nil }
-                if previous.content.superview === previous { previous.content.removeFromSuperview() }
+                previous.detachContent()
             }
             customNavigationTitle = nil
             if let view = configuration.titleView, view.superview == nil, view.window == nil {
-                customNavigationTitle = ShellNavigationTitleHost(content: view)
+                let host = ShellNavigationTitleHost(content: view)
+                host.onPreferredWidthChange = { [weak self] host in
+                    guard let self, self.customNavigationTitle === host else { return }
+                    // 兼容栏按标题宽度重新分配动作空间，原生分组继续交给 UIKit。
+                    if !self.usesSystemNavigationActionLayout { self.lastActionLayoutKey = nil }
+                    self.updateNavigationActions()
+                }
+                customNavigationTitle = host
             }
         }
         let usesLargeTitle = customNavigationTitle == nil && configuration.usesLargeTitle
@@ -571,7 +578,15 @@ open class BoneViewController: UIViewController {
     internal func installNativeCustomTitle() {
         guard let host = customNavigationTitle, !(host.superview is ShellClassicNavigationBar),
               navigationItem.titleView !== host else { return }
+        host.resetNativeSizeRequest()
         navigationItem.titleView = host
+        syncNativeCustomTitleSize()
+    }
+
+    private func syncNativeCustomTitleSize() {
+        guard let host = customNavigationTitle, navigationItem.titleView === host,
+              let bar = navigationController?.navigationBar, resolvedBarPresentation != .classic else { return }
+        host.syncNativeSizeIfNeeded(in: bar)
     }
 
     /// 页面显示完成后恢复脱离窗口的原生导航标题。
@@ -588,6 +603,8 @@ open class BoneViewController: UIViewController {
     }
 
     private func updateNavigationActions() {
+        // 兼容路径的宽度预算也会限制标题，待两条布局路径完成后再提交。
+        defer { syncNativeCustomTitleSize() }
         let configuration = screenConfiguration.navigation
         let backTitle = systemBackTitle()
         let style = effectiveNavigationStyle

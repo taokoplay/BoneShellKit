@@ -42,6 +42,7 @@ final class NavigationTitleViewTests: XCTestCase {
         page.refreshScreenConfiguration()
         settle(navigation)
         XCTAssertNil(button.superview)
+        XCTAssertTrue(button.translatesAutoresizingMaskIntoConstraints)
         XCTAssertEqual(page.navigationItem.largeTitleDisplayMode, .always)
         if #available(iOS 26.0, *) {
             XCTAssertNil(page.navigationItem.titleView)
@@ -53,6 +54,119 @@ final class NavigationTitleViewTests: XCTestCase {
         page.refreshScreenConfiguration()
         settle(navigation)
         XCTAssertTrue(button.isDescendant(of: navigation.navigationBar))
+    }
+
+    func testNativeTitleSizeUsesTheBudgetAndPreservesSystemCompression() {
+        let button = ResizableTitleButton()
+        button.preferredWidth = 160
+        let host = ShellNavigationTitleHost(content: button)
+        let bar = UINavigationBar()
+        host.maximumWidth = 96
+        host.syncNativeSizeIfNeeded(in: bar)
+        XCTAssertEqual(host.bounds.size, CGSize(width: 96, height: 44))
+
+        host.bounds.size.width = 72
+        host.syncNativeSizeIfNeeded(in: bar)
+        XCTAssertEqual(host.bounds.width, 72)
+
+        host.maximumWidth = 80
+        host.syncNativeSizeIfNeeded(in: bar)
+        XCTAssertEqual(host.bounds.width, 80)
+    }
+
+    func testSystemTitleResizesTheMountedViewAfterRefresh() throws {
+        let page = NavigationTitleFixture()
+        let button = ResizableTitleButton()
+        button.setTitle("Source", for: .normal)
+        button.menu = UIMenu(children: [UIAction(title: "Option") { _ in }])
+        var tapCount = 0
+        button.addAction(UIAction { _ in tapCount += 1 }, for: .touchUpInside)
+        page.customTitle = button
+        let navigation = show(page, presentation: .system)
+        let host = try XCTUnwrap(page.navigationItem.titleView as? ShellNavigationTitleHost)
+        let window = try XCTUnwrap(navigation.navigationBar.window)
+        let menu = try XCTUnwrap(button.menu)
+
+        for width: CGFloat in [44, 100, 60] {
+            button.preferredWidth = width
+            page.refreshScreenConfiguration()
+            settle(navigation)
+
+            XCTAssertEqual(host.intrinsicContentSize.width, width, accuracy: 0.5)
+            XCTAssertEqual(host.bounds.width, width, accuracy: 0.5)
+            XCTAssertEqual(button.bounds.width, width, accuracy: 0.5)
+            XCTAssertTrue(page.navigationItem.titleView === host)
+            XCTAssertTrue(host.content === button)
+            XCTAssertTrue(button.window === window)
+            XCTAssertTrue(button.menu === menu)
+        }
+        button.sendActions(for: .touchUpInside)
+        XCTAssertEqual(tapCount, 1)
+    }
+
+    func testCustomTitleFollowsTextAndFontChangesWithoutRefreshingThePage() throws {
+        let page = NavigationTitleFixture()
+        if #available(iOS 16.0, *) { page.navigationItem.style = .browser }
+        let button = makeButton("I")
+        var configuration = UIButton.Configuration.plain()
+        configuration.title = "I"
+        configuration.contentInsets = .zero
+        button.configuration = configuration
+        page.customTitle = button
+        let navigation = show(page, presentation: .system)
+        let host = try XCTUnwrap(button.superview as? ShellNavigationTitleHost)
+        let menu = try XCTUnwrap(button.menu)
+
+        func expectWidthChange(growing: Bool, line: UInt = #line, _ update: () -> Void) {
+            let previousWidth = host.bounds.width
+            update()
+            let resized = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                let currentWidth = host.bounds.width
+                let change = currentWidth - previousWidth
+                let resized = growing ? change > 1 : change < -1
+                return resized && abs(currentWidth - host.intrinsicContentSize.width) <= 1
+                    && abs(button.bounds.width - currentWidth) <= 1
+            }, object: nil)
+            let result = XCTWaiter.wait(for: [resized], timeout: 4)
+            XCTAssertEqual(result, .completed,
+                           "Previous \(previousWidth), host \(host.bounds.width), content \(button.bounds.width), target \(host.intrinsicContentSize.width)", line: line)
+            XCTAssertTrue(host.content === button)
+            XCTAssertTrue(button.menu === menu)
+            XCTAssertTrue(button.window === navigation.navigationBar.window)
+        }
+
+        for presentation in [ShellBarPresentation.system, .classic] {
+            navigation.barPresentation = presentation
+            settle(navigation)
+            expectWidthChange(growing: true) { button.configuration?.title = "Sources" }
+            expectWidthChange(growing: true) {
+                button.configuration?.titleTextAttributesTransformer = .init { incoming in
+                    var attributes = incoming
+                    attributes.font = .systemFont(ofSize: 24)
+                    return attributes
+                }
+            }
+            expectWidthChange(growing: false) { button.configuration = configuration }
+            XCTAssertEqual(host.bounds.width, 44, accuracy: 0.5)
+        }
+    }
+
+    func testCustomTitleFollowsChangesToItsLayoutConstraints() throws {
+        let page = NavigationTitleFixture()
+        let title = UIView()
+        let width = title.widthAnchor.constraint(equalToConstant: 52)
+        NSLayoutConstraint.activate([width, title.heightAnchor.constraint(equalToConstant: 24)])
+        page.customTitle = title
+        let navigation = show(page, presentation: .classic)
+        let host = try XCTUnwrap(title.superview as? ShellNavigationTitleHost)
+        XCTAssertEqual(host.bounds.width, 52, accuracy: 0.5)
+        width.constant = 96
+
+        let resized = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            abs(host.bounds.width - 96) < 0.5 && abs(title.bounds.width - 96) < 0.5
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [resized], timeout: 2), .completed)
+        XCTAssertTrue(host.superview === navigation.classicNavigationBarView)
     }
 
     /// 模拟原生转场移除标题宿主，验证页面显示完成后复用并恢复原有标题。
@@ -182,6 +296,14 @@ final class NavigationTitleViewTests: XCTestCase {
         window = nil
         super.tearDown()
     }
+}
+
+private final class ResizableTitleButton: UIButton {
+    var preferredWidth: CGFloat = 44 {
+        didSet { invalidateIntrinsicContentSize() }
+    }
+
+    override var intrinsicContentSize: CGSize { CGSize(width: preferredWidth, height: 44) }
 }
 
 private final class NavigationTitleFixture: BoneViewController {

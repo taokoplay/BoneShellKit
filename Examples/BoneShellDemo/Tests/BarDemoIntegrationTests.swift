@@ -47,6 +47,41 @@ final class BarDemoIntegrationTests: XCTestCase {
         XCTAssertNil(page.screenConfiguration.navigation.style?.title.font)
     }
 
+    func testCustomTitleMenuUsesTransparentSquareCorners() throws {
+        let (tabs, navigation, page) = navigationScene()
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive }
+        let window = scene.map(UIWindow.init(windowScene:)) ?? UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = tabs
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+
+        let picker = try XCTUnwrap(view(withIdentifier: "nav.title-view", in: page.view) as? UISegmentedControl)
+        picker.selectedSegmentIndex = 1
+        picker.sendActions(for: .valueChanged)
+        let title = try XCTUnwrap(page.screenConfiguration.navigation.titleView as? UIButton)
+        let menu = try XCTUnwrap(title.menu)
+        let host = try XCTUnwrap(title.superview as? ShellNavigationTitleHost)
+        for (index, presentation) in [(1, ShellBarPresentation.system), (2, .classic)] {
+            page.setPresentationIndexForTesting(index)
+            navigation.view.setNeedsLayout()
+            navigation.view.layoutIfNeeded()
+            RunLoop.main.run(until: Date().addingTimeInterval(0.08))
+            navigation.view.layoutIfNeeded()
+            let bar: UIView = presentation == .system ? navigation.navigationBar : try XCTUnwrap(navigation.classicNavigationBarView)
+            XCTAssertTrue(title.isDescendant(of: bar))
+            XCTAssertTrue(title.superview === host)
+            XCTAssertTrue(title.menu === menu)
+            XCTAssertEqual(host.layer.cornerRadius, 0)
+            XCTAssertNil(host.layer.mask)
+            XCTAssertEqual(title.layer.cornerRadius, 0)
+            let configuration = try XCTUnwrap(title.configuration)
+            XCTAssertEqual(configuration.cornerStyle, .fixed)
+            XCTAssertEqual(configuration.background.cornerRadius, 0)
+            XCTAssertEqual(configuration.background.resolvedBackgroundColor(for: title.tintColor).cgColor.alpha, 0)
+        }
+    }
+
     func testNavButtonControlsConfigureRealActionsAndResetToStandard() throws {
         let (tabs, _, page) = navigationScene()
         defer { withExtendedLifetime(tabs) {} }
