@@ -1,6 +1,6 @@
 # 导航动作与自适应栏位
 
-本文适用于 **v0.14.0**。模块级侧栏策略自 v0.14.0 提供，替换 v0.10.0 的动作级 `axisBehavior`；导航动作强制显示策略自 v0.12.0 提供，iOS 26 导航共享玻璃、NavButton 返回恢复和自定义 confirmation 行为自 v0.12.1 提供，NavButton、Duo 侧栏样式、按钮材质及标题视图自 v0.11.0 提供，最低部署目标仍为 iOS 15，编译使用 Xcode 27.1。
+本文适用于 **v0.14.1**。模块级侧栏策略自 v0.14.0 提供，替换 v0.10.0 的动作级 `axisBehavior`。导航动作强制显示策略自 v0.12.0 提供，iOS 26 导航共享玻璃、NavButton 返回恢复和自定义 confirmation 行为自 v0.12.1 提供，NavButton、Duo 侧栏样式、按钮材质及标题视图自 v0.11.0 提供。最低部署目标仍为 iOS 15，编译使用 Xcode 27.1。
 
 ## 一次声明，按容器环境呈现
 
@@ -73,6 +73,8 @@ final class EditScreen: BoneViewController {
 ## 标题菜单与自定义按钮
 
 可在 `configureScreen(_:)` 设置 `screen.navigation.titleView`，传入完整且可交互的 `UIView`。原生导航交给 `UINavigationItem.titleView` 承载，经典导航在返回键和两侧按钮之间布局。SDK 不向自定义标题叠加文字、副标题或大标题，也不代管按钮事件。
+
+从 v0.14.1 起，原生导航会在页面显示完成后重新挂载脱离窗口的原标题视图，保留点击回调和菜单。
 
 ```swift
 import UIKit

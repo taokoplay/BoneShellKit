@@ -152,6 +152,7 @@ open class BoneViewController: UIViewController {
         lastActionLayoutKey = nil
         updateNavigationActions()
         updateShellBackgrounds(playbackActive: true)
+        restoreNativeCustomTitleIfNeeded()
     }
 
     /// 页面即将隐藏时暂停页面及容器背景播放。
@@ -571,6 +572,19 @@ open class BoneViewController: UIViewController {
         guard let host = customNavigationTitle, !(host.superview is ShellClassicNavigationBar),
               navigationItem.titleView !== host else { return }
         navigationItem.titleView = host
+    }
+
+    /// 页面显示完成后恢复脱离窗口的原生导航标题。
+    private func restoreNativeCustomTitleIfNeeded() {
+        guard let host = customNavigationTitle, resolvedBarPresentation != .classic,
+              let navigation = navigationController, navigation.topViewController === self,
+              !navigation.isNavigationBarHidden, !navigation.navigationBar.isHidden,
+              let window = navigation.navigationBar.window, viewIfLoaded?.window === window,
+              host.window !== window else { return }
+
+        // 转场可能移除标题宿主却保留 titleView 引用，先清空引用再提交才能重新挂载。
+        if navigationItem.titleView === host { navigationItem.titleView = nil }
+        installNativeCustomTitle()
     }
 
     private func updateNavigationActions() {

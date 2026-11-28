@@ -55,6 +55,36 @@ final class NavigationTitleViewTests: XCTestCase {
         XCTAssertTrue(button.isDescendant(of: navigation.navigationBar))
     }
 
+    /// 模拟原生转场移除标题宿主，验证页面显示完成后复用并恢复原有标题。
+    func testSystemTitleReattachesAfterAppearanceCompletes() throws {
+        let page = NavigationTitleFixture()
+        let button = makeButton("Choose a source")
+        page.customTitle = button
+        let navigation = show(page, presentation: .system)
+        let host = try XCTUnwrap(page.navigationItem.titleView as? ShellNavigationTitleHost)
+        let window = try XCTUnwrap(navigation.navigationBar.window)
+        let menu = try XCTUnwrap(button.menu)
+        var tapCount = 0
+        button.addAction(UIAction { _ in tapCount += 1 }, for: .touchUpInside)
+        XCTAssertTrue(button.isDescendant(of: navigation.navigationBar))
+        XCTAssertTrue(button.window === window)
+
+        host.removeFromSuperview()
+        XCTAssertTrue(page.navigationItem.titleView === host)
+        XCTAssertNil(host.window)
+
+        page.viewDidAppear(false)
+        settle(navigation)
+
+        XCTAssertTrue(page.navigationItem.titleView === host)
+        XCTAssertTrue(host.content === button)
+        XCTAssertTrue(button.isDescendant(of: navigation.navigationBar))
+        XCTAssertTrue(button.window === window)
+        XCTAssertTrue(button.menu === menu)
+        button.sendActions(for: .touchUpInside)
+        XCTAssertEqual(tapCount, 1)
+    }
+
     func testClassicTitleDoesNotOverlapControlsAtNarrowWidthsInEitherDirection() throws {
         let bar = ShellClassicNavigationBar()
         let button = makeButton("A title view that wants more space than is available")

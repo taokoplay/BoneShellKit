@@ -2,6 +2,12 @@
 
 已发布版本按 Git 标签记录。接入方式见 [README](README.md)，实际执行范围见 [验证记录](Documentation/Implementation-Status.md)。
 
+## 0.14.1
+
+发布标签为 [v0.14.1](https://github.com/taokoplay/BoneShellKit/tree/v0.14.1)。
+
+- 修复原生导航转场后自定义 `titleView` 偶发消失的问题。页面显示完成后，SDK 自动重新挂载脱离窗口的原标题视图，保留点击回调与菜单。
+
 ## 0.14.0
 
 发布标签：[v0.14.0](https://github.com/taokoplay/BoneShellKit/tree/v0.14.0)。
