@@ -2,6 +2,13 @@
 
 已发布版本按 Git 标签记录。接入方式见 [README](README.md)，实际执行范围见 [验证记录](Documentation/Implementation-Status.md)。
 
+## 0.14.2
+
+发布标签为 [v0.14.2](https://github.com/taokoplay/BoneShellKit/tree/v0.14.2)。
+
+- 独立图标 NavButton 使用默认尺寸和留白并自绘表面时，按栏位绘制圆形。Duo 栏位空间充足时直径为 48 pt，空间不足时等比缩小。可显式声明 `.fitting`、`.preferred` 或内部留白来控制外形。
+- 「导航栏」Demo 的「详情」动作展示默认圆形，同时覆盖横栏、Duo 侧栏和旧系统材质回退。
+
 ## 0.14.1
 
 发布标签为 [v0.14.1](https://github.com/taokoplay/BoneShellKit/tree/v0.14.1)。

@@ -103,7 +103,7 @@ final class NavButtonUITests: XCTestCase {
     func testDuoSidebarUsesVertical44x72() throws {
         try requireDuoRuntime()
         openSettings(["-navbutton-vertical-capsule"])
-        revealSidebarDone()
+        revealSidebar(done, title: "完成")
         // On the Duo's outer display UIKit grants 38 pt to a 44 pt visual.
         XCTAssertGreaterThanOrEqual(done.frame.width, 36)
         XCTAssertLessThanOrEqual(done.frame.width, 46)
@@ -117,7 +117,7 @@ final class NavButtonUITests: XCTestCase {
     func testDuoSidebarInheritsNormalContentAndHeight() throws {
         try requireDuoRuntime()
         openSettings(["-navbutton"])
-        revealSidebarDone()
+        revealSidebar(done, title: "完成")
         // A narrow rail can constrain the normal 72 pt width; it must not grow to the 72 pt capsule height.
         XCTAssertEqual(done.frame.height, 44, accuracy: 2)
         XCTAssertGreaterThanOrEqual(done.frame.width, 36)
@@ -126,6 +126,27 @@ final class NavButtonUITests: XCTestCase {
         done.tap()
         expectReceipt(1, "完成")
         capture("NavButton-Duo-sidebar-inherited-receipt")
+    }
+
+    func testDuoDefaultIconIsCircularAndOpensDetailsOnBothAxes() throws {
+        try requireDuoRuntime()
+        XCUIDevice.shared.orientation = .portrait
+        for sidebar in [false, true] {
+            let flags = ["-navbutton", "-navbutton-effect", "glass"]
+            openSettings(sidebar ? flags : flags + ["-navbutton-horizontal-bar"])
+            let detail = app.buttons["action.nav.detail"].firstMatch
+            if sidebar {
+                revealSidebar(detail, title: "详情")
+            } else {
+                XCTAssertTrue(detail.waitForExistence(timeout: 5) && detail.isHittable)
+                XCTAssertTrue(geometry(of: detail).inTopBar)
+            }
+            XCTAssertEqual(detail.frame.width, detail.frame.height, accuracy: 1)
+            XCTAssertGreaterThanOrEqual(detail.frame.height, 38)
+            capture(sidebar ? "圆形详情-侧栏" : "圆形详情-横栏", button: detail)
+            detail.tap()
+            XCTAssertTrue(app.textFields["state.input"].waitForExistence(timeout: 8))
+        }
     }
 
     // MARK: - Actual system placement
@@ -175,8 +196,8 @@ final class NavButtonUITests: XCTestCase {
         XCTAssertLessThanOrEqual(observed.button.height, 46)
     }
 
-    private func revealSidebarDone() {
-        func onRail() -> Bool { done.exists && done.isHittable && geometry(of: done).inSideBar }
+    private func revealSidebar(_ button: XCUIElement, title: String) {
+        func onRail() -> Bool { button.exists && button.isHittable && geometry(of: button).inSideBar }
         if !onRail() {
             let titles = ["Show Sidebar", "Show Side Bar", "Show Controls", "Show Toolbar", "Expand Sidebar", "Sidebar",
                           "显示侧边栏", "显示边栏", "展开侧边栏", "显示控制项", "显示工具栏", "侧边栏"]
@@ -195,7 +216,7 @@ final class NavButtonUITests: XCTestCase {
             }
         }
         XCTAssertTrue(onRail(), "Expected a hittable action in the real side rail, not a top bar or overflow menu: \(app.debugDescription)")
-        XCTAssertEqual(done.label, "完成")
+        XCTAssertEqual(button.label, title)
     }
 
     private func requireDuoRuntime() throws {

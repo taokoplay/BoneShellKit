@@ -1,6 +1,6 @@
 # 导航动作与自适应栏位
 
-本文适用于 **v0.14.1**。模块级侧栏策略自 v0.14.0 提供，替换 v0.10.0 的动作级 `axisBehavior`。导航动作强制显示策略自 v0.12.0 提供，iOS 26 导航共享玻璃、NavButton 返回恢复和自定义 confirmation 行为自 v0.12.1 提供，NavButton、Duo 侧栏样式、按钮材质及标题视图自 v0.11.0 提供。最低部署目标仍为 iOS 15，编译使用 Xcode 27.1。
+本文适用于 **v0.14.2**。模块级侧栏策略自 v0.14.0 提供，替换 v0.10.0 的动作级 `axisBehavior`。导航动作强制显示策略自 v0.12.0 提供，iOS 26 导航共享玻璃、NavButton 返回恢复和自定义 confirmation 行为自 v0.12.1 提供，NavButton、Duo 侧栏样式、按钮材质及标题视图自 v0.11.0 提供。最低部署目标仍为 iOS 15，编译使用 Xcode 27.1。
 
 ## 一次声明，按容器环境呈现
 
@@ -42,11 +42,12 @@ final class EditScreen: BoneViewController {
 }
 ```
 
-- **尺寸**：默认按文字、图片的逻辑尺寸（pt）或自定义视图拟合；`size` 指按钮外框，`iconSize` 指图标，`contentInsets` 指内部留白。小图不必拉伸到点击区域大小。在分配的空间内尽可能提供 44 × 44 pt 的不重叠点击区域。标题字号不参与按钮测量。
+- **尺寸**：`size` 指按钮外框，`iconSize` 指图标绘制区域，`contentInsets` 指内部留白。`.fitting` 按文字、图片的逻辑尺寸（pt）或自定义视图拟合，`.preferred` 请求理想外框。在可用空间内提供至少 44 × 44 pt 的不重叠点击区域。
+- **默认圆形**：自 v0.14.2 起，独立 `NavButton` 显示标准图标、声明按钮材质、使用 `.inherited` 尺寸和默认内边距时，SDK 按栏位为表面分配圆形尺寸。常规横栏为 44 pt，Duo 栏位空间充足时为 48 pt。较大的图标可请求更大的直径，空间受限时圆形缩到实际槽位内。使用 `.fitting` 可按内容继续拟合外框，使用 `.preferred` 或显式内边距可控制形状。
 - **侧栏与内容**：`Style.icon` 可为横栏与 iPhone Duo 分别指定图标，`iPhoneDuo` 样式只在实际侧边栏承载时生效。侧栏策略声明在模块上：`sidebarBehavior: .disabled` 只允许横栏并停止侧栏样式解析，`.preferred` 允许两侧并优先侧栏，`.system` 交给系统。组内动作的 `sidebarBehavior` 不生效。
 - **模块顺序与间距**：`leadingModules`、`trailingModules` 按声明顺序呈现。独立按钮使用 `.button`，多个按钮使用 `NavigationButtonGroup`；`itemSpacing` 控制组内间距，`NavigationConfiguration.moduleSpacing` 控制模块可见边界之间的固定间距，SDK 会校正系统栏位和按钮内边距产生的额外空间。按钮组作为一个原子模块参与宽度预算、溢出和 Duo 位置计算。
-- **与系统条目等高**：按钮自绘玻璃时，表面高度会跟随系统栏位条目的可视高度（Duo 横栏 58 pt 栏高 → 48 pt 表面，普通 iPhone 44 pt 栏高 → 44 pt），因此与返回键等高；槽位与点击区域不变。侧栏不使用该规则（轨道宽度固定 44 pt）。
-- **材质**：组内按钮的按钮级 effect 自动解析为 `.none`，只使用 `NavigationButtonGroup.material`；独立按钮才使用自己的按钮表面。按钮表面写成 `.material(.systemGlass)` 时与栏位共用同一套解析和回退，`.systemGlass` 不用的旧系统会回退为磨砂。系统玻璃不裁剪溢出层，边缘高光会保留；组只画一整块覆盖整个模块的表面（与系统分组玻璃一致，无分隔线），独立玻璃按钮各画自己的胶囊。SDK 用单个自定义承载项提交整组，UIKit 看不到组内结构，因此不会参与系统的共享玻璃。主题色用 `ShellNavButton.Style.tintColor` 与 `NavigationButtonGroup.tintColor`，语义同 `ShellNavigationStyle.backgroundColor`。绘制规则见 [材质表面由谁绘制](Bar-Styling.md#材质表面由谁绘制)。
+- **与系统条目对齐**：自绘表面通常跟随系统条目的横栏可视高度（Duo 横栏 58 pt 栏高 → 48 pt 表面，普通 iPhone 44 pt 栏高 → 44 pt）或侧栏可视宽度。默认圆形以测得的栏位尺寸参与布局和溢出计算，实际直径同时受可用宽高约束。
+- **材质**：组内按钮的按钮级 effect 解析为 `.none`，组使用 `NavigationButtonGroup.material` 绘制一块连续表面。独立按钮各自绘制表面。`.material(.systemGlass)` 与栏位共用材质解析，在旧系统回退为磨砂。系统玻璃保留边缘高光。主题色用 `ShellNavButton.Style.tintColor` 与 `NavigationButtonGroup.tintColor`，语义同 `ShellNavigationStyle.backgroundColor`。绘制规则见 [材质表面由谁绘制](Bar-Styling.md#材质表面由谁绘制)。
 - **自定义内容**：`ShellNavButton` 可提供尺寸、图标、iPhone Duo 样式和完整自定义 UIView。组内自定义内容不要再自行绘制第二层导航表面。
 - **系统项与自定义项**：`navButton:` 的动作由 SDK 创建 `ShellNavButtonHost` 和 `ShellNavButtonCluster`，再把 cluster 作为 `UIBarButtonItem.customView`。SDK 不同时使用系统 item 的 `primaryAction`、标题或图标承载同一个自定义动作。宿主只需要提供 `NavigationAction.handler`。
 - **确认动作**：`role: .confirmation` 仍参与原生优先级、固定位置和兼容宽度预算。自定义 confirmation 使用自定义按钮的文字与材质，不叠加 UIKit `.done` 的系统突出外观；未使用 `navButton:` 的 confirmation 继续使用系统 `.done` 样式。
@@ -186,10 +187,10 @@ final class ActionsController: BoneViewController {
 
 v0.14.0 提供标准动作、强制显示策略、自定义图片、角色、模块级侧栏策略、NavButton、自定义标题视图和 iOS 26 导航恢复行为。
 
-**侧栏与按钮组**：模块进入 iPhone Duo 侧轨后会整体改为竖排——承载视图不拆分，按钮组内部上下堆叠，组表面仍是一枚竖胶囊。侧栏里所有条目（含系统返回键）的玻璃同宽：槽位 44 pt、系统玻璃实测 47.7 pt，SDK 按「槽位 + 4 pt」居中绘制，因此组、独立按钮与返回键宽度一致。判断宽度要以玻璃为准，不能用无障碍命中框——侧栏返回键的 AX frame 是 38 pt，与玻璃相差 10 pt。
+**侧栏与按钮组**：模块进入 iPhone Duo 侧轨后整体竖排，按钮组仍由一个承载视图绘制连续的竖胶囊。Duo 外屏实测槽位 44 pt、系统返回键玻璃约 47.7 pt。SDK 采用 48 pt 对齐玻璃宽度，默认圆形则按实际可用空间取直径。几何验收以玻璃表面为准，侧栏返回键的 AX frame 约为 38 pt。
 
-竖排时由组表面统一绘制的模块，每个按钮都是**与组玻璃同宽的正方形**（Duo：48 × 48），且不加任何额外内边距——按钮自己的 `size` 不再决定外形，图标大小完全由 `iconSize` / `contentInsets` 控制。因此组高 = 按钮正方形边长 × 数量 + 组内净距（Duo 两枚、净距 8 → 104 pt）。独立按钮自带玻璃，仍按自身声明尺寸绘制（例如竖排的 44×72）。模块检测到自己落在侧轨后，把自身高度收敛为竖排高度并让页面重新提交条目（UIKit 只在提交时量测自定义视图）；宽度仍由系统槽位决定，玻璃按 48 pt 居中绘制到槽位之外。
+竖排时由组表面统一绘制的模块，每个按钮都是**与组玻璃同宽的正方形**（Duo：48 × 48），图标大小由 `iconSize` / `contentInsets` 控制，组高为边长 × 数量 + 组内净距（Duo 两枚、净距 8 → 104 pt）。独立按钮可以声明矩形尺寸，例如 44 × 72 pt。默认圆形在 Duo 侧栏空间充足时以 48 × 48 pt 参与布局。模块检测到自己落在侧轨后按竖排尺寸重新提交条目，侧轨槽位由 UIKit 分配。
 
 侧轨按「每项 44 pt」分配槽位并只容纳约 3 项：整组竖排后会占用相当于两项的高度，若同一侧还有其它动作，系统会把放不下的项移出侧轨（进「更多」或不显示）。需要在侧轨稳定呈现时，同一侧保留的模块数量应控制在 1–2 个。加载 / badge 声明、菜单树和自定义经典竖向 renderer 仍未提供。
 
-Demo“导航栏”页提供符号 / 本地图片 / UIImage 与系统默认 / 不启用 / 优先侧栏三档切换，切换同时作用于独立按钮和按钮组；“导航与多按钮”页用于观察优先级及实际溢出。已执行的设备、用例与截图分别记录在 [实现与验证记录](Implementation-Status.md)，不以 API 编译通过代替 Duo 全姿态验收。
+Demo「导航栏」页提供符号 / 本地图片 / UIImage 与系统默认 / 不启用 / 优先侧栏三档切换。选择 `NavButton` 和按钮表面「系统玻璃」，可观察「详情」的默认圆形。「导航与多按钮」页用于观察优先级与实际溢出。已执行的设备与用例记录在 [实现与验证记录](Implementation-Status.md)。

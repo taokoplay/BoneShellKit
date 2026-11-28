@@ -4,7 +4,7 @@ import UIKit
 public struct ShellNavButton {
     /// 按钮视觉外框尺寸策略。
     public enum Size: Equatable {
-        /// 继承默认尺寸。
+        /// 使用默认外框。使用默认内边距且自绘表面的独立标准图标按钮按栏位绘制圆形，其余内容按尺寸拟合。
         case inherited
         /// 根据内容拟合尺寸。
         case fitting
@@ -122,10 +122,7 @@ public struct ShellNavButton {
             case .standard, .custom: result.content = vertical.content
             }
         }
-        if result.size == .inherited { result.size = .fitting }
-        if result.contentInsets == nil {
-            result.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
-        }
+        // 保留继承尺寸和空内边距，由承载项结合实际图标和材质确定默认外形。
         if result.effect == .inherited { result.effect = .none }
         if result.effect == .none { result.tintColor = nil }
         if case .inherited = result.content { result.content = .standard }

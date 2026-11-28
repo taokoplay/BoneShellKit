@@ -218,7 +218,7 @@ final class NavigationBarDemoController: DemoStackController {
                                     sidebarBehavior: sidebarBehaviors[sidebarIndex]) { [weak self] in self?.recordNavButton("完成") }
         let detail = NavigationAction(
             id: "nav.detail", title: "详情",
-            navButton: .init(normal: normalStyle(width: 44, iconSize: CGSize(width: 20, height: 20))),
+            navButton: .init(normal: .init(iconSize: CGSize(width: 22, height: 22), effect: effects[navButtons.effect])),
             icon: .systemSymbol("arrow.right"), priority: 20,
             sidebarBehavior: sidebarBehaviors[sidebarIndex]
         ) { [weak self] in self?.openDetail() }
@@ -342,7 +342,8 @@ final class NavigationBarDemoController: DemoStackController {
         card([DemoStyle.label("导航按钮", style: .headline), navModePicker,
               DemoStyle.label("完成 · 横栏尺寸（pt）", style: .subheadline), navSizePicker,
               DemoStyle.label("完成 · 侧栏尺寸（pt）", style: .subheadline), navVerticalPicker,
-              DemoStyle.label("按钮表面（系统玻璃在旧系统回退为磨砂）", style: .subheadline), navEffectPicker])
+              DemoStyle.label("按钮表面（系统玻璃在旧系统回退为磨砂）", style: .subheadline), navEffectPicker,
+              DemoStyle.label("“详情”使用默认尺寸，自绘表面会随栏位呈圆形。", style: .footnote, color: .secondaryLabel)])
         card([DemoStyle.label("标记与分享 · 单项宽度", style: .headline), navGroupWidthPicker,
               DemoStyle.label("动作顺序", style: .subheadline), navOrderPicker,
               DemoStyle.label("组内净距", style: .subheadline), navSpacingPicker])

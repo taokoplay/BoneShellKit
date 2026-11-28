@@ -1,6 +1,6 @@
 # Demo 入口与测试规划
 
-当前 SDK / Demo 基线：**v0.14.0 / 0.14.0（Build 1）**。模块级侧栏策略、统一的玻璃绘制与系统栏按钮布局修复在 v0.14.0 提供；iOS 26 导航共享玻璃、NavButton 返回恢复和自定义 confirmation 行为在 v0.12.1 提供，导航动作强制显示策略在 v0.12.0 提供，NavButton、导航标题视图和标签栏整项自定义视图在 v0.11.0 提供，标签文字显示策略自 v0.9.0 提供。本文件区分实际入口、现有自动化和后续验收目标；D01–D15、T01–T37 是规划追踪 ID，不是页面数或 XCTest 通过数量。功能回归、发布构建与历史结果分别见 [验证记录](Implementation-Status.md)。
+当前 SDK / Demo 基线为 **v0.14.2 / 0.14.0（Build 1）**。默认尺寸的独立自绘图标按钮在 v0.14.2 起采用圆形表面。模块级侧栏策略、统一的玻璃绘制与系统栏按钮布局修复在 v0.14.0 提供。iOS 26 导航共享玻璃、NavButton 返回恢复和自定义 confirmation 行为在 v0.12.1 提供，导航动作强制显示策略在 v0.12.0 提供，NavButton、导航标题视图和标签栏整项自定义视图在 v0.11.0 提供，标签文字显示策略自 v0.9.0 提供。D01–D15、T01–T37 是规划追踪 ID。功能回归、发布构建与历史结果见 [验证记录](Implementation-Status.md)。
 
 ## 1. 实际工程与入口
 
@@ -80,7 +80,7 @@ Demo 的 `BoneShellDemoTests` 同时编译上述 SDK 和 Demo 集成源；`BoneS
 - 动态附件：`-only-testing:BoneShellDemoTests/AnimatedTabAccessoryTests` 与 `-only-testing:BoneShellDemoUITests/TabBarUITests/testAnimatedAccessoryTapsAndKeepsItsTabInCapsuleAndSystem`；UI 附件包含整屏与两张实际动画相位，不以动画键存在代替出帧验证。
 - 整项自定义视图：`-only-testing:BoneShellDemoTests/TabIconContentTests` 与 `-only-testing:BoneShellDemoUITests/TabBarUITests/testCustomTabViewsRemainSelectableWithAnAccessory`；对照完整槽位、选中态、外侧动作及显式切回原生标准图文。
 - 自定义导航标题：`NavigationTitleViewTests` 验证同实例切换、推入返回和窄栏间距；`NavigationBarUITests` 的 `testCustomTitleMenuInClassicNavigation` 与 `testCustomTitleMenuInSystemNavigation` 分别验证菜单选择和文字恢复。
-- 自定义导航动作：`NavButtonAppearanceTests`、`NavButtonLayoutTests` 检查整项内容、三种背景、按维拟合、禁用 / 卸载、组内净距与 RTL；`NavButtonUITests` 在真实栏位点击，保留屏幕与按钮截图。Duo 的横栏、侧栏覆盖、侧栏继承分别验收；菜单里能找到按钮不算侧栏通过。入口：**示例 → 导航栏 → NavButton**。
+- 自定义导航动作：`NavButtonAppearanceTests`、`NavButtonLayoutTests` 检查默认圆形、压缩、整项内容、三种背景、尺寸拟合、组内净距与 RTL。`NavButtonUITests` 在实际栏位检查默认圆形「详情」可点击，并覆盖横栏、侧栏覆盖和侧栏继承。入口为**示例 → 导航栏 → NavButton**。
 
 文件数量、测试方法数量和历史执行通过数量分别统计。能力注入可检查旧版分支，不能替代真实旧版 runtime；测试中的条件 skip 必须按实际结果记录。
 

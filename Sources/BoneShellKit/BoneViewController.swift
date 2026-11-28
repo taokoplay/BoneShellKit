@@ -747,10 +747,8 @@ open class BoneViewController: UIViewController {
             let head = actionState(for: run.first)
             let cluster = head.cluster ?? ShellNavButtonCluster()
             cluster.navigationBar = navigationController?.navigationBar
-            // 模块进入或离开侧栏时重新提交条目：横竖两种承载的布局方式不同。
-            // 轴向变化后 UIKit 需要按新的横竖尺寸重新量测，否则竖排模块仍按其横排尺寸摆放。
-            // 组不拆分：仍由同一个 cluster 整体竖排。
-            cluster.onAxisChange = { [weak self] _ in
+            // UIKit 需要按新轴向或栏位厚度重新量测 customView。按钮组仍作为一个条目提交。
+            cluster.onSizeChange = { [weak self] in
                 guard let self else { return }
                 self.lastActionLayoutKey = nil
                 self.updateNavigationActions()

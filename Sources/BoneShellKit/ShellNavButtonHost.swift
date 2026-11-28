@@ -125,7 +125,7 @@ final class ShellNavButtonHost: UIButton {
 
     private func render() {
         style = appearance.resolvedStyle(isVertical: isVertical)
-        let i = style.contentInsets ?? .zero
+        let i = style.contentInsets ?? NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
         insets = NSDirectionalEdgeInsets(top: Self.extent(i.top), leading: Self.extent(i.leading),
                                          bottom: Self.extent(i.bottom), trailing: Self.extent(i.trailing))
         let content = resolveCustomContent()
@@ -244,6 +244,11 @@ final class ShellNavButtonHost: UIButton {
     /// 按钮自己绘制表面时，表面随模块视觉偏移一起移动，图形始终与表面同心。
     private var paintsOwnSurface: Bool { !surface.isHidden }
 
+    /// 组内动作的按钮级材质已在提交前关闭。这一规则只用于有自绘表面的标准图标。
+    var usesDefaultCircle: Bool {
+        style.size == .inherited && style.contentInsets == nil && paintsOwnSurface && image(for: .normal) != nil
+    }
+
     private func shiftedRect(_ rect: CGRect) -> CGRect {
         moduleVisualOffsetVertical
             ? rect.offsetBy(dx: 0, dy: moduleVisualOffset)
@@ -273,6 +278,8 @@ final class ShellNavButtonHost: UIButton {
     /// 尺寸取实际布局到的 `bounds`（系统可能把请求宽度压小），位置跟随模块视觉偏移；
     /// 表面、图标和标题因此共用同一份几何，任一项都不会相对其他项错位。
     private var surfaceFrame: CGRect {
+        // 圆形按钮的外框由 cluster 在槽位内等比布局，表面直接使用这个正方形。
+        if usesDefaultCircle { return shiftedRect(bounds) }
         var size = bounds.size
         if !moduleVisualOffsetVertical, barItemCross > size.height, size.height > 0 {
             size.height = barItemCross

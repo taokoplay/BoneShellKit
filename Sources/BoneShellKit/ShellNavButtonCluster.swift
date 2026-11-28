@@ -101,9 +101,10 @@ final class ShellNavButtonCluster: UIView {
     /// 多个元素相接或重叠都会在接缝处产生凹陷或二次折射的暗带。
     private let groupSurface = ShellGlassView(material: .solid)
     weak var navigationBar: UINavigationBar?
-    /// 轴向变化通知：宿主据此把按钮组拆成独立条目，让系统在侧栏里竖向堆叠。
-    var onAxisChange: ((Bool) -> Void)?
-    private var axisChangeScheduled = false
+    /// 自定义条目尺寸变化时，请宿主重新提交给 UIKit 量测。
+    var onSizeChange: (() -> Void)?
+    private var sizeChangeScheduled = false
+    private var measuredDefaultCircleSide: CGFloat?
     /// 侧栏里系统按钮玻璃比槽位宽出的量（Duo 外屏实测：槽位 44 pt，返回键玻璃 47.7 pt）。
     ///
     /// 玻璃会画到槽位之外，因此我们绘制的表面按「槽位 + 该差值」取宽，才能与返回键等宽。
@@ -161,6 +162,7 @@ final class ShellNavButtonCluster: UIView {
             if button.superview !== self { addSubview(button) }
             button.setVertical(isVertical)
         }
+        measuredDefaultCircleSide = defaultCircleSide
         isAccessibilityElement = false
         accessibilityElements = buttons
         invalidateIntrinsicContentSize()
@@ -196,6 +198,12 @@ final class ShellNavButtonCluster: UIView {
         return max(0, bar.bounds.height - inset)
     }
 
+    /// 使用系统条目的常规厚度，限制横栏测量上限以避开大标题展开的高度。
+    private var defaultCircleSide: CGFloat? {
+        guard buttons.contains(where: \.usesDefaultCircle) else { return nil }
+        return min(sidebarItemSide, max(44, barItemCross))
+    }
+
     func setModuleVisualOffset(_ offset: CGFloat) {
         let value = offset.isFinite ? offset : 0
         guard moduleVisualOffset != value else { return }
@@ -206,7 +214,13 @@ final class ShellNavButtonCluster: UIView {
     /// A small visual does not stretch to fill a 44 pt target. Neighbours divide their
     /// gap; free space at the two ends can complete the outermost targets.
     private var metrics: (lengths: [CGFloat], cross: [CGFloat], before: CGFloat, after: CGFloat) {
-        let sizes = buttons.map(\.preferredVisualSize)
+        let circleSide = defaultCircleSide
+        let sizes = buttons.map { button -> CGSize in
+            let fitted = button.preferredVisualSize
+            guard let circleSide, button.usesDefaultCircle else { return fitted }
+            let diameter = max(circleSide, fitted.width, fitted.height)
+            return CGSize(width: diameter, height: diameter)
+        }
         let lengths = sizes.map { isVertical ? $0.height : $0.width }
         let cross = sizes.map { isVertical ? $0.width : $0.height }
         guard let first = lengths.first, let last = lengths.last else { return ([], [], 0, 0) }
@@ -248,6 +262,13 @@ final class ShellNavButtonCluster: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         refreshPlacement()
+        let circleSide = defaultCircleSide
+        if measuredDefaultCircleSide != circleSide {
+            // 导航栏挂载或改变高度后，原生承载可能仍持有上一次量测的尺寸。
+            measuredDefaultCircleSide = circleSide
+            invalidateIntrinsicContentSize()
+            scheduleSizeChangeNotification()
+        }
         // 竖排时长度由按钮数量和组内净距决定（两枚即 44×104），横排的 104×44 装不下。
         // 以自身中心为锚点按目标尺寸收敛，交给系统承载视图按新尺寸摆放。
         // 只收敛高度：宽度由栏位槽位决定，强行改宽会与系统量测互相触发。
@@ -310,7 +331,14 @@ final class ShellNavButtonCluster: UIView {
         touchRects = buttons.indices.map { i in
             let length = squaresWithGroup ? verticalItemSide : m.lengths[i] * scale
             let span = squaresWithGroup ? verticalItemSide : min(cross, m.cross[i])
-            buttons[i].frame = rect(p, length, span)
+            let slot = rect(p, length, span)
+            if buttons[i].usesDefaultCircle {
+                let side = min(length, span)
+                buttons[i].frame = CGRect(x: slot.midX - side / 2, y: slot.midY - side / 2,
+                                          width: side, height: side)
+            } else {
+                buttons[i].frame = slot
+            }
             let need = max(0, 44 - length)
             let left = i == 0 ? min(p, max(need / 2, need - gap / 2)) : min(gap / 2, need / 2)
             let right = i == buttons.count - 1 ? min(max(0, available - p - length), need - left) : min(gap / 2, need - left)
@@ -370,9 +398,6 @@ final class ShellNavButtonCluster: UIView {
         let vertical = isMountedInSideBar
         guard vertical != isVertical, tracksNativePlacement else { return }
         applyAxis(vertical)
-        // UIKit 只在提交条目时量测自定义视图一次。挂上侧轨后需要宿主按新的竖排尺寸
-        // 重新提交条目，否则会沿用横排的 104×44。
-        scheduleAxisChangeNotification(vertical)
     }
 
     /// 切换横竖排并立即按新轴向重新定尺寸。
@@ -388,16 +413,16 @@ final class ShellNavButtonCluster: UIView {
         }
         superview?.setNeedsLayout()
         setNeedsLayout()
-        scheduleAxisChangeNotification(vertical)
+        scheduleSizeChangeNotification()
     }
 
-    private func scheduleAxisChangeNotification(_ vertical: Bool) {
-        guard onAxisChange != nil, !axisChangeScheduled else { return }
-        axisChangeScheduled = true
+    private func scheduleSizeChangeNotification() {
+        guard onSizeChange != nil, !sizeChangeScheduled else { return }
+        sizeChangeScheduled = true
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            self.axisChangeScheduled = false
-            self.onAxisChange?(vertical)
+            self.sizeChangeScheduled = false
+            self.onSizeChange?()
         }
     }
 

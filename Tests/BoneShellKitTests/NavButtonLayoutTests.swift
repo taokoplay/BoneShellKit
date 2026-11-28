@@ -249,6 +249,97 @@ final class NavButtonLayoutTests: XCTestCase {
         XCTAssertGreaterThan(glyph.frame.width, 5)
     }
 
+    func testDefaultIconSurfaceFollowsBarAndStaysCircularWhenCompressed() throws {
+        let action = NavigationAction(id: "add", title: "新增", navButton: .init(normal: .init(
+            iconSize: CGSize(width: 22, height: 22), effect: .material(.systemGlass)
+        )), icon: .systemSymbol("plus")) {}
+        let button = ShellNavButtonHost()
+        button.update(action: action, textStyle: .init()) {}
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 466, height: 678))
+        defer { window.isHidden = true }
+        let bar = UINavigationBar(frame: CGRect(x: 0, y: 40, width: 466, height: 58))
+        window.addSubview(bar)
+        window.makeKeyAndVisible()
+        let cluster = ShellNavButtonCluster()
+        cluster.navigationBar = bar
+        cluster.update(buttons: [button], spacing: 0, tracksNativePlacement: false)
+        let surface = try XCTUnwrap(button.subviews.compactMap { $0 as? ShellGlassView }.first)
+        let checkCircle: (CGFloat) throws -> Void = { diameter in
+            let size = CGSize(width: diameter, height: diameter)
+            cluster.layoutIfNeeded()
+            button.layoutIfNeeded()
+            XCTAssertEqual(button.bounds.size, size)
+            XCTAssertEqual(surface.bounds.size, size)
+            XCTAssertEqual(surface.layer.cornerRadius, diameter / 2)
+            let image = try XCTUnwrap(button.imageView)
+            XCTAssertEqual(image.frame.midX, surface.frame.midX, accuracy: 0.1)
+            XCTAssertEqual(image.frame.midY, surface.frame.midY, accuracy: 0.1)
+        }
+
+        XCTAssertEqual(cluster.intrinsicContentSize, CGSize(width: 48, height: 48))
+        cluster.frame.size = cluster.intrinsicContentSize
+        try checkCircle(48)
+        XCTAssertEqual(cluster.touchRect(for: button)?.size, CGSize(width: 48, height: 48))
+
+        cluster.frame.size = CGSize(width: 34, height: 44)
+        try checkCircle(34)
+        XCTAssertEqual(cluster.touchRect(for: button)?.size, CGSize(width: 34, height: 44))
+
+        bar.frame.size.height = 44
+        cluster.setNeedsLayout()
+        cluster.layoutIfNeeded()
+        XCTAssertEqual(cluster.intrinsicContentSize, CGSize(width: 44, height: 44))
+        cluster.frame.size = cluster.intrinsicContentSize
+        try checkCircle(44)
+
+        cluster.setVerticalForLayoutTesting(true)
+        XCTAssertEqual(cluster.intrinsicContentSize, CGSize(width: 48, height: 48))
+        cluster.frame.size = cluster.intrinsicContentSize
+        try checkCircle(48)
+        // UIKit may cap the cross-axis size. The surface fits the cap and the touch target uses the slot.
+        cluster.frame.size.width = 44
+        try checkCircle(44)
+        XCTAssertEqual(cluster.touchRect(for: button)?.size, CGSize(width: 44, height: 48))
+    }
+
+    func testDefaultCircleRequiresInheritedSizeInsetsAndStandardImageSurface() throws {
+        let cases: [(String, ShellNavButton.Style, ShellNavigationIcon?, CGSize)] = [
+            ("fitting", .init(size: .fitting, effect: .material(.solid)), .systemSymbol("plus"),
+             CGSize(width: 38, height: 30)),
+            ("preferred", .init(size: .preferred(CGSize(width: 44, height: 72)), effect: .material(.solid)),
+             .systemSymbol("plus"), CGSize(width: 44, height: 72)),
+            ("insets", .init(contentInsets: .zero, effect: .material(.solid)), .systemSymbol("plus"),
+             CGSize(width: 22, height: 22)),
+            ("transparent", .init(effect: .none), .systemSymbol("plus"), CGSize(width: 38, height: 30)),
+            ("custom", .init(contentInsets: nil, effect: .material(.solid), content: .custom(revision: 0, makeView: {
+                UIView(frame: CGRect(x: 0, y: 0, width: 26, height: 20))
+            })), .systemSymbol("plus"), CGSize(width: 42, height: 28)),
+        ]
+        for (name, options, icon, size) in cases {
+            var style = options
+            style.iconSize = CGSize(width: 22, height: 22)
+            let action = NavigationAction(id: name, title: "新增", navButton: .init(normal: style), icon: icon) {}
+            let button = ShellNavButtonHost()
+            button.update(action: action, textStyle: .init()) {}
+            let cluster = ShellNavButtonCluster()
+            cluster.update(buttons: [button], spacing: 0, tracksNativePlacement: false)
+            cluster.frame.size = cluster.intrinsicContentSize
+            cluster.layoutIfNeeded()
+            XCTAssertEqual(button.bounds.size, size, name)
+        }
+
+        let missing = NavigationAction(id: "fallback", title: "完成", navButton: .init(normal: .init(
+            effect: .material(.solid)
+        )), icon: .asset("nonexistent-default-circle-test", bundle: .main)) {}
+        let fallback = ShellNavButtonHost()
+        fallback.update(action: missing, textStyle: .init()) {}
+        let cluster = ShellNavButtonCluster()
+        cluster.update(buttons: [fallback], spacing: 0, tracksNativePlacement: false)
+        cluster.layoutIfNeeded()
+        XCTAssertEqual(fallback.title(for: .normal), "完成")
+        XCTAssertEqual(fallback.bounds.size, fallback.preferredVisualSize)
+    }
+
     func testGlassSurfaceMatchesTheSystemBarItemHeight() throws {
         let action = NavigationAction(id: "done", title: "完成",
                                       navButton: .init(normal: .init(size: .preferred(.init(width: 72, height: 44)),

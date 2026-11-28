@@ -55,6 +55,8 @@
 
 `ShellNavButton(normal:iPhoneDuo:)` 支持分轴配置按钮尺寸、图标尺寸、方向性内边距、整项视图工厂和背景。`iPhoneDuo` 仅在实际侧边栏生效；`sidebarBehavior: .disabled` 关闭该模块的默认侧边栏迁移，同时也停止 `iPhoneDuo` 样式解析。完整示例见[导航动作与自适应](Navigation-Actions.md)。
 
+自 v0.14.2 起，独立自绘材质按钮显示标准图标且使用 `.inherited` 尺寸、默认 `contentInsets` 时按栏位绘制圆形。`.fitting` 按内容逐维量测，`.preferred` 指定理想外框。触控区域由栏位单独分配。
+
 `NavigationButtonGroup` 的 `sidebarBehavior` 是该模块唯一的侧栏声明：组内动作的同名值被忽略，SDK 用组的值决定系统轴向映射和侧栏样式追踪。
 
 `ShellNavButton.Style.effect` 只表达请求的表面：`.inherited`（不绘制）、`.none`（不绘制）、`.material(ShellMaterial)`（交给材质解析）。它与 `ShellMaterial` 共用回退规则，不再有独立的“液态玻璃”名称；`.material(.systemGlass)` 在 iOS 15–25 回退为磨砂。`ShellNavButton.Style.tintColor` 与 `NavigationButtonGroup.tintColor` 把主题色叠加到按钮表面，语义等同于栏位的 `ShellNavigationStyle.backgroundColor`。绘制与裁剪规则见 [栏位字体、颜色与图标](Bar-Styling.md#材质表面由谁绘制)。
